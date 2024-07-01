@@ -8,7 +8,7 @@ import {
 } from "@/common";
 import { AnonymousAvatarIcon } from "@/icons";
 import { A } from "@solidjs/router";
-import type { ParentProps } from "solid-js";
+import type { ComponentProps, ParentProps } from "solid-js";
 import { AvatarIcon } from "./AvatarIcon";
 
 const BoardNotePublicHeader = (props: {
@@ -89,8 +89,10 @@ function BoardNoteCard(props: ParentProps<StyleProps>) {
   );
 }
 
-const BoardNoteRoot = (props: ParentProps<StyleProps>) => (
-  <article class={clsxString(props.class ?? "")}>{props.children}</article>
+const BoardNoteRoot = (props: ComponentProps<"article">) => (
+  <article class={clsxString(props.class ?? "")} style={props.style}>
+    {props.children}
+  </article>
 );
 
 /**

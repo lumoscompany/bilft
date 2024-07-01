@@ -21,6 +21,7 @@ import {
 import { ArrowPointUp } from "../../icons";
 
 import type { NoteWithComment } from "@/api/model";
+// import { createWindowVirtualizer } from "@tanstack/solid-virtual";
 import { AvatarIcon } from "../BoardNote/AvatarIcon";
 import { BoardNote } from "../BoardNote/BoardNote";
 import { LoadingSvg } from "../LoadingSvg";
@@ -69,6 +70,21 @@ const UserProfilePage = (props: {
   const notes = createMemo(() =>
     notesQuery.isSuccess ? notesQuery.data.pages.flatMap((it) => it.data) : [],
   );
+
+  // const windowVirtualizer = createWindowVirtualizer({
+  //   count: notes().length,
+  //   estimateSize: () => 70,
+  // });
+  // createComputed(() => {
+  //   const options = unwrap(windowVirtualizer.options);
+  //   windowVirtualizer.setOptions({
+  //     ...options,
+  //     count: notes().length,
+  //   });
+  // });
+  // createComputed(() => {
+  //   console.log(notes().length, { ...windowVirtualizer.options });
+  // });
 
   return (
     <main class="flex min-h-screen flex-col pb-6 pt-4 text-text">

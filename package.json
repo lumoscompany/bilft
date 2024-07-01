@@ -16,12 +16,14 @@
     "@fontsource-variable/inter": "^5.0.18",
     "@solidjs/router": "^0.13.6",
     "@tanstack/solid-query": "5.44.0",
+    "@tanstack/solid-virtual": "^3.8.1",
     "@tma.js/sdk": "^2.5.0",
     "@tma.js/solid-router-integration": "^5.0.2",
     "@tonconnect/ui": "^2.0.3",
     "axios": "^1.6.8",
     "solid-js": "^1.8.17",
     "solid-sonner": "^0.2.8",
+    "virtua": "^0.33.2",
     "vite-plugin-solid": "^2.10.2"
   },
   "devDependencies": {

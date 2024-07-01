@@ -153,3 +153,6 @@ export const unwrapSignals = <T extends Record<string, unknown>>(
   return copy as UnwrapSignals<T>;
 };
 
+export const PxString = {
+  fromNumber: (value: number): `${number}px` => `${value}px`,
+};
