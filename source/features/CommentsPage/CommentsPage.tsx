@@ -21,6 +21,7 @@ import {
   createEffect,
   createMemo,
   createSignal,
+  on,
   onCleanup,
 } from "solid-js";
 import { Portal } from "solid-js/web";
@@ -28,6 +29,7 @@ import { AvatarIcon } from "../BoardNote/AvatarIcon";
 import { BoardNote } from "../BoardNote/BoardNote";
 import { LoadingSvg } from "../LoadingSvg";
 import { CommentCreator } from "../ProfilePage/PostCreator";
+import { useKeyboardStatus } from "../keyboardStatus";
 import { useScreenSize } from "../screenSize";
 
 export const CommentsPage = () => {
@@ -79,6 +81,7 @@ export const CommentsPage = () => {
         </BoardNote.Card>
       </BoardNote>
 
+      {/* <div class="max-h-[100vh] overflow-auto"> */}
       <Switch>
         <Match when={commentsQuery.isLoading}>
           <div class="flex w-full flex-1 items-center justify-center">
@@ -154,13 +157,14 @@ export const CommentsPage = () => {
           </Show>
         </Match>
       </Switch>
+      {/* </div> */}
 
       <Switch>
         {/* [TODO]: remove always true */}
-        <Match when={true}>
+        <Match when={platform === "ios"}>
           <IosCommentCreator boardId={boardId()} noteId={note().id} />
         </Match>
-        <Match when={platform !== "ios"}>
+        <Match when={true}>
           <div class="sticky bottom-0 -mx-4 mt-auto bg-secondary-bg px-4 pb-6 pt-2">
             <CommentCreator
               boardId={boardId()}
@@ -182,6 +186,97 @@ export const CommentsPage = () => {
   );
 };
 
+const useInnerHeight = () => {
+  // innerHeight do not change on Safari even keyboard is open
+  const [innerHeight, setInnerHeight] = createSignal(window.innerHeight);
+  const [visualHeight, setVisualHeight] = createSignal(
+    window.visualViewport?.height ?? window.innerHeight,
+  );
+  const { height } = useScreenSize();
+  createEffect(() => {
+    console.log(
+      unwrapSignals({
+        innerHeight,
+        height,
+      }),
+    );
+  });
+  new ResizeObserver(() => {
+    console.log({ h: window.innerHeight });
+  }).observe(document.body);
+  useCleanup((signal) => {
+    window.addEventListener(
+      "resize",
+      () => {
+        setInnerHeight(window.innerHeight);
+      },
+      {
+        signal,
+      },
+    );
+
+    window.visualViewport?.addEventListener(
+      "resize",
+      () => {
+        console.log("visual resize", window.visualViewport?.height);
+        setVisualHeight(window.visualViewport?.height ?? window.innerHeight);
+      },
+      {
+        signal,
+      },
+    );
+  });
+
+  // const id = setInterval(() => {
+  //   setInnerHeight(window.innerHeight);
+  //   // Function to measure the height for a given CSS unit
+  //   function getViewportUnitHeight(unit) {
+  //     // Create a temporary element
+  //     const tempElement = document.createElement("div");
+
+  //     // Apply the desired unit as height
+  //     tempElement.style.height = `100${unit}`;
+  //     tempElement.style.position = "absolute";
+  //     tempElement.style.top = "-9999px";
+  //     tempElement.style.visibility = "hidden";
+
+  //     // Append to the body
+  //     document.body.appendChild(tempElement);
+
+  //     // Measure the height in pixels
+  //     const height = tempElement.clientHeight;
+
+  //     // Remove the element from the DOM
+  //     document.body.removeChild(tempElement);
+
+  //     return height;
+  //   }
+
+  //   // Get the height in pixels for svh and dvh
+  //   const svhHeight = getViewportUnitHeight("svh");
+  //   const dvhHeight = getViewportUnitHeight("dvh");
+  //   const perecentHeight = getViewportUnitHeight("%");
+  //   console.log({
+  //     svhHeight,
+  //     dvhHeight,
+  //     perecentHeight,
+  //     innerHeight: window.innerHeight,
+  //     tgHeight: height(),
+  //   });
+  // }, 100);
+
+  // onCleanup(() => clearInterval(id));
+
+  return {
+    get inner() {
+      return innerHeight();
+    },
+    get visual() {
+      return visualHeight();
+    },
+  };
+};
+
 const IosCommentCreator = (props: { noteId: string; boardId: string }) => {
   const [placeHeight, setPlaceHeight] = createSignal(0);
   const [inputElement, setInputElement] = createSignal<HTMLDivElement>();
@@ -195,10 +290,10 @@ const IosCommentCreator = (props: { noteId: string; boardId: string }) => {
     const mutObserver = new ResizeObserver(() => {
       const curHeight = el.getBoundingClientRect().height;
       if (Math.abs(curHeight - prevHeight) > 2) {
-        window.scrollBy({
-          top: curHeight - prevHeight,
-          behavior: "instant",
-        });
+        // scrollableElement.scrollBy({
+        //   top: curHeight - prevHeight,
+        //   behavior: "instant",
+        // });
       }
       prevHeight = curHeight;
 
@@ -209,40 +304,40 @@ const IosCommentCreator = (props: { noteId: string; boardId: string }) => {
 
     onCleanup(() => mutObserver.disconnect());
   });
-
-  const useInnerHeight = () => {
-    // innerHeight do not change on Safari even keyboard is open
-    const [innerHeight, setInnerHeight] = createSignal(window.innerHeight);
-    createEffect(() => {
-      console.log(
-        unwrapSignals({
-          innerHeight,
-          height,
-        }),
-      );
-    });
-    new ResizeObserver(() => {
-      console.log({ h: window.innerHeight });
-    }).observe(document.body);
-    useCleanup((signal) => {
-      window.addEventListener(
-        "resize",
-        () => {
-          setInnerHeight(window.innerHeight);
-        },
-        {
-          signal,
-        },
-      );
-    });
-
-    return innerHeight;
-  };
+  const { isKeyboardOpen } = useKeyboardStatus();
 
   const { height } = useScreenSize();
-  const innerHeight = useInnerHeight();
+  const browserHeight = useInnerHeight();
+  // bottom is work from innerHeight, not visual one
   const initialDiff =
-    innerHeight() - height() > 0 ? innerHeight() - height() : 0;
+    browserHeight.visual - height() > 0 ? browserHeight.visual - height() : 0;
+
+  const hasShitLine = () => browserHeight.inner - browserHeight.visual;
+  const bottom = () =>
+    `${browserHeight.inner - height() + (isKeyboardOpen() ? (browserHeight.visual !== height() ? height() - browserHeight.visual : 0) : -initialDiff)}px`;
+  createEffect(() => {
+    console.log(
+      unwrapSignals({
+        initialDiff,
+        innerHeight: browserHeight,
+        ...browserHeight,
+        height,
+        bottom,
+        hasShitLine,
+      }),
+    );
+  });
+  createEffect(
+    on(
+      () => isKeyboardOpen(),
+      () => {
+        // window.scrollBy({
+        //   top: -0.1,
+        //   behavior: "instant",
+        // });
+      },
+    ),
+  );
 
   return (
     <>
@@ -252,12 +347,15 @@ const IosCommentCreator = (props: { noteId: string; boardId: string }) => {
       <Portal>
         <div
           ref={setInputElement}
-          class="fixed inset-x-0 bottom-0 bg-secondary-bg px-4 pb-6 pt-2"
+          class={clsxString(
+            "fixed inset-x-0 bottom-0 bg-secondary-bg px-4 pt-2",
+            !isKeyboardOpen() ? "pb-6" : "",
+          )}
           style={{
             // bottom: 0,
             // transform: `translateY(${-1 * (innerHeight() - height() - initialDiff)}px)`,
             // transform: `translateY(${-1 * initialDiff}px)`,
-            bottom: `${innerHeight() - height() - initialDiff}px`,
+            bottom: bottom(),
           }}
         >
           <CommentCreator

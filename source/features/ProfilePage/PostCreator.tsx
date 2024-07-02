@@ -52,6 +52,7 @@ import {
   type Accessor,
   type ComponentProps,
 } from "solid-js";
+import { Portal } from "solid-js/web";
 import { LoadingSvg } from "../LoadingSvg";
 import { disconnectWallet } from "../SetupTonWallet";
 import { useKeyboardStatus } from "../keyboardStatus";
@@ -196,6 +197,7 @@ function PostInput(
   const symbolsRemaining = () => MAX_POST_LENGTH - trimmedText().length;
   const [isFocused, setIsFocused] = createSignal(false);
 
+  // const [shouldPreventFocus, setShouldPreventFocus] = createSignal(false);
   if (platform === "ios") {
     createEffect(() => {
       if (!isFocused()) {
@@ -216,6 +218,7 @@ function PostInput(
         window.addEventListener("touchend", () => (state = null), {
           signal,
         });
+
         window.addEventListener(
           "scroll",
           (e) => {
@@ -240,6 +243,7 @@ function PostInput(
   }
   const { isKeyboardOpen } = useKeyboardStatus();
 
+  let prevFocus = 0
   return (
     <form
       onSubmit={(e) => {
@@ -257,6 +261,9 @@ function PostInput(
         class='-mr-4 grid max-h-[calc(var(--tgvh)*40)] flex-1 grid-cols-1 overflow-y-auto pr-3 font-inter text-[16px] leading-[21px] [scrollbar-gutter:stable] after:invisible after:whitespace-pre-wrap after:break-words after:font-[inherit] after:content-[attr(data-value)_"_"] after:[grid-area:1/1/2/2] [&>textarea]:[grid-area:1/1/2/2]'
         data-value={props.value}
       >
+        <Portal>
+          <input id="aboba" class="fixed left-[9999px] top-0" />
+        </Portal>
         <textarea
           placeholder="Text me here..."
           rows={1}
@@ -264,12 +271,26 @@ function PostInput(
           onInput={(e) => {
             props.onChange(e.target.value);
           }}
-          onFocus={() => {
-            prevFocusTimestamp = Date.now();
+          onFocus={(e) => {
             setIsFocused(true);
+
+            if (Date.now() - prevFocus < 200) {
+              document.querySelector("#aboba")!.focus();
+              prevFocus = Date.now();
+              setTimeout(() => {
+                self.focus();
+              }, 500);
+            }
           }}
           onBlur={() => {
             setIsFocused(false);
+            // trying to remove automatic scroll
+            if (platform === "ios") {
+              window.scrollBy({
+                behavior: "instant",
+                top: -0.1,
+              });
+            }
           }}
           inert={props.isLoading}
           onKeyDown={(e) => {
@@ -278,6 +299,7 @@ function PostInput(
               props.onSubmit();
             }
           }}
+          autocomplete="false"
           ref={inputRef}
           class="w-full max-w-full resize-none overflow-hidden break-words border-none bg-transparent placeholder:select-none focus:border-none focus:outline-none"
         />
