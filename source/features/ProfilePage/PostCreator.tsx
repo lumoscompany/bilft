@@ -265,7 +265,6 @@ function PostInput(
             props.onChange(e.target.value);
           }}
           onFocus={() => {
-            prevFocusTimestamp = Date.now();
             setIsFocused(true);
           }}
           onBlur={() => {
