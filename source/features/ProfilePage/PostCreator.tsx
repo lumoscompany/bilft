@@ -196,8 +196,6 @@ function PostInput(
   const symbolsRemaining = () => MAX_POST_LENGTH - trimmedText().length;
   const [isFocused, setIsFocused] = createSignal(false);
 
-  let prevFocusTimestamp = 0;
-
   if (platform === "ios") {
     createEffect(() => {
       if (!isFocused()) {
@@ -205,12 +203,25 @@ function PostInput(
       }
 
       useCleanup((signal) => {
+        let state: null | "start" | "move" = null;
+        window.addEventListener("touchstart", () => (state = "start"), {
+          signal,
+        });
+        window.addEventListener("touchmove", () => (state = "move"), {
+          signal,
+        });
+        window.addEventListener("touchcancel", () => (state = null), {
+          signal,
+        });
+        window.addEventListener("touchend", () => (state = null), {
+          signal,
+        });
         window.addEventListener(
           "scroll",
           (e) => {
             if (
               inputRef &&
-              Date.now() - prevFocusTimestamp > 250 &&
+              state === "move" &&
               e.target &&
               (e.target instanceof Element || e.target instanceof Document) &&
               !formRef?.contains(e.target)
