@@ -225,11 +225,6 @@ const binIntSearch = (
   while (right - left > 1) {
     const mid = left + (((right - left) / 2) | 0);
 
-    console.log({
-      mid,
-      left,
-      right,
-    });
     if (isResultLower(mid)) {
       right = mid;
     } else {
