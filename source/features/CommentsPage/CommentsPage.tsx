@@ -7,28 +7,15 @@ import {
   formatPostTime,
   platform,
   scrollableElement,
-  unwrapSignals,
 } from "@/common";
 import { AnonymousAvatarIcon } from "@/icons";
-import { useCleanup } from "@/lib/solid";
 import { A, useSearchParams } from "@solidjs/router";
 import { createInfiniteQuery } from "@tanstack/solid-query";
-import {
-  For,
-  Match,
-  Show,
-  Switch,
-  createEffect,
-  createMemo,
-  createSignal,
-  onCleanup,
-} from "solid-js";
-import { Portal } from "solid-js/web";
+import { For, Match, Show, Switch, createMemo } from "solid-js";
 import { AvatarIcon } from "../BoardNote/AvatarIcon";
 import { BoardNote } from "../BoardNote/BoardNote";
 import { LoadingSvg } from "../LoadingSvg";
 import { CommentCreator } from "../ProfilePage/PostCreator";
-import { useScreenSize } from "../screenSize";
 
 export const CommentsPage = () => {
   const [searchParams] = useSearchParams();
@@ -54,6 +41,24 @@ export const CommentsPage = () => {
       : [],
   );
 
+  const commentCreator = (
+    <CommentCreator
+      boardId={boardId()}
+      noteId={note().id}
+      onCreated={() => {
+        if (platform === "ios") {
+          return;
+        }
+        // wait for render
+        requestAnimationFrame(() => {
+          scrollableElement.scrollTo({
+            behavior: "smooth",
+            top: scrollableElement.scrollHeight,
+          });
+        });
+      }}
+    />
+  );
   return (
     <main class="flex min-h-screen flex-col bg-secondary-bg px-4">
       <BoardNote class="my-4">
@@ -79,6 +84,15 @@ export const CommentsPage = () => {
         </BoardNote.Card>
       </BoardNote>
 
+      <Show when={platform === "ios"}>
+        <div
+          // good pack of styling TG will not overscroll on any fixed/sticky element
+          // class="sticky top-0 z-10 -mx-2 -mt-3 mb-5 bg-secondary-bg px-2 pb-1 pt-2"
+          class="-mt-2 mb-2"
+        >
+          {commentCreator}
+        </div>
+      </Show>
       <Switch>
         <Match when={commentsQuery.isLoading}>
           <div class="flex w-full flex-1 items-center justify-center">
@@ -155,126 +169,11 @@ export const CommentsPage = () => {
         </Match>
       </Switch>
 
-      <Switch>
-        {/* [TODO]: remove always true */}
-        <Match when={true}>
-          <IosCommentCreator boardId={boardId()} noteId={note().id} />
-        </Match>
-        <Match when={platform !== "ios"}>
-          <div class="sticky bottom-0 -mx-4 mt-auto bg-secondary-bg px-4 pb-6 pt-2">
-            <CommentCreator
-              boardId={boardId()}
-              noteId={note().id}
-              onCreated={() => {
-                // wait for render
-                requestAnimationFrame(() => {
-                  scrollableElement.scrollTo({
-                    behavior: "smooth",
-                    top: window.innerHeight,
-                  });
-                });
-              }}
-            />
-          </div>
-        </Match>
-      </Switch>
-    </main>
-  );
-};
-
-const IosCommentCreator = (props: { noteId: string; boardId: string }) => {
-  const [placeHeight, setPlaceHeight] = createSignal(0);
-  const [inputElement, setInputElement] = createSignal<HTMLDivElement>();
-  createEffect(() => {
-    const el = inputElement();
-    if (!el) {
-      return;
-    }
-
-    let prevHeight = el.getBoundingClientRect().height;
-    const mutObserver = new ResizeObserver(() => {
-      const curHeight = el.getBoundingClientRect().height;
-      if (Math.abs(curHeight - prevHeight) > 2) {
-        window.scrollBy({
-          top: curHeight - prevHeight,
-          behavior: "instant",
-        });
-      }
-      prevHeight = curHeight;
-
-      setPlaceHeight(curHeight);
-    });
-
-    mutObserver.observe(el);
-
-    onCleanup(() => mutObserver.disconnect());
-  });
-
-  const useInnerHeight = () => {
-    // innerHeight do not change on Safari even keyboard is open
-    const [innerHeight, setInnerHeight] = createSignal(window.innerHeight);
-    createEffect(() => {
-      console.log(
-        unwrapSignals({
-          innerHeight,
-          height,
-        }),
-      );
-    });
-    new ResizeObserver(() => {
-      console.log({ h: window.innerHeight });
-    }).observe(document.body);
-    useCleanup((signal) => {
-      window.addEventListener(
-        "resize",
-        () => {
-          setInnerHeight(window.innerHeight);
-        },
-        {
-          signal,
-        },
-      );
-    });
-
-    return innerHeight;
-  };
-
-  const { height } = useScreenSize();
-  const innerHeight = useInnerHeight();
-  const initialDiff =
-    innerHeight() - height() > 0 ? innerHeight() - height() : 0;
-
-  return (
-    <>
-      <div
-        style={{ height: `${placeHeight()}px`, background: "transparent" }}
-      />
-      <Portal>
-        <div
-          ref={setInputElement}
-          class="fixed inset-x-0 bottom-0 bg-secondary-bg px-4 pb-6 pt-2"
-          style={{
-            // bottom: 0,
-            // transform: `translateY(${-1 * (innerHeight() - height() - initialDiff)}px)`,
-            // transform: `translateY(${-1 * initialDiff}px)`,
-            bottom: `${innerHeight() - height() - initialDiff}px`,
-          }}
-        >
-          <CommentCreator
-            boardId={props.boardId}
-            noteId={props.noteId}
-            onCreated={() => {
-              // wait for render
-              requestAnimationFrame(() => {
-                scrollableElement.scrollTo({
-                  behavior: "smooth",
-                  top: document.body.scrollHeight,
-                });
-              });
-            }}
-          />
+      <Show when={platform !== "ios"}>
+        <div class="sticky bottom-0 -mx-4 mt-auto bg-secondary-bg px-4 pb-6 pt-2">
+          {commentCreator}
         </div>
-      </Portal>
-    </>
+      </Show>
+    </main>
   );
 };
