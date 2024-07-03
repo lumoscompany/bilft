@@ -260,13 +260,18 @@ const binIntSearch = (
 };
 
 const estimation =
-  (window.visualViewport?.width ?? window.innerHeight) -
-  (platform === "ios" ? 64 : 74);
+  ((window.visualViewport?.width ?? window.innerWidth) | 0) -
+  // 74 px is distance from screen border to comments (on windows desktop)
+  (platform === "ios" || platform === "android" ? 64 : 74);
+
 // [TODO]: reduce amount of overhead per comment (virtual scroll)
-// 74 px is distance from screen border to comments (on some device)
 const [commentsSize, setCommentSize] = createSignal(estimation);
 
-if (import.meta.env.DEV && estimation !== commentsSize()) {
+export const isWhiteSpace = (str: string) => {
+  return str === " " || str === "\n" || str === "\t";
+};
+
+if (import.meta.env.DEV) {
   createEffect(
     on(
       () => estimation !== commentsSize(),
@@ -290,6 +295,7 @@ const CommentNoteFooterLayout = (props: {
   // [TODO]: we need to check if font really loaded or not
   const author = () =>
     props.lastComment.type === "public" ? props.lastComment.author : undefined;
+  const content = () => props.lastComment.content;
   const authorName = () => author()?.name ?? "Anonymous";
   const userNameSize = createMemo(() => {
     CanvasHelper.setFontAssert(ctx, `600 14px "Inter Variable"`);
@@ -311,7 +317,7 @@ const CommentNoteFooterLayout = (props: {
 
   const layout = createMemo(() => {
     CanvasHelper.setFontAssert(ctx, `600 14px "Inter Variable"`);
-    const contentSize = ctx.measureText(props.lastComment.content).width;
+    const contentSize = ctx.measureText(content()).width;
 
     const targetFirstLineSize =
       commentsSize() -
@@ -322,7 +328,7 @@ const CommentNoteFooterLayout = (props: {
         showMoreSize());
 
     if (contentSize < targetFirstLineSize) {
-      return [props.lastComment.content];
+      return [content()];
     }
 
     const targetFirstLineSizeTwoRows =
@@ -332,31 +338,36 @@ const CommentNoteFooterLayout = (props: {
 
     const size = binIntSearch(
       0,
-      Math.min(props.lastComment.content.length, maxLengthThatCanFitInOneLine),
+      Math.min(content().length + 1, maxLengthThatCanFitInOneLine),
       (size) =>
-        ctx.measureText(props.lastComment.content.slice(0, size)).width >
+        ctx.measureText(content().slice(0, size)).width >
         targetFirstLineSizeTwoRows,
     );
-    // if (props.lastComment.content.startsWith("Йоу, как, же хорошо на ан")) {
-    //   console.log(
-    //     unwrapSignals({
-    //       size,
-    //       targetFirstLineSizeTwoRows,
-    //       showMoreSize,
 
-    //       commentsSize,
-    //       avatarSizeWithGap,
-    //       userNameSize,
-    //       contentMarginLeft,
-    //       moreTextPaddingLeft,
-    //     }),
-    //   );
-    // }
+    const lastFirstLineChar: string = content()[size];
+    let whiteSpaceAwareSize: number = size;
+
+    if (
+      content().length !== size &&
+      lastFirstLineChar &&
+      !isWhiteSpace(lastFirstLineChar)
+    ) {
+      for (let i = 1; i <= 10; ++i) {
+        const curChar = content()[size - i];
+        if (isWhiteSpace(curChar)) {
+          whiteSpaceAwareSize = size - i;
+          break;
+        }
+      }
+    }
 
     return [
-      props.lastComment.content.slice(0, size),
-      props.lastComment.content
-        .slice(size, size + maxLengthThatCanFitInOneLine)
+      content().slice(0, whiteSpaceAwareSize),
+      content()
+        .slice(
+          whiteSpaceAwareSize,
+          whiteSpaceAwareSize + maxLengthThatCanFitInOneLine,
+        )
         .trimStart(),
     ];
   });
@@ -370,7 +381,7 @@ const CommentNoteFooterLayout = (props: {
           return;
         }
 
-        setCommentSize(divRef.clientWidth);
+        setCommentSize(divRef.clientWidth | 0);
         resizeBatched = true;
         queueMicrotask(() => {
           resizeBatched = false;
@@ -378,6 +389,7 @@ const CommentNoteFooterLayout = (props: {
       },
     ),
   );
+  const isTwoLineLayout = () => layout().length === 2;
 
   return (
     <div ref={divRef} class="relative flex min-w-full flex-col overflow-hidden">
@@ -421,23 +433,21 @@ const CommentNoteFooterLayout = (props: {
             {showMoreText()}
           </button>
         }
-        when={layout()[1]}
+        when={isTwoLineLayout()}
       >
-        {(secondLine) => (
-          <div class="inline-flex">
-            <div class="h-[18px] overflow-hidden text-ellipsis text-nowrap break-words font-inter text-[14px] leading-[18px]">
-              {secondLine()}
-            </div>
-
-            <button
-              type="button"
-              onClick={() => props.onClick()}
-              class="ml-auto shrink-0 pl-2 font-inter text-[15px] leading-[18px] text-accent transition-opacity active:opacity-70"
-            >
-              {showMoreText()}
-            </button>
+        <div class="inline-flex">
+          <div class="h-[18px] overflow-hidden text-ellipsis text-nowrap break-words font-inter text-[14px] leading-[18px]">
+            {layout()[1]}
           </div>
-        )}
+
+          <button
+            type="button"
+            onClick={() => props.onClick()}
+            class="ml-auto shrink-0 pl-2 font-inter text-[15px] leading-[18px] text-accent transition-opacity active:opacity-70"
+          >
+            {showMoreText()}
+          </button>
+        </div>
       </Show>
     </div>
   );
