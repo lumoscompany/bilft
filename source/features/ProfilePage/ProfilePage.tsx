@@ -18,6 +18,7 @@ import {
   clsxString,
   getSelfUserId,
   isEqualIds,
+  platform,
   removePrefix,
   scrollableElement,
   type StyleProps,
@@ -214,6 +215,29 @@ const cnv = document.createElement("canvas");
 const ctx = cnv.getContext("2d");
 assertOk(ctx);
 
+const CanvasHelper = {
+  setFontAssert: (ctx: CanvasRenderingContext2D, font: string) => {
+    ctx.font = font;
+    if (import.meta.env.DEV) {
+      const matches =
+        ctx.font === font ||
+        /* Safari is unique peace of shit */
+        (platform === "ios" && font.includes(ctx.font));
+
+      if (!matches) {
+        console.log("mismatch", {
+          should: font,
+          real: ctx.font,
+        });
+      }
+      assertOk(matches);
+    }
+  },
+};
+
+// preloading cyrillic glyphs
+document.fonts.load('14px "Inter Variable"', "фa");
+
 const binIntSearch = (
   left: number,
   right: number,
@@ -234,22 +258,41 @@ const binIntSearch = (
 
   return left;
 };
+
+const estimation =
+  (window.visualViewport?.width ?? window.innerHeight) -
+  (platform === "ios" ? 64 : 74);
 // [TODO]: reduce amount of overhead per comment (virtual scroll)
 // 74 px is distance from screen border to comments (on some device)
-const [commentsSize, setCommentSize] = createSignal(
-  document.body.clientWidth - 74,
-);
+const [commentsSize, setCommentSize] = createSignal(estimation);
+
+if (import.meta.env.DEV && estimation !== commentsSize()) {
+  createEffect(
+    on(
+      () => estimation !== commentsSize(),
+      (mismtach) => {
+        if (mismtach) {
+          console.log("size mismatch", {
+            estmation: estimation,
+            real: commentsSize(),
+          });
+        }
+      },
+    ),
+  );
+}
 let resizeBatched = false;
 const CommentNoteFooterLayout = (props: {
   lastComment: Omit<Comment, "createdAt">;
   commentsCount: number;
   onClick(): void;
 }) => {
+  // [TODO]: we need to check if font really loaded or not
   const author = () =>
     props.lastComment.type === "public" ? props.lastComment.author : undefined;
   const authorName = () => author()?.name ?? "Anonymous";
   const userNameSize = createMemo(() => {
-    ctx.font = "semibold 14px 'Inter Variable'";
+    CanvasHelper.setFontAssert(ctx, `600 14px "Inter Variable"`);
     const metrics = ctx.measureText(authorName());
 
     return metrics.width;
@@ -258,7 +301,7 @@ const CommentNoteFooterLayout = (props: {
 
   const showMoreText = () => `show more (${props.commentsCount})`;
   const showMoreSize = createMemo(() => {
-    ctx.font = "normal 15px 'Inter Variable'";
+    CanvasHelper.setFontAssert(ctx, `15px "Inter Variable"`);
     const metrics = ctx.measureText(showMoreText());
 
     return metrics.width;
@@ -267,8 +310,8 @@ const CommentNoteFooterLayout = (props: {
   const moreTextPaddingLeft = 8;
 
   const layout = createMemo(() => {
-    ctx.font = "semibold 14px 'Inter Variable'";
-    const contentSize = ctx.measureText(props.lastComment.content);
+    CanvasHelper.setFontAssert(ctx, `600 14px "Inter Variable"`);
+    const contentSize = ctx.measureText(props.lastComment.content).width;
 
     const targetFirstLineSize =
       commentsSize() -
@@ -278,7 +321,7 @@ const CommentNoteFooterLayout = (props: {
         moreTextPaddingLeft +
         showMoreSize());
 
-    if (contentSize.width < targetFirstLineSize) {
+    if (contentSize < targetFirstLineSize) {
       return [props.lastComment.content];
     }
 
@@ -294,6 +337,21 @@ const CommentNoteFooterLayout = (props: {
         ctx.measureText(props.lastComment.content.slice(0, size)).width >
         targetFirstLineSizeTwoRows,
     );
+    // if (props.lastComment.content.startsWith("Йоу, как, же хорошо на ан")) {
+    //   console.log(
+    //     unwrapSignals({
+    //       size,
+    //       targetFirstLineSizeTwoRows,
+    //       showMoreSize,
+
+    //       commentsSize,
+    //       avatarSizeWithGap,
+    //       userNameSize,
+    //       contentMarginLeft,
+    //       moreTextPaddingLeft,
+    //     }),
+    //   );
+    // }
 
     return [
       props.lastComment.content.slice(0, size),
@@ -311,6 +369,7 @@ const CommentNoteFooterLayout = (props: {
         if (resizeBatched) {
           return;
         }
+
         setCommentSize(divRef.clientWidth);
         resizeBatched = true;
         queueMicrotask(() => {
