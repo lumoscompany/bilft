@@ -191,6 +191,7 @@ function PostInput(
     isAnonymous: boolean;
     setIsAnonymous: (status: boolean) => void;
     ref?: Ref<HTMLFormElement>;
+    fixSafariScroll?: boolean;
   },
 ) {
   let inputRef!: HTMLTextAreaElement | undefined;
@@ -206,18 +207,18 @@ function PostInput(
         return;
       }
 
+      let touchState: null | "start" | "move" = null;
       useCleanup((signal) => {
-        let state: null | "start" | "move" = null;
-        window.addEventListener("touchstart", () => (state = "start"), {
+        window.addEventListener("touchstart", () => (touchState = "start"), {
           signal,
         });
-        window.addEventListener("touchmove", () => (state = "move"), {
+        window.addEventListener("touchmove", () => (touchState = "move"), {
           signal,
         });
-        window.addEventListener("touchcancel", () => (state = null), {
+        window.addEventListener("touchcancel", () => (touchState = null), {
           signal,
         });
-        window.addEventListener("touchend", () => (state = null), {
+        window.addEventListener("touchend", () => (touchState = null), {
           signal,
         });
         window.addEventListener(
@@ -225,7 +226,7 @@ function PostInput(
           (e) => {
             if (
               inputRef &&
-              state === "move" &&
+              touchState === "move" &&
               e.target &&
               (e.target instanceof Element || e.target instanceof Document) &&
               !formRef?.contains(e.target)
@@ -240,6 +241,58 @@ function PostInput(
           },
         );
       });
+
+      if (props.fixSafariScroll) {
+        useCleanup((signal) => {
+          const ab = new AbortController();
+          signal.onabort = () => {
+            if (touchState !== "move") {
+              ab.abort();
+              return;
+            }
+            let reacted = false;
+            const onTouchFinish = () => {
+              if (reacted) {
+                return;
+              }
+              reacted = true;
+              // smooths scroll resist
+              requestAnimationFrame(() => (touchState = null));
+              setTimeout(() => ab.abort(), 300);
+            };
+
+            window.addEventListener("touchend", onTouchFinish, {
+              signal: ab.signal,
+            });
+            window.addEventListener("touchcancel", onTouchFinish, {
+              signal: ab.signal,
+            });
+          };
+          let firstPrevented = false;
+          window.addEventListener(
+            "scroll",
+            (e) => {
+              const targetIsWindow =
+                e.target === window || e.target === document;
+              if (targetIsWindow) {
+                window.scrollTo({
+                  top: 0,
+                  behavior:
+                    firstPrevented && !touchState ? "instant" : "smooth",
+                });
+
+                requestAnimationFrame(() => {
+                  firstPrevented = true;
+                });
+              }
+            },
+            {
+              signal: ab.signal,
+              passive: false,
+            },
+          );
+        });
+      }
     });
   }
   const { isKeyboardOpen } = useKeyboardStatus();
@@ -824,9 +877,14 @@ export const CommentCreator = (
       type: anonymous ? "anonymous" : "public",
     });
 
+  if (platform === "ios") {
+    createEffect(() => {});
+  }
+
   return (
     <>
       <PostInput
+        fixSafariScroll
         ref={props.ref}
         isAnonymous={isAnonymous()}
         setIsAnonymous={setIsAnonymous}

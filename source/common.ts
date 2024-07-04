@@ -1,5 +1,5 @@
 import { initThemeParams, initUtils, retrieveLaunchParams } from "@tma.js/sdk";
-import type { Accessor } from "solid-js";
+import { onCleanup, type Accessor } from "solid-js";
 
 export type StyleProps = {
   class?: string;
@@ -130,6 +130,26 @@ export const formatPostTime = (createdAt: DateString) =>
     hour: "numeric",
     minute: "2-digit",
   });
+
+export const createInterval = (interval: number, func: () => void) => {
+  const id = setInterval(func, interval);
+  onCleanup(() => {
+    clearInterval(id);
+  });
+};
+
+export const pick = <TObj extends object, TKeys extends keyof TObj>(
+  obj: TObj,
+  keys: TKeys[],
+): Pick<TObj, TKeys> => {
+  const res = {} as Pick<TObj, TKeys>;
+
+  for (const key of keys) {
+    res[key] = obj[key];
+  }
+
+  return res;
+};
 
 type UnwrapSignals<T extends Record<string, unknown>> = {
   [TKey in keyof T]: T[TKey] extends Accessor<infer TValue> ? TValue : T[TKey];

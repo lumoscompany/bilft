@@ -66,6 +66,7 @@ export const CommentsPage = () => {
       commentsQuery.fetchNextPage();
     }
   });
+
   return (
     <main class="flex min-h-screen flex-col bg-secondary-bg px-4">
       <BoardNote class="my-4">
@@ -94,8 +95,8 @@ export const CommentsPage = () => {
       <Show when={platform === "ios"}>
         <div
           // good pack of styling TG will not overscroll on any fixed/sticky element
-          // class="sticky top-0 z-10 -mx-2 -mt-3 mb-5 bg-secondary-bg px-2 pb-1 pt-2"
-          class="-mt-2 mb-2"
+          class="sticky top-0 z-10 -mx-2 -mt-3 mb-5 bg-secondary-bg px-2 pb-1 pt-2"
+          // class="-mt-2 mb-2"
         >
           {commentCreator}
         </div>
