@@ -6,7 +6,11 @@ import {
   keysFactory,
   type CreateNoteRequest,
 } from "@/api/api";
-import type { CreateCommentRequest } from "@/api/model";
+import type {
+  CreateCommentRequest,
+  NoteArray,
+  NoteWithComment,
+} from "@/api/model";
 import {
   assertOk,
   clsxString,
@@ -699,6 +703,48 @@ export const CommentCreator = (
             pageParams: data.pageParams,
             pages,
           };
+        },
+      );
+
+      queryClient.setQueryData(
+        keysFactory.notes({
+          board: props.boardId,
+        }).queryKey,
+        (board) => {
+          if (!board || !board.pages || board.pages.length < 1) return board;
+
+          for (let i = 0; i < board.pages.length; ++i) {
+            const notesPage = board.pages[i];
+            for (let j = 0; j < notesPage.data.length; ++j) {
+              const note = notesPage.data[j];
+              if (note.id === props.noteId) {
+                const newNote: NoteWithComment = {
+                  commentsCount: note.commentsCount + 1,
+                  content: note.content,
+                  createdAt: note.createdAt,
+                  id: note.id,
+                  author: note.author,
+                  lastComment: comment,
+                };
+
+                const copyNotesPageData = Array.from(notesPage.data);
+                copyNotesPageData[j] = newNote;
+                const copyNotesPage: NoteArray = {
+                  data: copyNotesPageData,
+                  next: notesPage.next,
+                };
+
+                const copyPages = Array.from(board.pages);
+                copyPages[i] = copyNotesPage;
+                return {
+                  pageParams: board.pageParams,
+                  pages: copyPages,
+                };
+              }
+            }
+          }
+
+          return board;
         },
       );
 
