@@ -25,6 +25,7 @@ import type { NoteWithComment } from "@/api/model";
 import { AvatarIcon } from "../BoardNote/AvatarIcon";
 import { BoardNote } from "../BoardNote/BoardNote";
 import { LoadingSvg } from "../LoadingSvg";
+import { useInfiniteScroll } from "../infiniteScroll";
 import { CommentNoteFooterLayout } from "./CommantNoteFooterLayour";
 import { PostCreator } from "./PostCreator";
 
@@ -70,6 +71,12 @@ const UserProfilePage = (props: {
   const notes = createMemo(() =>
     notesQuery.isSuccess ? notesQuery.data.pages.flatMap((it) => it.data) : [],
   );
+
+  useInfiniteScroll(() => {
+    if (!notesQuery.isFetchingNextPage) {
+      notesQuery.fetchNextPage();
+    }
+  });
 
   // const windowVirtualizer = createWindowVirtualizer({
   //   count: notes().length,

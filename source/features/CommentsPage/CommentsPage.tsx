@@ -16,6 +16,7 @@ import { AvatarIcon } from "../BoardNote/AvatarIcon";
 import { BoardNote } from "../BoardNote/BoardNote";
 import { LoadingSvg } from "../LoadingSvg";
 import { CommentCreator } from "../ProfilePage/PostCreator";
+import { useInfiniteScroll } from "../infiniteScroll";
 
 export const CommentsPage = () => {
   const [searchParams] = useSearchParams();
@@ -59,6 +60,12 @@ export const CommentsPage = () => {
       }}
     />
   );
+
+  useInfiniteScroll(() => {
+    if (!commentsQuery.isFetchingNextPage) {
+      commentsQuery.fetchNextPage();
+    }
+  });
   return (
     <main class="flex min-h-screen flex-col bg-secondary-bg px-4">
       <BoardNote class="my-4">
