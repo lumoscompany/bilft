@@ -16,7 +16,6 @@
     "@fontsource-variable/inter": "^5.0.18",
     "@solidjs/router": "^0.13.6",
     "@tanstack/solid-query": "5.44.0",
-    "@tanstack/solid-virtual": "^3.8.1",
     "@tma.js/sdk": "^2.5.0",
     "@tma.js/solid-router-integration": "^5.0.2",
     "@tonconnect/ui": "^2.0.3",
