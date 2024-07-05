@@ -3,10 +3,8 @@ import type { Note } from "@/api/model";
 import {
   assertOk,
   clsxString,
-  createInterval,
   formatPostDate,
   formatPostTime,
-  pick,
   platform,
   PxString,
   scrollableElement,
@@ -22,8 +20,10 @@ import {
   createMemo,
   createSignal,
   Match,
+  on,
   Show,
   Switch,
+  type Accessor,
 } from "solid-js";
 import { Virtualizer } from "virtua/solid";
 import { AvatarIcon } from "../BoardNote/AvatarIcon";
@@ -79,24 +79,6 @@ export const CommentsPage = () => {
       commentsQuery.fetchNextPage();
     }
   });
-  useCleanup((signal) => {
-    window.addEventListener(
-      "resize",
-      (e) => {
-        console.log("resize");
-      },
-      { signal },
-    );
-  });
-  createInterval(1_000, () => {
-    if (!logChanges) return;
-    const rect = document.activeElement?.getBoundingClientRect();
-    console.log({
-      ...(rect && pick(rect, ["left", "top"])),
-
-      ...pick(window, ["scrollY"]),
-    });
-  });
   const { height } = useScreenSize();
   const keyboard = useKeyboardStatus();
 
@@ -122,23 +104,53 @@ export const CommentsPage = () => {
     }
   });
 
-  const commentInputPxSize = () =>
-    PxString.fromNumber(
+  // long story short: Webview Safari + IOS Telegram = dog shit
+  let commentInputPxSize: null | Accessor<PxString> = null;
+  if (platform === "ios") {
+    const windowScrollTop = createWindowScrollTop();
+    const innerHeight = createInnerHeight();
+    const commentInputSize = () =>
       innerHeight() -
-        height() -
-        windowScrollTop() -
-        (keyboard.isKeyboardOpen() ? 0 : initialHeightDiff),
+      height() -
+      windowScrollTop() -
+      (!keyboard.isKeyboardOpen()
+        ? initialHeightDiff
+        : keyboard.isPortrait()
+          ? 0
+          : initialHeightDiff / 2);
+    commentInputPxSize = () => PxString.fromNumber(commentInputSize());
+
+    createEffect(
+      on(
+        () => keyboard.isKeyboardOpen(),
+        (isKeyboardOpen, prev) => {
+          if (prev === undefined) {
+            return;
+          }
+          const offset = keyboard.estimateKeyboardSize();
+          if (offset === null) {
+            return;
+          }
+          console.log("scroll", offset);
+          scrollableElement.scrollBy({
+            top: (offset - commentInputSize() / 2) * (isKeyboardOpen ? 1 : -1),
+            behavior: "instant",
+          });
+        },
+      ),
     );
-  createComputed(() => {
-    console.log(
-      unwrapSignals({
-        innerHeight,
-        height,
-        windowScrollTop,
-        commentInputPxSize,
-      }),
-    );
-  });
+
+    createComputed(() => {
+      console.log(
+        unwrapSignals({
+          innerHeight,
+          height,
+          windowScrollTop,
+          commentInputPxSize,
+        }),
+      );
+    });
+  }
 
   let commentCreatorContainerRef!: HTMLDivElement;
 
@@ -267,7 +279,7 @@ export const CommentsPage = () => {
         </Match>
       </Switch>
 
-      {platform === "ios" && (
+      {platform === "ios" && commentInputPxSize && (
         <div
           class="h-0 contain-strict"
           style={{
@@ -278,7 +290,7 @@ export const CommentsPage = () => {
       <div
         ref={commentCreatorContainerRef}
         style={
-          platform === "ios"
+          platform === "ios" && commentInputPxSize
             ? {
                 transform: `translateY(-${commentInputPxSize()})`,
               }
@@ -292,61 +304,21 @@ export const CommentsPage = () => {
   );
 };
 
-const [innerHeight, setInnerHeight] = createSignal(window.innerHeight);
+const createWindowScrollTop = () => {
+  const [windowScrollTop, setWindowScrollTop] = createSignal(window.screenTop);
 
-const logChanges = false;
+  window.addEventListener("scroll", () => {
+    setWindowScrollTop(window.scrollY);
+  });
 
-createEffect((prev) => {
-  if (!logChanges) return;
-  console.log(
-    "inner height viewport changes",
-    unwrapSignals({
-      prev,
-      innerHeight,
-    }),
-  );
+  return windowScrollTop;
+};
+const createInnerHeight = () => {
+  const [innerHeight, setInnerHeight] = createSignal(window.innerHeight);
 
-  return innerHeight();
-}, innerHeight());
-window.addEventListener("resize", () => {
-  setInnerHeight(window.innerHeight);
-});
+  window.addEventListener("resize", () => {
+    setInnerHeight(window.innerHeight);
+  });
 
-const [visualViewportHeight, setVisualViewportHeihgt] = createSignal(
-  window.visualViewport?.height,
-);
-
-createEffect((prev) => {
-  if (!logChanges) return;
-  console.log(
-    "visual viewport changes",
-    unwrapSignals({
-      visualViewportHeight,
-      prev,
-    }),
-  );
-
-  return visualViewportHeight();
-}, visualViewportHeight());
-
-window.visualViewport?.addEventListener("resize", () => {
-  setVisualViewportHeihgt(window.visualViewport?.height);
-});
-const [windowScrollTop, setWindowScrollTop] = createSignal(window.screenTop);
-
-createEffect((prev) => {
-  if (!logChanges) return;
-  console.log(
-    "window scroll top changes",
-    unwrapSignals({
-      windowScrollTop,
-      prev,
-    }),
-  );
-
-  return windowScrollTop();
-}, windowScrollTop());
-
-window.addEventListener("scroll", () => {
-  setWindowScrollTop(window.scrollY);
-});
+  return innerHeight;
+};
