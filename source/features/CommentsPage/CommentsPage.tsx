@@ -3,29 +3,37 @@ import type { Note } from "@/api/model";
 import {
   assertOk,
   clsxString,
+  createInterval,
   formatPostDate,
   formatPostTime,
+  pick,
   platform,
+  PxString,
   scrollableElement,
+  unwrapSignals,
 } from "@/common";
 import { AnonymousAvatarIcon } from "@/icons";
+import { useCleanup } from "@/lib/solid";
 import { A, useSearchParams } from "@solidjs/router";
 import { createInfiniteQuery } from "@tanstack/solid-query";
 import {
-  Match,
-  Show,
-  Switch,
+  createComputed,
   createEffect,
   createMemo,
   createSignal,
+  Match,
+  Show,
+  Switch,
 } from "solid-js";
 import { Virtualizer } from "virtua/solid";
 import { AvatarIcon } from "../BoardNote/AvatarIcon";
 import { BoardNote } from "../BoardNote/BoardNote";
-import { LoadingSvg } from "../LoadingSvg";
-import { CommentCreator } from "../ProfilePage/PostCreator";
 import { useInfiniteScroll } from "../infiniteScroll";
+import { useKeyboardStatus } from "../keyboardStatus";
+import { LoadingSvg } from "../LoadingSvg";
 import { setVirtualizerHandle } from "../pageTransitions";
+import { CommentCreator } from "../ProfilePage/PostCreator";
+import { useScreenSize } from "../screenSize";
 
 export const CommentsPage = () => {
   const [searchParams] = useSearchParams();
@@ -56,10 +64,6 @@ export const CommentsPage = () => {
       boardId={boardId()}
       noteId={note().id}
       onCreated={() => {
-        if (platform === "ios") {
-          return;
-        }
-        // wait for render
         requestAnimationFrame(() => {
           scrollableElement.scrollTo({
             behavior: "smooth",
@@ -75,18 +79,36 @@ export const CommentsPage = () => {
       commentsQuery.fetchNextPage();
     }
   });
+  useCleanup((signal) => {
+    window.addEventListener(
+      "resize",
+      (e) => {
+        console.log("resize");
+      },
+      { signal },
+    );
+  });
+  createInterval(1_000, () => {
+    if (!logChanges) return;
+    const rect = document.activeElement?.getBoundingClientRect();
+    console.log({
+      ...(rect && pick(rect, ["left", "top"])),
 
-  const [scrollMarginTop, setScrollMarginTop] = createSignal<number>(
-    platform === "ios" ? 250 : 128,
-  );
+      ...pick(window, ["scrollY"]),
+    });
+  });
+  const { height } = useScreenSize();
+  const keyboard = useKeyboardStatus();
+
+  const initialHeightDiff = window.innerHeight - height();
+
+  const [scrollMarginTop, setScrollMarginTop] = createSignal<number>(128);
   const [boardNote, setBoardNote] = createSignal<HTMLElement>();
-  const [commentCreatorTop, setCommentCreatorTop] = createSignal<HTMLElement>();
 
   createEffect(() => {
     const observer = new ResizeObserver(() => {
       const bottom = Math.max(
         boardNote()?.getBoundingClientRect().bottom ?? -1,
-        commentCreatorTop()?.getBoundingClientRect().bottom ?? -1,
       );
       if (bottom === -1) {
         return;
@@ -94,14 +116,28 @@ export const CommentsPage = () => {
       setScrollMarginTop(bottom);
     });
 
-    const _commentCreator = commentCreatorTop();
-    if (_commentCreator) {
-      observer.observe(_commentCreator);
-    }
     const _boardNote = boardNote();
     if (_boardNote) {
       observer.observe(_boardNote);
     }
+  });
+
+  const commentInputPxSize = () =>
+    PxString.fromNumber(
+      innerHeight() -
+        height() -
+        windowScrollTop() -
+        (keyboard.isKeyboardOpen() ? 0 : initialHeightDiff),
+    );
+  createComputed(() => {
+    console.log(
+      unwrapSignals({
+        innerHeight,
+        height,
+        windowScrollTop,
+        commentInputPxSize,
+      }),
+    );
   });
 
   return (
@@ -129,17 +165,6 @@ export const CommentsPage = () => {
         </BoardNote.Card>
       </BoardNote>
 
-      <Show when={platform === "ios"}>
-        <div
-          // good pack of styling TG will not overscroll on any fixed/sticky element
-          class="sticky top-0 z-10 -mx-2 -mt-3 mb-5 bg-secondary-bg px-2 pb-1 pt-2"
-          // class="-mt-2 mb-2"
-          //
-          ref={setCommentCreatorTop}
-        >
-          {commentCreator}
-        </div>
-      </Show>
       <Switch>
         <Match when={commentsQuery.isLoading}>
           <div class="flex w-full flex-1 items-center justify-center">
@@ -220,11 +245,77 @@ export const CommentsPage = () => {
         </Match>
       </Switch>
 
-      <Show when={platform !== "ios"}>
-        <div class="sticky bottom-0 -mx-4 mt-auto bg-secondary-bg px-4 pb-6 pt-2">
-          {commentCreator}
-        </div>
-      </Show>
+      <div
+        style={
+          platform === "ios"
+            ? {
+                transform: `translateY(-${commentInputPxSize()})`,
+              }
+            : undefined
+        }
+        class="sticky bottom-0 -mx-2 mt-auto bg-secondary-bg px-2 pb-6 pt-2"
+      >
+        {commentCreator}
+      </div>
     </main>
   );
 };
+
+const [innerHeight, setInnerHeight] = createSignal(window.innerHeight);
+
+const logChanges = false;
+
+createEffect((prev) => {
+  if (!logChanges) return;
+  console.log(
+    "inner height viewport changes",
+    unwrapSignals({
+      prev,
+      innerHeight,
+    }),
+  );
+
+  return innerHeight();
+}, innerHeight());
+window.addEventListener("resize", () => {
+  setInnerHeight(window.innerHeight);
+});
+
+const [visualViewportHeight, setVisualViewportHeihgt] = createSignal(
+  window.visualViewport?.height,
+);
+
+createEffect((prev) => {
+  if (!logChanges) return;
+  console.log(
+    "visual viewport changes",
+    unwrapSignals({
+      visualViewportHeight,
+      prev,
+    }),
+  );
+
+  return visualViewportHeight();
+}, visualViewportHeight());
+
+window.visualViewport?.addEventListener("resize", () => {
+  setVisualViewportHeihgt(window.visualViewport?.height);
+});
+const [windowScrollTop, setWindowScrollTop] = createSignal(window.screenTop);
+
+createEffect((prev) => {
+  if (!logChanges) return;
+  console.log(
+    "window scroll top changes",
+    unwrapSignals({
+      windowScrollTop,
+      prev,
+    }),
+  );
+
+  return windowScrollTop();
+}, windowScrollTop());
+
+window.addEventListener("scroll", () => {
+  setWindowScrollTop(window.scrollY);
+});

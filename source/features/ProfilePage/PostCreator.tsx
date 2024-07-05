@@ -15,6 +15,7 @@ import {
   assertOk,
   clsxString,
   platform,
+  scrollableElement,
   utils,
   type StyleProps,
 } from "@/common";
@@ -56,6 +57,7 @@ import {
   type Accessor,
   type ComponentProps,
 } from "solid-js";
+import { Portal } from "solid-js/web";
 import { LoadingSvg } from "../LoadingSvg";
 import { disconnectWallet } from "../SetupTonWallet";
 import { useKeyboardStatus } from "../keyboardStatus";
@@ -180,7 +182,6 @@ const WalletControlPopup = (
 };
 
 // [TODO]: share number with backend
-
 const MAX_POST_LENGTH = 1200;
 function PostInput(
   props: StyleProps & {
@@ -191,7 +192,7 @@ function PostInput(
     isAnonymous: boolean;
     setIsAnonymous: (status: boolean) => void;
     ref?: Ref<HTMLFormElement>;
-    fixSafariScroll?: boolean;
+    fixSafariFocus?: boolean;
   },
 ) {
   let inputRef!: HTMLTextAreaElement | undefined;
@@ -241,58 +242,6 @@ function PostInput(
           },
         );
       });
-
-      if (props.fixSafariScroll) {
-        useCleanup((signal) => {
-          const ab = new AbortController();
-          signal.onabort = () => {
-            if (touchState !== "move") {
-              ab.abort();
-              return;
-            }
-            let reacted = false;
-            const onTouchFinish = () => {
-              if (reacted) {
-                return;
-              }
-              reacted = true;
-              // smooths scroll resist
-              requestAnimationFrame(() => (touchState = null));
-              setTimeout(() => ab.abort(), 300);
-            };
-
-            window.addEventListener("touchend", onTouchFinish, {
-              signal: ab.signal,
-            });
-            window.addEventListener("touchcancel", onTouchFinish, {
-              signal: ab.signal,
-            });
-          };
-          let firstPrevented = false;
-          window.addEventListener(
-            "scroll",
-            (e) => {
-              const targetIsWindow =
-                e.target === window || e.target === document;
-              if (targetIsWindow) {
-                window.scrollTo({
-                  top: 0,
-                  behavior:
-                    firstPrevented && !touchState ? "instant" : "smooth",
-                });
-
-                requestAnimationFrame(() => {
-                  firstPrevented = true;
-                });
-              }
-            },
-            {
-              signal: ab.signal,
-              passive: false,
-            },
-          );
-        });
-      }
     });
   }
   const { isKeyboardOpen } = useKeyboardStatus();
@@ -310,6 +259,12 @@ function PostInput(
         props.class ?? "",
       )}
     >
+      <Portal>
+        <textarea
+          class="fixed left-[9999px] top-0 contain-strict"
+          id="helper"
+        />
+      </Portal>
       <div
         class='-mr-4 grid max-h-[calc(var(--tgvh)*40)] flex-1 grid-cols-1 overflow-y-auto pr-3 font-inter text-[16px] leading-[21px] [scrollbar-gutter:stable] after:invisible after:whitespace-pre-wrap after:break-words after:font-[inherit] after:content-[attr(data-value)_"_"] after:[grid-area:1/1/2/2] [&>textarea]:[grid-area:1/1/2/2]'
         data-value={props.value}
@@ -336,6 +291,9 @@ function PostInput(
           }}
           ref={inputRef}
           class="w-full max-w-full resize-none overflow-hidden break-words border-none bg-transparent placeholder:select-none focus:border-none focus:outline-none"
+          classList={{
+            "mt-[-50vh] pt-[50vh]": props.fixSafariFocus,
+          }}
         />
       </div>
       <div class="h-separator w-full bg-separator" />
@@ -877,14 +835,10 @@ export const CommentCreator = (
       type: anonymous ? "anonymous" : "public",
     });
 
-  if (platform === "ios") {
-    createEffect(() => {});
-  }
-
   return (
     <>
       <PostInput
-        fixSafariScroll
+        fixSafariFocus
         ref={props.ref}
         isAnonymous={isAnonymous()}
         setIsAnonymous={setIsAnonymous}
