@@ -25,6 +25,7 @@ import { BoardNote } from "../BoardNote/BoardNote";
 import { LoadingSvg } from "../LoadingSvg";
 import { CommentCreator } from "../ProfilePage/PostCreator";
 import { useInfiniteScroll } from "../infiniteScroll";
+import { setVirtualizerHandle } from "../pageTransitions";
 
 export const CommentsPage = () => {
   const [searchParams] = useSearchParams();
@@ -163,6 +164,7 @@ export const CommentsPage = () => {
         <Match when={comments().length > 0}>
           <Virtualizer
             itemSize={110}
+            ref={(handle) => setVirtualizerHandle(handle)}
             startMargin={scrollMarginTop()}
             data={comments()}
             scrollRef={scrollableElement}

@@ -140,7 +140,7 @@ const UserProfilePage = (props: {
           </Match>
           <Match when={notes().length > 0}>
             <Virtualizer
-              ref={setVirtualizerHandle}
+              ref={(handle) => setVirtualizerHandle(handle)}
               data={notes()}
               itemSize={160}
               scrollRef={scrollableElement}
