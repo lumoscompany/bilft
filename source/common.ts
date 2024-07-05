@@ -31,7 +31,10 @@ const findScrollElement = () => {
   }
 };
 
-const _scrollEl = findScrollElement();
+const _scrollEl = document.getElementById("scroll-target");
+if (import.meta.env.DEV) {
+  assertOk(_scrollEl === findScrollElement());
+}
 assertOk(_scrollEl);
 export const scrollableElement = _scrollEl as HTMLElement;
 
@@ -173,7 +176,7 @@ export const unwrapSignals = <T extends Record<string, unknown>>(
   return copy as UnwrapSignals<T>;
 };
 
-export type PxString = `${number}px`
+export type PxString = `${number}px`;
 export const PxString = {
   fromNumber: (value: number): `${number}px` => `${value}px`,
 };
