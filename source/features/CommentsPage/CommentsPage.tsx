@@ -140,6 +140,28 @@ export const CommentsPage = () => {
     );
   });
 
+  let commentCreatorContainerRef!: HTMLDivElement;
+
+  createEffect(() => {
+    assertOk(commentCreatorContainerRef);
+    useCleanup((signal) => {
+      let prevHeight =
+        commentCreatorContainerRef.getBoundingClientRect().height;
+      const resizeObserver = new ResizeObserver(() => {
+        const curHeight =
+          commentCreatorContainerRef.getBoundingClientRect().height;
+        scrollableElement.scrollBy({
+          top: (curHeight - prevHeight) * (platform === "ios" ? 0.5 : 1),
+        });
+        prevHeight = curHeight;
+      });
+
+      resizeObserver.observe(commentCreatorContainerRef);
+
+      signal.onabort = () => resizeObserver.disconnect();
+    });
+  });
+
   return (
     <main class="flex min-h-screen flex-col bg-secondary-bg px-4">
       <BoardNote ref={setBoardNote} class="my-4">
@@ -245,7 +267,16 @@ export const CommentsPage = () => {
         </Match>
       </Switch>
 
+      {platform === "ios" && (
+        <div
+          class="h-0 contain-strict"
+          style={{
+            height: commentInputPxSize(),
+          }}
+        />
+      )}
       <div
+        ref={commentCreatorContainerRef}
         style={
           platform === "ios"
             ? {
