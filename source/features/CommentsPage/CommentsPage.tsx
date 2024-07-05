@@ -5,14 +5,20 @@ import {
   clsxString,
   formatPostDate,
   formatPostTime,
-  pick,
   platform,
   scrollableElement,
 } from "@/common";
 import { AnonymousAvatarIcon } from "@/icons";
 import { A, useSearchParams } from "@solidjs/router";
 import { createInfiniteQuery } from "@tanstack/solid-query";
-import { Match, Show, Switch, createMemo } from "solid-js";
+import {
+  Match,
+  Show,
+  Switch,
+  createEffect,
+  createMemo,
+  createSignal,
+} from "solid-js";
 import { Virtualizer } from "virtua/solid";
 import { AvatarIcon } from "../BoardNote/AvatarIcon";
 import { BoardNote } from "../BoardNote/BoardNote";
@@ -69,16 +75,37 @@ export const CommentsPage = () => {
     }
   });
 
+  const [scrollMarginTop, setScrollMarginTop] = createSignal<number>(
+    platform === "ios" ? 250 : 128,
+  );
+  const [boardNote, setBoardNote] = createSignal<HTMLElement>();
+  const [commentCreatorTop, setCommentCreatorTop] = createSignal<HTMLElement>();
+
+  createEffect(() => {
+    const observer = new ResizeObserver(() => {
+      const bottom = Math.max(
+        boardNote()?.getBoundingClientRect().bottom ?? -1,
+        commentCreatorTop()?.getBoundingClientRect().bottom ?? -1,
+      );
+      if (bottom === -1) {
+        return;
+      }
+      setScrollMarginTop(bottom);
+    });
+
+    const _commentCreator = commentCreatorTop();
+    if (_commentCreator) {
+      observer.observe(_commentCreator);
+    }
+    const _boardNote = boardNote();
+    if (_boardNote) {
+      observer.observe(_boardNote);
+    }
+  });
+
   return (
     <main class="flex min-h-screen flex-col bg-secondary-bg px-4">
-      <BoardNote
-        ref={(e) => {
-          queueMicrotask(() => {
-            console.log("rect", pick(e.getBoundingClientRect(), ["bottom"]));
-          });
-        }}
-        class="my-4"
-      >
+      <BoardNote ref={setBoardNote} class="my-4">
         <BoardNote.Card>
           <Switch
             fallback={<BoardNote.PrivateHeader createdAt={note().createdAt} />}
@@ -107,11 +134,7 @@ export const CommentsPage = () => {
           class="sticky top-0 z-10 -mx-2 -mt-3 mb-5 bg-secondary-bg px-2 pb-1 pt-2"
           // class="-mt-2 mb-2"
           //
-          ref={(e) => {
-            queueMicrotask(() => {
-              console.log("rect", pick(e.getBoundingClientRect(), ["bottom"]));
-            });
-          }}
+          ref={setCommentCreatorTop}
         >
           {commentCreator}
         </div>
@@ -140,7 +163,7 @@ export const CommentsPage = () => {
         <Match when={comments().length > 0}>
           <Virtualizer
             itemSize={110}
-            startMargin={platform === "ios" ? 250 : 128}
+            startMargin={scrollMarginTop()}
             data={comments()}
             scrollRef={scrollableElement}
           >
