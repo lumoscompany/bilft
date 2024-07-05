@@ -59,21 +59,6 @@ export const CommentsPage = () => {
       : [],
   );
 
-  const commentCreator = (
-    <CommentCreator
-      boardId={boardId()}
-      noteId={note().id}
-      onCreated={() => {
-        requestAnimationFrame(() => {
-          scrollableElement.scrollTo({
-            behavior: "smooth",
-            top: scrollableElement.scrollHeight,
-          });
-        });
-      }}
-    />
-  );
-
   useInfiniteScroll(() => {
     if (!commentsQuery.isFetchingNextPage) {
       commentsQuery.fetchNextPage();
@@ -123,22 +108,55 @@ export const CommentsPage = () => {
     createEffect(
       on(
         () => keyboard.isKeyboardOpen(),
-        (isKeyboardOpen, prev) => {
-          if (prev === undefined) {
-            return;
-          }
-          const offset = keyboard.estimateKeyboardSize();
-          if (offset === null) {
-            return;
-          }
-          console.log("scroll", offset);
-          scrollableElement.scrollBy({
-            top: (offset - commentInputSize() / 2) * (isKeyboardOpen ? 1 : -1),
-            behavior: "instant",
+        (isOpen) => {
+          if (!isOpen) return;
+
+          requestAnimationFrame(() => {
+            const bottom =
+              scrollableElement.scrollHeight -
+              scrollableElement.scrollTop -
+              scrollableElement.clientHeight;
+
+            if (bottom - commentInputSize() < 50) {
+              scrollableElement.scrollBy({
+                top: bottom,
+                behavior: "instant",
+              });
+            }
           });
         },
       ),
     );
+    // createEffect<number>((prev) => {
+    //   const cur = commentInputSize();
+    //   const diff = cur - prev;
+
+    //   scrollableElement.scrollBy({
+    //     top: diff,
+    //     behavior: "instant",
+    //   });
+
+    //   return cur;
+    // }, commentInputSize());
+    // createEffect(
+    //   on(
+    //     () => keyboard.isKeyboardOpen(),
+    //     (isKeyboardOpen, prev) => {
+    //       if (prev === undefined) {
+    //         return;
+    //       }
+    //       const offset = keyboard.estimateKeyboardSize();
+    //       if (offset === null) {
+    //         return;
+    //       }
+    //       console.log("scroll", offset);
+    //       scrollableElement.scrollBy({
+    //         top: (offset - commentInputSize() / 2) * (isKeyboardOpen ? 1 : -1),
+    //         behavior: "instant",
+    //       });
+    //     },
+    //   ),
+    // );
 
     createComputed(() => {
       console.log(
@@ -298,7 +316,18 @@ export const CommentsPage = () => {
         }
         class="sticky bottom-0 -mx-2 mt-auto bg-secondary-bg px-2 pb-6 pt-2"
       >
-        {commentCreator}
+        <CommentCreator
+          boardId={boardId()}
+          noteId={note().id}
+          onCreated={() => {
+            requestAnimationFrame(() => {
+              scrollableElement.scrollTo({
+                behavior: "smooth",
+                top: scrollableElement.scrollHeight,
+              });
+            });
+          }}
+        />
       </div>
     </main>
   );

@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from "@solidjs/router";
+import { A, useNavigate, useParams } from "@solidjs/router";
 import { createInfiniteQuery, createQuery } from "@tanstack/solid-query";
 import { Match, Show, Switch, createMemo, type ParentProps } from "solid-js";
 import { keysFactory } from "../../api/api";
@@ -87,6 +87,13 @@ const UserProfilePage = (props: {
   // createComputed(() => {
   //   console.log(notes().length, { ...windowVirtualizer.options });
   // });
+  const navigate = useNavigate();
+
+  const navigateToComment = (note: NoteWithComment, boardId: string) => {
+    navigate(
+      `/comments/${note.id}?note=${JSON.stringify(note)}&boardId=${boardId}`,
+    );
+  };
 
   return (
     <main class="flex min-h-screen flex-col pb-6 pt-4 text-text">
@@ -147,8 +154,22 @@ const UserProfilePage = (props: {
               startMargin={282}
             >
               {(note) => (
-                <BoardNote class="mx-4 mb-4">
-                  <BoardNote.Card>
+                <BoardNote class="mx-4 mb-4 contain-content">
+                  <BoardNote.Card class='relative isolate'>
+                    <A
+                      href="#"
+                      onClick={(e) => {
+                        console.log(e);
+                        e.preventDefault();
+                        const boardId = boardQuery.data?.id;
+                        if (!boardId) return;
+
+                        navigateToComment(note, boardId);
+                      }}
+                      type="button"
+                      class="absolute inset-0 -z-10 select-none"
+                    />
+
                     {/* extends to match based on type */}
                     <Switch
                       fallback={
@@ -175,12 +196,18 @@ const UserProfilePage = (props: {
                         )}
                       </Match>
                     </Switch>
-                    <BoardNote.Divider />
-                    <BoardNote.Content>{note.content}</BoardNote.Content>
+                    <BoardNote.Divider class="pointer-events-none" />
+                    <BoardNote.Content class="pointer-events-none">
+                      {note.content}
+                    </BoardNote.Content>
                   </BoardNote.Card>
                   <Show when={boardQuery.data?.id}>
                     {(boardId) => (
-                      <CommentFooter note={note} boardId={boardId()} />
+                      <CommentFooter
+                        note={note}
+                        onNavigateNote={navigateToComment}
+                        boardId={boardId()}
+                      />
                     )}
                   </Show>
                 </BoardNote>
@@ -229,15 +256,11 @@ export const ProfilePage = () => {
   );
 };
 
-function CommentFooter(props: { boardId: string; note: NoteWithComment }) {
-  const navigate = useNavigate();
-
-  const navigateToComment = () => {
-    navigate(
-      `/comments/${props.note.id}?note=${JSON.stringify(props.note)}&boardId=${props.boardId}`,
-    );
-  };
-
+function CommentFooter(props: {
+  boardId: string;
+  note: NoteWithComment;
+  onNavigateNote(note: NoteWithComment, boardId: string): void;
+}) {
   return (
     <div class="mx-4 mt-2 flex self-stretch">
       <Switch>
@@ -246,14 +269,14 @@ function CommentFooter(props: { boardId: string; note: NoteWithComment }) {
             <CommentNoteFooterLayout
               commentsCount={props.note.commentsCount}
               lastComment={lastComment()}
-              onClick={navigateToComment}
+              onClick={() => props.onNavigateNote(props.note, props.boardId)}
             />
           )}
         </Match>
         <Match when={props.note.commentsCount === 0}>
           <button
             type="button"
-            onClick={navigateToComment}
+            onClick={() => props.onNavigateNote(props.note, props.boardId)}
             class="ml-auto font-inter text-[15px] leading-[18px] text-accent transition-opacity active:opacity-70"
           >
             post you reply
