@@ -90,7 +90,7 @@ function BoardNoteCard(props: ParentProps<StyleProps>) {
 }
 
 const BoardNoteRoot = (props: ComponentProps<"article">) => (
-  <article class={clsxString(props.class ?? "")} style={props.style}>
+  <article {...props} class={clsxString(props.class ?? "")} style={props.style}>
     {props.children}
   </article>
 );

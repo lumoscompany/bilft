@@ -9,6 +9,7 @@ import type { BrowserNavigator, BrowserNavigatorEvents } from "@tma.js/sdk";
 import { getHash, urlToPath } from "@tma.js/sdk";
 import type { Component } from "solid-js";
 import { onCleanup } from "solid-js";
+import type { VirtualizerHandle } from "virtua/solid";
 
 /**
  * Guard against selector being an invalid CSS selector.
@@ -21,6 +22,14 @@ function querySelector<T extends Element>(selector: string) {
     return null;
   }
 }
+
+let virtualizerHandle: VirtualizerHandle | null = null;
+export const setVirtualizerHandle = (
+  newVirtualizedHandle: VirtualizerHandle | null | undefined,
+) => {
+  virtualizerHandle = newVirtualizedHandle ?? null;
+};
+// export const getVirtualizerHandle = () => virtualizerHandle
 
 /**
  * Scrolls to specified hash.
@@ -178,6 +187,10 @@ export const createRouterWithPageTransition = ({
 
         // waiting for layout to scroll work properly
         queueMicrotask(() => {
+          if (virtualizerHandle) {
+            virtualizerHandle.scrollTo(idToScrollPosition.get(e.to.id) ?? 0);
+            return;
+          }
           scrollableElement.scrollTo({
             behavior: "instant",
             top: idToScrollPosition.get(e.to.id) ?? 0,

@@ -5,13 +5,15 @@ import {
   clsxString,
   formatPostDate,
   formatPostTime,
+  pick,
   platform,
   scrollableElement,
 } from "@/common";
 import { AnonymousAvatarIcon } from "@/icons";
 import { A, useSearchParams } from "@solidjs/router";
 import { createInfiniteQuery } from "@tanstack/solid-query";
-import { For, Match, Show, Switch, createMemo } from "solid-js";
+import { Match, Show, Switch, createMemo } from "solid-js";
+import { Virtualizer } from "virtua/solid";
 import { AvatarIcon } from "../BoardNote/AvatarIcon";
 import { BoardNote } from "../BoardNote/BoardNote";
 import { LoadingSvg } from "../LoadingSvg";
@@ -69,7 +71,14 @@ export const CommentsPage = () => {
 
   return (
     <main class="flex min-h-screen flex-col bg-secondary-bg px-4">
-      <BoardNote class="my-4">
+      <BoardNote
+        ref={(e) => {
+          queueMicrotask(() => {
+            console.log("rect", pick(e.getBoundingClientRect(), ["bottom"]));
+          });
+        }}
+        class="my-4"
+      >
         <BoardNote.Card>
           <Switch
             fallback={<BoardNote.PrivateHeader createdAt={note().createdAt} />}
@@ -97,6 +106,12 @@ export const CommentsPage = () => {
           // good pack of styling TG will not overscroll on any fixed/sticky element
           class="sticky top-0 z-10 -mx-2 -mt-3 mb-5 bg-secondary-bg px-2 pb-1 pt-2"
           // class="-mt-2 mb-2"
+          //
+          ref={(e) => {
+            queueMicrotask(() => {
+              console.log("rect", pick(e.getBoundingClientRect(), ["bottom"]));
+            });
+          }}
         >
           {commentCreator}
         </div>
@@ -123,12 +138,15 @@ export const CommentsPage = () => {
           </div>
         </Match>
         <Match when={comments().length > 0}>
-          <For each={comments()}>
+          <Virtualizer
+            itemSize={110}
+            startMargin={platform === "ios" ? 250 : 128}
+            data={comments()}
+            scrollRef={scrollableElement}
+          >
             {(comment, index) => (
               <article
-                data-not-last={
-                  index() !== comments().length - 1 ? "" : undefined
-                }
+                data-not-last={index !== comments().length - 1 ? "" : undefined}
                 class={clsxString(
                   "mb-4 grid grid-cols-[36px,1fr] grid-rows-[auto,auto,auto] gap-y-[2px] pb-4 [&[data-not-last]]:border-b-[0.4px] [&[data-not-last]]:border-b-separator",
                 )}
@@ -166,7 +184,7 @@ export const CommentsPage = () => {
                 </div>
               </article>
             )}
-          </For>
+          </Virtualizer>
 
           <Show when={commentsQuery.isFetchingNextPage}>
             <div role="status" class="mx-auto mt-6">

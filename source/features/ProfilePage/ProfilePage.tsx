@@ -1,13 +1,6 @@
 import { useNavigate, useParams } from "@solidjs/router";
 import { createInfiniteQuery, createQuery } from "@tanstack/solid-query";
-import {
-  For,
-  Match,
-  Show,
-  Switch,
-  createMemo,
-  type ParentProps,
-} from "solid-js";
+import { Match, Show, Switch, createMemo, type ParentProps } from "solid-js";
 import { keysFactory } from "../../api/api";
 import {
   addPrefix,
@@ -22,10 +15,12 @@ import { ArrowPointUp } from "../../icons";
 
 import type { NoteWithComment } from "@/api/model";
 // import { createWindowVirtualizer } from "@tanstack/solid-virtual";
+import { Virtualizer } from "virtua/solid";
 import { AvatarIcon } from "../BoardNote/AvatarIcon";
 import { BoardNote } from "../BoardNote/BoardNote";
 import { LoadingSvg } from "../LoadingSvg";
 import { useInfiniteScroll } from "../infiniteScroll";
+import { setVirtualizerHandle } from "../pageTransitions";
 import { CommentNoteFooterLayout } from "./CommantNoteFooterLayour";
 import { PostCreator } from "./PostCreator";
 
@@ -144,7 +139,13 @@ const UserProfilePage = (props: {
             </div>
           </Match>
           <Match when={notes().length > 0}>
-            <For each={notes()}>
+            <Virtualizer
+              ref={setVirtualizerHandle}
+              data={notes()}
+              itemSize={160}
+              scrollRef={scrollableElement}
+              startMargin={282}
+            >
               {(note) => (
                 <BoardNote class="mx-4 mb-4">
                   <BoardNote.Card>
@@ -184,7 +185,7 @@ const UserProfilePage = (props: {
                   </Show>
                 </BoardNote>
               )}
-            </For>
+            </Virtualizer>
 
             <Switch>
               <Match when={notesQuery.isFetchingNextPage}>
