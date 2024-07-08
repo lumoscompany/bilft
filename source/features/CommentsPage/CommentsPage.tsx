@@ -127,7 +127,6 @@ export const CommentsPage = () => {
             getVirtualizerHandle()?.scrollBy(bottom);
             return;
           }
-          requestAnimationFrame(() => {});
         },
       ),
     );

@@ -190,60 +190,40 @@ type PostInputProps = StyleProps & {
   isAnonymous: boolean;
   setIsAnonymous: (status: boolean) => void;
   ref?: Ref<HTMLFormElement>;
-  fixSafariFocus?: boolean;
+  position: "top" | "bottom";
+};
+
+const isTouchInside = (element: HTMLElement, touch: Touch) => {
+  const elementRect = element.getBoundingClientRect();
+  const touchX = touch.clientX;
+  if (touchX < elementRect.left || touchX > elementRect.right) {
+    return false;
+  }
+
+  const touchY = touch.clientY;
+  if (touchY > elementRect.bottom || touchY < elementRect.top) {
+    return false;
+  }
+  return true;
 };
 
 // [TODO]: share number with backend
 const MAX_POST_LENGTH = 1200;
 function PostInput(props: PostInputProps) {
   let inputRef!: HTMLTextAreaElement | undefined;
-  let formRef!: HTMLFormElement | undefined;
+  let formRef!: HTMLFormElement;
   const trimmedText = createMemo(() => props.value.trim());
   const isEmpty = () => trimmedText().length === 0;
   const symbolsRemaining = () => MAX_POST_LENGTH - trimmedText().length;
   const [isFocused, setIsFocused] = createSignal(false);
 
   if (platform === "ios") {
-    createEffect(() => {
-      if (!isFocused()) {
-        return;
-      }
-
-      let touchState: null | "start" | "move" = null;
-      useCleanup((signal) => {
-        window.addEventListener("touchstart", () => (touchState = "start"), {
-          signal,
-        });
-        window.addEventListener("touchmove", () => (touchState = "move"), {
-          signal,
-        });
-        window.addEventListener("touchcancel", () => (touchState = null), {
-          signal,
-        });
-        window.addEventListener("touchend", () => (touchState = null), {
-          signal,
-        });
-        window.addEventListener(
-          "scroll",
-          (e) => {
-            if (
-              inputRef &&
-              touchState === "move" &&
-              e.target &&
-              (e.target instanceof Element || e.target instanceof Document) &&
-              !formRef?.contains(e.target)
-            ) {
-              inputRef.blur();
-            }
-          },
-          {
-            passive: true,
-            signal,
-            capture: true,
-          },
-        );
-      });
-    });
+    createSafariKeyboardHider(
+      isFocused,
+      () => props.position,
+      () => formRef,
+      () => inputRef,
+    );
   }
   const { isKeyboardOpen } = useKeyboardStatus();
 
@@ -254,7 +234,7 @@ function PostInput(props: PostInputProps) {
         e.stopPropagation();
         props.onSubmit();
       }}
-      ref={mergeRefs(formRef, props.ref)}
+      ref={mergeRefs((e) => (formRef = e), props.ref)}
       class={clsxString(
         "flex flex-col items-stretch justify-between gap-[10px] overflow-hidden rounded-[20px] border border-[#AAA] border-opacity-15 bg-section-bg p-4",
         props.class ?? "",
@@ -289,7 +269,9 @@ function PostInput(props: PostInputProps) {
           ref={inputRef}
           class="w-full max-w-full resize-none overflow-hidden break-words border-none bg-transparent placeholder:select-none focus:border-none focus:outline-none"
           classList={{
-            "mt-[-50vh] pt-[50vh]": platform === "ios" && props.fixSafariFocus,
+            // outsmarting safari repositioning for inputs outside of top of page
+            "mt-[-50vh] pt-[50vh]":
+              platform === "ios" && props.position === "bottom",
           }}
         />
       </div>
@@ -837,7 +819,7 @@ export const CommentCreator = (
       <PostInput
         onBlur={props.onBlur}
         onFocus={props.onFocus}
-        fixSafariFocus
+        position="bottom"
         ref={props.ref}
         isAnonymous={isAnonymous()}
         setIsAnonymous={setIsAnonymous}
@@ -1035,6 +1017,7 @@ export const PostCreator = (props: { boardId: string } & StyleProps) => {
   return (
     <>
       <PostInput
+        position="top"
         isAnonymous={isAnonymous()}
         setIsAnonymous={setIsAnonymous}
         class={props.class}
@@ -1077,3 +1060,100 @@ export const PostCreator = (props: { boardId: string } & StyleProps) => {
     </>
   );
 };
+function createSafariKeyboardHider(
+  isFocused: Accessor<boolean>,
+  position: Accessor<"top" | "bottom">,
+  formRef: () => HTMLFormElement,
+  inputRef: () => HTMLTextAreaElement | undefined,
+) {
+  createEffect(() => {
+    if (!isFocused()) {
+      return;
+    }
+
+    let touchState: null | "start" | "inside-input" | "outside-input" = null;
+    type Identifier = number;
+    const touchMap = new Map<Identifier, { x: number; y: number }>();
+    useCleanup((signal) => {
+      window.addEventListener(
+        "touchstart",
+        (e) => {
+          for (const touch of e.changedTouches) {
+            touchMap.set(touch.identifier, {
+              x: touch.clientX,
+              y: touch.clientY,
+            });
+          }
+
+          if (touchState === null) {
+            touchState = "start";
+          }
+        },
+        {
+          signal,
+          passive: true,
+        },
+      );
+      window.addEventListener(
+        "touchmove",
+        (e) => {
+          let someInside = false;
+          for (const touch of e.changedTouches) {
+            if (isTouchInside(formRef(), touch)) {
+              someInside = true;
+              continue;
+            }
+          }
+          if (touchState === "start") {
+            touchState = "outside-input";
+          }
+          if (someInside && touchState === "outside-input") {
+            touchState = "inside-input";
+          }
+        },
+        {
+          signal,
+          passive: true,
+        },
+      );
+      const onTouchFinish = (e: TouchEvent) => {
+        for (const touch of e.changedTouches) {
+          touchMap.delete(touch.identifier);
+        }
+        if (touchMap.size === 0) {
+          touchState = null;
+        }
+      };
+      window.addEventListener("touchcancel", onTouchFinish, {
+        signal,
+        passive: true,
+      });
+      window.addEventListener("touchend", onTouchFinish, {
+        signal,
+        passive: true,
+      });
+      window.addEventListener(
+        "scroll",
+        (e) => {
+          const input = inputRef();
+          if (
+            input &&
+            (position() === "top"
+              ? touchState === "outside-input" || touchState === "inside-input"
+              : touchState === "inside-input") &&
+            e.target &&
+            (e.target instanceof Element || e.target instanceof Document) &&
+            !formRef()?.contains(e.target)
+          ) {
+            input.blur();
+          }
+        },
+        {
+          passive: true,
+          signal,
+          capture: true,
+        },
+      );
+    });
+  });
+}
