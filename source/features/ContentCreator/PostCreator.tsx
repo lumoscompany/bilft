@@ -137,32 +137,49 @@ export const PostCreator = (props: { boardId: string } & StyleProps) => {
 
   const meQuery = createQuery(() => keysFactory.me);
 
-  const hasEnoughMoney = createMemo(() => {
+  const balanceStatus = createMemo(() => {
     const curWalletError = walletError();
     const tokensBalance = meQuery.data?.wallet?.tokens.yo;
-    if (!curWalletError || !tokensBalance) {
-      return;
+    if (tokensBalance === undefined || !curWalletError) {
+      return null;
     }
-    return (
-      BigInt(curWalletError.error.payload.requiredBalance) <=
+    return BigInt(curWalletError.error.payload.requiredBalance) <=
       BigInt(tokensBalance)
-    );
+      ? "enough-money"
+      : "not-enough-money";
   });
 
   const modalStatus = (): ModalStatus | null =>
-    SignalHelper.map(walletError, (error) =>
-      !error
-        ? null
-        : hasEnoughMoney()
-          ? {
-              type: "success",
-              data: null,
-            }
-          : {
-              type: "error",
-              data: error,
+    SignalHelper.map(walletError, (error): ModalStatus | null => {
+      if (!error) {
+        return null;
+      }
+      const status = balanceStatus();
+      if (status === "enough-money") {
+        return {
+          type: "success",
+          data: null,
+        };
+      }
+      if (
+        status === "not-enough-money" &&
+        error.error.reason === "no_connected_wallet"
+      ) {
+        return {
+          type: "error",
+          data: {
+            error: {
+              reason: "insufficient_balance",
+              payload: error.error.payload,
             },
-    );
+          },
+        };
+      }
+      return {
+        type: "error",
+        data: error,
+      };
+    });
   const sendContent = (anonymous: boolean) =>
     addNoteMutation.mutate({
       board: props.boardId,
