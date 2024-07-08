@@ -131,3 +131,22 @@ export const createTransitionPresence = <T,>(params: {
 export const SignalHelper = {
   map: <T, R>(sig: Accessor<T>, map: (value: T) => R) => map(sig()),
 };
+
+export const createWindowScrollTop = () => {
+  const [windowScrollTop, setWindowScrollTop] = createSignal(window.screenTop);
+
+  window.addEventListener("scroll", () => {
+    setWindowScrollTop(window.scrollY);
+  });
+
+  return windowScrollTop;
+};
+export const createInnerHeight = () => {
+  const [innerHeight, setInnerHeight] = createSignal(window.innerHeight);
+
+  window.addEventListener("resize", () => {
+    setInnerHeight(window.innerHeight);
+  });
+
+  return innerHeight;
+};

@@ -155,11 +155,10 @@ const UserProfilePage = (props: {
             >
               {(note) => (
                 <BoardNote class="mx-4 mb-4 contain-content">
-                  <BoardNote.Card class='relative isolate'>
+                  <BoardNote.Card class="relative isolate">
                     <A
                       href="#"
                       onClick={(e) => {
-                        console.log(e);
                         e.preventDefault();
                         const boardId = boardQuery.data?.id;
                         if (!boardId) return;

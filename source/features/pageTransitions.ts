@@ -29,6 +29,7 @@ export const setVirtualizerHandle = (
 ) => {
   virtualizerHandle = newVirtualizedHandle ?? null;
 };
+export const getVirtualizerHandle = () => virtualizerHandle;
 // export const getVirtualizerHandle = () => virtualizerHandle
 
 /**

@@ -8,14 +8,16 @@ import {
   platform,
   PxString,
   scrollableElement,
-  unwrapSignals,
 } from "@/common";
 import { AnonymousAvatarIcon } from "@/icons";
-import { useCleanup } from "@/lib/solid";
+import {
+  createInnerHeight,
+  createWindowScrollTop,
+  useCleanup,
+} from "@/lib/solid";
 import { A, useSearchParams } from "@solidjs/router";
 import { createInfiniteQuery } from "@tanstack/solid-query";
 import {
-  createComputed,
   createEffect,
   createMemo,
   createSignal,
@@ -31,7 +33,7 @@ import { BoardNote } from "../BoardNote/BoardNote";
 import { useInfiniteScroll } from "../infiniteScroll";
 import { useKeyboardStatus } from "../keyboardStatus";
 import { LoadingSvg } from "../LoadingSvg";
-import { setVirtualizerHandle } from "../pageTransitions";
+import { getVirtualizerHandle, setVirtualizerHandle } from "../pageTransitions";
 import { CommentCreator } from "../ProfilePage/PostCreator";
 import { useScreenSize } from "../screenSize";
 
@@ -72,28 +74,33 @@ export const CommentsPage = () => {
   const [scrollMarginTop, setScrollMarginTop] = createSignal<number>(128);
   const [boardNote, setBoardNote] = createSignal<HTMLElement>();
 
+  const [isFocused, setIsFocused] = createSignal(false);
+
   createEffect(() => {
-    const observer = new ResizeObserver(() => {
-      const bottom = Math.max(
-        boardNote()?.getBoundingClientRect().bottom ?? -1,
-      );
-      if (bottom === -1) {
+    const onObserve = () => {
+      const el = boardNote();
+      if (!el) {
         return;
       }
-      setScrollMarginTop(bottom);
-    });
+      const marginTop = el.offsetTop + el.offsetHeight;
+
+      setScrollMarginTop(marginTop);
+    };
+    const observer = new ResizeObserver(onObserve);
 
     const _boardNote = boardNote();
     if (_boardNote) {
       observer.observe(_boardNote);
     }
+    onObserve();
   });
 
   // long story short: Webview Safari + IOS Telegram = dog shit
-  let commentInputPxSize: null | Accessor<PxString> = null;
+  let commentInputTranslateTopPx: null | Accessor<PxString> = null;
+
+  const innerHeight = createInnerHeight();
   if (platform === "ios") {
     const windowScrollTop = createWindowScrollTop();
-    const innerHeight = createInnerHeight();
     const commentInputSize = () =>
       innerHeight() -
       height() -
@@ -103,7 +110,7 @@ export const CommentsPage = () => {
         : keyboard.isPortrait()
           ? 0
           : initialHeightDiff / 2);
-    commentInputPxSize = () => PxString.fromNumber(commentInputSize());
+    commentInputTranslateTopPx = () => PxString.fromNumber(commentInputSize());
 
     createEffect(
       on(
@@ -111,75 +118,170 @@ export const CommentsPage = () => {
         (isOpen) => {
           if (!isOpen) return;
 
-          requestAnimationFrame(() => {
-            const bottom =
-              scrollableElement.scrollHeight -
-              scrollableElement.scrollTop -
-              scrollableElement.clientHeight;
+          const bottom =
+            scrollableElement.scrollHeight -
+            scrollableElement.scrollTop -
+            scrollableElement.clientHeight;
 
-            if (bottom - commentInputSize() < 50) {
-              scrollableElement.scrollBy({
-                top: bottom,
-                behavior: "instant",
-              });
-            }
-          });
+          if (bottom - commentInputSize() < 50) {
+            getVirtualizerHandle()?.scrollBy(bottom);
+            return;
+          }
+          requestAnimationFrame(() => {});
         },
       ),
     );
-    // createEffect<number>((prev) => {
-    //   const cur = commentInputSize();
-    //   const diff = cur - prev;
+  } else {
+    createEffect(
+      on(
+        () => innerHeight(),
+        (height, prevHeight) => {
+          if (prevHeight === undefined) {
+            return;
+          }
+          const diff = prevHeight - height;
 
-    //   scrollableElement.scrollBy({
-    //     top: diff,
-    //     behavior: "instant",
-    //   });
+          if (Math.abs(diff) > 5) {
+            getVirtualizerHandle()?.scrollBy(diff);
+          }
+        },
+      ),
+    );
 
-    //   return cur;
-    // }, commentInputSize());
-    // createEffect(
-    //   on(
-    //     () => keyboard.isKeyboardOpen(),
-    //     (isKeyboardOpen, prev) => {
-    //       if (prev === undefined) {
-    //         return;
-    //       }
-    //       const offset = keyboard.estimateKeyboardSize();
-    //       if (offset === null) {
-    //         return;
-    //       }
-    //       console.log("scroll", offset);
-    //       scrollableElement.scrollBy({
-    //         top: (offset - commentInputSize() / 2) * (isKeyboardOpen ? 1 : -1),
-    //         behavior: "instant",
-    //       });
-    //     },
-    //   ),
-    // );
+    /*  createEffect(
+      on(isFocused, () => {
+        if (isFirstExecution) {
+          isFirstExecution = false;
+          return;
+        }
 
-    createComputed(() => {
-      console.log(
-        unwrapSignals({
-          innerHeight,
-          height,
-          windowScrollTop,
-          commentInputPxSize,
-        }),
-      );
-    });
+        let isDisposed = false;
+        const timeoutId = setTimeout(() => {
+          isDisposed = true;
+        }, 300);
+        onCleanup(() => clearTimeout(timeoutId));
+
+        createEffect(() => {
+          if (isDisposed) return;
+
+          const diff = prev - innerHeight();
+
+          if (Math.abs(diff) > 5) {
+            isDisposed = true;
+            const target = scrollableElement.scrollTop + diff;
+            const correctedTarget =
+              target +
+              (target +
+                30 +
+                commentCreatorContainerRef.getBoundingClientRect().height +
+                scrollableElement.clientHeight >=
+              scrollableElement.scrollHeight
+                ? 100
+                : 0);
+
+            console.log(
+              "before",
+              scrollableElement.scrollHeight,
+              scrollableElement.scrollTop,
+            );
+            console.log("diff", {
+              target,
+              height: innerHeight(),
+              commentCreatorContainerRef:
+                commentCreatorContainerRef.offsetHeight,
+              scrollHeight: scrollableElement.scrollHeight,
+              clientHeight: scrollableElement.clientHeight,
+            });
+            scrollableElement.scrollBy({
+              top:
+                diff +
+                (target +
+                  30 +
+                  commentCreatorContainerRef.offsetHeight +
+                  scrollableElement.clientHeight >=
+                scrollableElement.scrollHeight
+                  ? 1000
+                  : 0),
+              behavior: "instant",
+            });
+
+            console.log(
+              "after",
+              scrollableElement.scrollHeight,
+              scrollableElement.scrollTop,
+            );
+          }
+          prev = innerHeight();
+        });
+      }),
+    ) */
   }
+
+  // createEffect(
+  //   on(
+  //     () => keyboard.isKeyboardOpen(),
+  //     (isOpen) => {
+  //       if (!isOpen || !bottomFullyCoveredElement) return;
+  //       const curElement = bottomFullyCoveredElement;
+
+  //       requestAnimationFrame(() => {
+  //         const keyboardSize = keyboard.estimateKeyboardSize();
+  //         if (keyboardSize === null) return;
+  //         curElement.scrollBy({
+  //           behavior: "instant",
+  //           top: keyboardSize,
+  //         });
+  //       });
+  //     },
+  //   ),
+  // );
+  // let bottomFullyCoveredElement: null | HTMLElement;
+  // const intersectionObserver = new IntersectionObserver(
+  //   (entries) => {
+  //     let prevRect: DOMRectReadOnly | null = null;
+  //     for (const entry of entries) {
+  //       // if (
+  //       //   entry.intersectionRatio < 0.98 &&
+  //       //   bottomFullyCoveredElement === entry.target
+  //       // ) {
+  //       //   prevRect = null;
+  //       //   bottomFullyCoveredElement = null;
+  //       //   continue;
+  //       // }
+  //       if (entry.intersectionRatio < 0.98) {
+  //         continue;
+  //       }
+  //       if (!prevRect || prevRect.top < entry.boundingClientRect.top) {
+  //         prevRect = entry.boundingClientRect;
+  //         bottomFullyCoveredElement = entry.target as HTMLElement;
+  //       }
+  //     }
+  //     console.log("last entry", {
+  //       bottomFullyCoveredElement: bottomFullyCoveredElement?.innerText,
+  //     });
+  //   },
+  //   {
+  //     root: scrollableElement,
+  //     threshold: 0.98,
+  //   },
+  // );
+  // onCleanup(() => {
+  //   intersectionObserver.disconnect();
+  // });
 
   let commentCreatorContainerRef!: HTMLDivElement;
 
   createEffect(() => {
     assertOk(commentCreatorContainerRef);
     useCleanup((signal) => {
-      let prevHeight =
-        commentCreatorContainerRef.getBoundingClientRect().height;
+      let prevHeight = commentCreatorContainerRef.clientHeight;
       const resizeObserver = new ResizeObserver(() => {
-        const curHeight =
-          commentCreatorContainerRef.getBoundingClientRect().height;
+        const curHeight = commentCreatorContainerRef.clientHeight;
+        // console.log({
+        //   diff: curHeight - prevHeight,
+        //   curHeight,
+        //   prevHeight,
+        // });
         scrollableElement.scrollBy({
           top: (curHeight - prevHeight) * (platform === "ios" ? 0.5 : 1),
         });
@@ -297,26 +399,32 @@ export const CommentsPage = () => {
         </Match>
       </Switch>
 
-      {platform === "ios" && commentInputPxSize && (
+      {platform === "ios" && commentInputTranslateTopPx && (
         <div
           class="h-0 contain-strict"
           style={{
-            height: commentInputPxSize(),
+            height: commentInputTranslateTopPx(),
           }}
         />
       )}
       <div
         ref={commentCreatorContainerRef}
         style={
-          platform === "ios" && commentInputPxSize
+          platform === "ios" && commentInputTranslateTopPx
             ? {
-                transform: `translateY(-${commentInputPxSize()})`,
+                transform: `translateY(-${commentInputTranslateTopPx()})`,
               }
             : undefined
         }
         class="sticky bottom-0 -mx-2 mt-auto bg-secondary-bg px-2 pb-6 pt-2"
       >
         <CommentCreator
+          onFocus={() => {
+            setIsFocused(true);
+          }}
+          onBlur={() => {
+            setIsFocused(false);
+          }}
           boardId={boardId()}
           noteId={note().id}
           onCreated={() => {
@@ -331,23 +439,4 @@ export const CommentsPage = () => {
       </div>
     </main>
   );
-};
-
-const createWindowScrollTop = () => {
-  const [windowScrollTop, setWindowScrollTop] = createSignal(window.screenTop);
-
-  window.addEventListener("scroll", () => {
-    setWindowScrollTop(window.scrollY);
-  });
-
-  return windowScrollTop;
-};
-const createInnerHeight = () => {
-  const [innerHeight, setInnerHeight] = createSignal(window.innerHeight);
-
-  window.addEventListener("resize", () => {
-    setInnerHeight(window.innerHeight);
-  });
-
-  return innerHeight;
 };
