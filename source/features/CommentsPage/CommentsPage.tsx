@@ -300,9 +300,8 @@ export const CommentsPage = () => {
           noteId={note().id}
           onCreated={() => {
             requestAnimationFrame(() => {
-              scrollableElement.scrollTo({
-                behavior: "smooth",
-                top: scrollableElement.scrollHeight,
+              getVirtualizerHandle()?.scrollToIndex(comments().length - 1, {
+                smooth: true,
               });
             });
           }}
