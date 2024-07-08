@@ -53,7 +53,7 @@ export function PostInput(props: PostInputProps) {
       )}
     >
       <div
-        class='-mr-4 grid max-h-[calc(var(--tgvh)*40)] flex-1 grid-cols-1 overflow-y-auto pr-3 font-inter text-[16px] leading-[21px] [scrollbar-gutter:stable] after:invisible after:whitespace-pre-wrap after:break-words after:font-[inherit] after:content-[attr(data-value)_"_"] after:[grid-area:1/1/2/2] [&>textarea]:[grid-area:1/1/2/2]'
+        class='-mr-4 grid max-h-[calc(var(--tgvh)*40)] flex-1 grid-cols-1 overflow-y-auto pr-3 font-inter text-[16px] leading-[21px] [scrollbar-gutter:stable] after:invisible after:select-none after:whitespace-pre-wrap after:break-words after:font-[inherit] after:content-[attr(data-value)_"_"] after:[grid-area:1/1/2/2] [&>textarea]:[grid-area:1/1/2/2]'
         data-value={props.value}
       >
         <textarea
