@@ -30,11 +30,11 @@ import {
 import { Virtualizer } from "virtua/solid";
 import { AvatarIcon } from "../BoardNote/AvatarIcon";
 import { BoardNote } from "../BoardNote/BoardNote";
+import { CommentCreator } from "../ContentCreator/CommentCreator";
 import { useInfiniteScroll } from "../infiniteScroll";
 import { useKeyboardStatus } from "../keyboardStatus";
 import { LoadingSvg } from "../LoadingSvg";
 import { getVirtualizerHandle, setVirtualizerHandle } from "../pageTransitions";
-import { CommentCreator } from "../ProfilePage/PostCreator";
 import { useScreenSize } from "../screenSize";
 
 export const CommentsPage = () => {
@@ -73,8 +73,6 @@ export const CommentsPage = () => {
 
   const [scrollMarginTop, setScrollMarginTop] = createSignal<number>(128);
   const [boardNote, setBoardNote] = createSignal<HTMLElement>();
-
-  const [isFocused, setIsFocused] = createSignal(false);
 
   createEffect(() => {
     const onObserve = () => {
@@ -146,127 +144,7 @@ export const CommentsPage = () => {
         },
       ),
     );
-
-    /*  createEffect(
-      on(isFocused, () => {
-        if (isFirstExecution) {
-          isFirstExecution = false;
-          return;
-        }
-
-        let isDisposed = false;
-        const timeoutId = setTimeout(() => {
-          isDisposed = true;
-        }, 300);
-        onCleanup(() => clearTimeout(timeoutId));
-
-        createEffect(() => {
-          if (isDisposed) return;
-
-          const diff = prev - innerHeight();
-
-          if (Math.abs(diff) > 5) {
-            isDisposed = true;
-            const target = scrollableElement.scrollTop + diff;
-            const correctedTarget =
-              target +
-              (target +
-                30 +
-                commentCreatorContainerRef.getBoundingClientRect().height +
-                scrollableElement.clientHeight >=
-              scrollableElement.scrollHeight
-                ? 100
-                : 0);
-
-            console.log(
-              "before",
-              scrollableElement.scrollHeight,
-              scrollableElement.scrollTop,
-            );
-            console.log("diff", {
-              target,
-              height: innerHeight(),
-              commentCreatorContainerRef:
-                commentCreatorContainerRef.offsetHeight,
-              scrollHeight: scrollableElement.scrollHeight,
-              clientHeight: scrollableElement.clientHeight,
-            });
-            scrollableElement.scrollBy({
-              top:
-                diff +
-                (target +
-                  30 +
-                  commentCreatorContainerRef.offsetHeight +
-                  scrollableElement.clientHeight >=
-                scrollableElement.scrollHeight
-                  ? 1000
-                  : 0),
-              behavior: "instant",
-            });
-
-            console.log(
-              "after",
-              scrollableElement.scrollHeight,
-              scrollableElement.scrollTop,
-            );
-          }
-          prev = innerHeight();
-        });
-      }),
-    ) */
   }
-
-  // createEffect(
-  //   on(
-  //     () => keyboard.isKeyboardOpen(),
-  //     (isOpen) => {
-  //       if (!isOpen || !bottomFullyCoveredElement) return;
-  //       const curElement = bottomFullyCoveredElement;
-
-  //       requestAnimationFrame(() => {
-  //         const keyboardSize = keyboard.estimateKeyboardSize();
-  //         if (keyboardSize === null) return;
-  //         curElement.scrollBy({
-  //           behavior: "instant",
-  //           top: keyboardSize,
-  //         });
-  //       });
-  //     },
-  //   ),
-  // );
-  // let bottomFullyCoveredElement: null | HTMLElement;
-  // const intersectionObserver = new IntersectionObserver(
-  //   (entries) => {
-  //     let prevRect: DOMRectReadOnly | null = null;
-  //     for (const entry of entries) {
-  //       // if (
-  //       //   entry.intersectionRatio < 0.98 &&
-  //       //   bottomFullyCoveredElement === entry.target
-  //       // ) {
-  //       //   prevRect = null;
-  //       //   bottomFullyCoveredElement = null;
-  //       //   continue;
-  //       // }
-  //       if (entry.intersectionRatio < 0.98) {
-  //         continue;
-  //       }
-  //       if (!prevRect || prevRect.top < entry.boundingClientRect.top) {
-  //         prevRect = entry.boundingClientRect;
-  //         bottomFullyCoveredElement = entry.target as HTMLElement;
-  //       }
-  //     }
-  //     console.log("last entry", {
-  //       bottomFullyCoveredElement: bottomFullyCoveredElement?.innerText,
-  //     });
-  //   },
-  //   {
-  //     root: scrollableElement,
-  //     threshold: 0.98,
-  //   },
-  // );
-  // onCleanup(() => {
-  //   intersectionObserver.disconnect();
-  // });
 
   let commentCreatorContainerRef!: HTMLDivElement;
 
@@ -418,12 +296,6 @@ export const CommentsPage = () => {
         class="sticky bottom-0 -mx-2 mt-auto bg-secondary-bg px-2 pb-6 pt-2"
       >
         <CommentCreator
-          onFocus={() => {
-            setIsFocused(true);
-          }}
-          onBlur={() => {
-            setIsFocused(false);
-          }}
           boardId={boardId()}
           noteId={note().id}
           onCreated={() => {

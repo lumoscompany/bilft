@@ -1,7 +1,4 @@
-import { A, useNavigate, useParams } from "@solidjs/router";
-import { createInfiniteQuery, createQuery } from "@tanstack/solid-query";
-import { Match, Show, Switch, createMemo, type ParentProps } from "solid-js";
-import { keysFactory } from "../../api/api";
+import { keysFactory } from "@/api/api";
 import {
   addPrefix,
   clsxString,
@@ -10,19 +7,21 @@ import {
   removePrefix,
   scrollableElement,
   type StyleProps,
-} from "../../common";
-import { ArrowPointUp } from "../../icons";
+} from "@/common";
+import { ArrowPointUp } from "@/icons";
+import { A, useNavigate, useParams } from "@solidjs/router";
+import { createInfiniteQuery, createQuery } from "@tanstack/solid-query";
+import { Match, Show, Switch, createMemo, type ParentProps } from "solid-js";
 
 import type { NoteWithComment } from "@/api/model";
-// import { createWindowVirtualizer } from "@tanstack/solid-virtual";
+import { AvatarIcon } from "@/features/BoardNote/AvatarIcon";
+import { BoardNote } from "@/features/BoardNote/BoardNote";
+import { PostCreator } from "@/features/ContentCreator/PostCreator";
+import { LoadingSvg } from "@/features/LoadingSvg";
+import { setVirtualizerHandle } from "@/features/pageTransitions";
 import { Virtualizer } from "virtua/solid";
-import { AvatarIcon } from "../BoardNote/AvatarIcon";
-import { BoardNote } from "../BoardNote/BoardNote";
-import { LoadingSvg } from "../LoadingSvg";
 import { useInfiniteScroll } from "../infiniteScroll";
-import { setVirtualizerHandle } from "../pageTransitions";
 import { CommentNoteFooterLayout } from "./CommantNoteFooterLayour";
-import { PostCreator } from "./PostCreator";
 
 const UserStatus = (props: ParentProps<StyleProps>) => (
   <article class={clsxString("relative flex flex-col", props.class ?? "")}>
@@ -73,20 +72,6 @@ const UserProfilePage = (props: {
     }
   });
 
-  // const windowVirtualizer = createWindowVirtualizer({
-  //   count: notes().length,
-  //   estimateSize: () => 70,
-  // });
-  // createComputed(() => {
-  //   const options = unwrap(windowVirtualizer.options);
-  //   windowVirtualizer.setOptions({
-  //     ...options,
-  //     count: notes().length,
-  //   });
-  // });
-  // createComputed(() => {
-  //   console.log(notes().length, { ...windowVirtualizer.options });
-  // });
   const navigate = useNavigate();
 
   const navigateToComment = (note: NoteWithComment, boardId: string) => {
