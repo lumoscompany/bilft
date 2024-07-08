@@ -75,9 +75,11 @@ const UserProfilePage = (props: {
   const navigate = useNavigate();
 
   const navigateToComment = (note: NoteWithComment, boardId: string) => {
-    navigate(
-      `/comments/${note.id}?note=${JSON.stringify(note)}&boardId=${boardId}`,
-    );
+    const params = new URLSearchParams([
+      ["note", JSON.stringify(note)],
+      ["boardId", boardId],
+    ]);
+    navigate(`/comments/${note.id}?${params.toString()}`);
   };
 
   return (
