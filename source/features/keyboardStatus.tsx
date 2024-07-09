@@ -57,11 +57,12 @@ const useKeyboardStatusImpl = () => {
   };
 };
 
-const keyboardStatus = createContext<{
+export type KeyboardStatus = {
   isKeyboardOpen(): boolean;
   isPortrait(): boolean;
   estimateKeyboardSize(): number | null;
-} | null>(null);
+};
+const keyboardStatus = createContext<KeyboardStatus | null>(null);
 export const KeyboardStatusProvider = (props: ParentProps) => (
   <keyboardStatus.Provider value={useKeyboardStatusImpl()}>
     {props.children}

@@ -67,7 +67,7 @@ const UserProfilePage = (props: {
   );
 
   useInfiniteScroll(() => {
-    if (!notesQuery.isFetchingNextPage) {
+    if (notesQuery.hasNextPage && !notesQuery.isFetchingNextPage) {
       notesQuery.fetchNextPage();
     }
   });

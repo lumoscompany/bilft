@@ -32,7 +32,7 @@ import { AvatarIcon } from "../BoardNote/AvatarIcon";
 import { BoardNote } from "../BoardNote/BoardNote";
 import { CommentCreator } from "../ContentCreator/CommentCreator";
 import { useInfiniteScroll } from "../infiniteScroll";
-import { useKeyboardStatus } from "../keyboardStatus";
+import { useKeyboardStatus, type KeyboardStatus } from "../keyboardStatus";
 import { LoadingSvg } from "../LoadingSvg";
 import { getVirtualizerHandle, setVirtualizerHandle } from "../pageTransitions";
 import { useScreenSize } from "../screenSize";
@@ -62,18 +62,17 @@ export const CommentsPage = () => {
   );
 
   useInfiniteScroll(() => {
-    if (!commentsQuery.isFetchingNextPage) {
+    if (commentsQuery.hasNextPage && !commentsQuery.isFetchingNextPage) {
       commentsQuery.fetchNextPage();
     }
   });
-  const { height } = useScreenSize();
+  const { height: tgHeight } = useScreenSize();
   const keyboard = useKeyboardStatus();
 
-  const initialHeightDiff = window.innerHeight - height();
+  const initialHeightDiff = window.innerHeight - tgHeight();
 
   const [scrollMarginTop, setScrollMarginTop] = createSignal<number>(128);
   const [boardNote, setBoardNote] = createSignal<HTMLElement>();
-
   createEffect(() => {
     const onObserve = () => {
       const el = boardNote();
@@ -89,6 +88,9 @@ export const CommentsPage = () => {
     const _boardNote = boardNote();
     if (_boardNote) {
       observer.observe(_boardNote);
+      useCleanup((signal) =>
+        window.addEventListener("resize", onObserve, { signal }),
+      );
     }
     onObserve();
   });
@@ -98,78 +100,20 @@ export const CommentsPage = () => {
 
   const innerHeight = createInnerHeight();
   if (platform === "ios") {
-    const windowScrollTop = createWindowScrollTop();
-    const commentInputSize = () =>
-      innerHeight() -
-      height() -
-      windowScrollTop() -
-      (!keyboard.isKeyboardOpen()
-        ? initialHeightDiff
-        : keyboard.isPortrait()
-          ? 0
-          : initialHeightDiff / 2);
+    const commentInputSize = createCommentInputBottomOffset(
+      innerHeight,
+      tgHeight,
+      keyboard,
+      initialHeightDiff,
+    );
     commentInputTranslateTopPx = () => PxString.fromNumber(commentInputSize());
-
-    createEffect(
-      on(
-        () => keyboard.isKeyboardOpen(),
-        (isOpen) => {
-          if (!isOpen) return;
-
-          const bottom =
-            scrollableElement.scrollHeight -
-            scrollableElement.scrollTop -
-            scrollableElement.clientHeight;
-
-          if (bottom - commentInputSize() < 50) {
-            getVirtualizerHandle()?.scrollBy(bottom);
-            return;
-          }
-        },
-      ),
-    );
+    createSafariScrollAdjuster(keyboard, commentInputSize);
   } else {
-    createEffect(
-      on(
-        () => innerHeight(),
-        (height, prevHeight) => {
-          if (prevHeight === undefined) {
-            return;
-          }
-          const diff = prevHeight - height;
-
-          if (Math.abs(diff) > 5) {
-            getVirtualizerHandle()?.scrollBy(diff);
-          }
-        },
-      ),
-    );
+    createScrollAdjuster(innerHeight);
   }
 
   let commentCreatorContainerRef!: HTMLDivElement;
-
-  createEffect(() => {
-    assertOk(commentCreatorContainerRef);
-    useCleanup((signal) => {
-      let prevHeight = commentCreatorContainerRef.clientHeight;
-      const resizeObserver = new ResizeObserver(() => {
-        const curHeight = commentCreatorContainerRef.clientHeight;
-        // console.log({
-        //   diff: curHeight - prevHeight,
-        //   curHeight,
-        //   prevHeight,
-        // });
-        scrollableElement.scrollBy({
-          top: (curHeight - prevHeight) * (platform === "ios" ? 0.5 : 1),
-        });
-        prevHeight = curHeight;
-      });
-
-      resizeObserver.observe(commentCreatorContainerRef);
-
-      signal.onabort = () => resizeObserver.disconnect();
-    });
-  });
+  createOnResizeScrollAdjuster(() => commentCreatorContainerRef);
 
   return (
     <main class="flex min-h-screen flex-col bg-secondary-bg px-4">
@@ -310,3 +254,86 @@ export const CommentsPage = () => {
     </main>
   );
 };
+function createOnResizeScrollAdjuster(
+  commentCreatorContainer: () => HTMLDivElement,
+) {
+  createEffect(() => {
+    const commentCreatorContainerRef = commentCreatorContainer();
+    assertOk(commentCreatorContainerRef);
+    useCleanup((signal) => {
+      let prevHeight = commentCreatorContainerRef.clientHeight;
+      const resizeObserver = new ResizeObserver(() => {
+        const curHeight = commentCreatorContainerRef.clientHeight;
+        scrollableElement.scrollBy({
+          top: (curHeight - prevHeight) * (platform === "ios" ? 0.5 : 1),
+        });
+        prevHeight = curHeight;
+      });
+
+      resizeObserver.observe(commentCreatorContainerRef);
+
+      signal.onabort = () => resizeObserver.disconnect();
+    });
+  });
+}
+
+function createScrollAdjuster(innerHeight: Accessor<number>) {
+  createEffect(
+    on(
+      () => innerHeight(),
+      (height, prevHeight) => {
+        if (prevHeight === undefined) {
+          return;
+        }
+        const diff = prevHeight - height;
+
+        if (Math.abs(diff) > 5) {
+          getVirtualizerHandle()?.scrollBy(diff);
+        }
+      },
+    ),
+  );
+}
+
+function createSafariScrollAdjuster(
+  keyboard: KeyboardStatus,
+  commentInputSize: Accessor<number>,
+) {
+  createEffect(
+    on(
+      () => keyboard.isKeyboardOpen(),
+      (isOpen) => {
+        if (!isOpen) return;
+
+        const bottom =
+          scrollableElement.scrollHeight -
+          scrollableElement.scrollTop -
+          scrollableElement.clientHeight;
+
+        if (bottom - commentInputSize() < 50) {
+          getVirtualizerHandle()?.scrollBy(bottom);
+          return;
+        }
+      },
+    ),
+  );
+}
+
+function createCommentInputBottomOffset(
+  innerHeight: Accessor<number>,
+  tgHeight: Accessor<number>,
+  keyboard: KeyboardStatus,
+  initialHeightDiff: number,
+) {
+  const windowScrollTop = createWindowScrollTop();
+  const commentInputBottomOffset = () =>
+    innerHeight() -
+    tgHeight() -
+    windowScrollTop() -
+    (!keyboard.isKeyboardOpen()
+      ? initialHeightDiff
+      : keyboard.isPortrait()
+        ? 0
+        : initialHeightDiff / 2);
+  return commentInputBottomOffset;
+}
