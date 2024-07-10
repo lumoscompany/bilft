@@ -27,6 +27,12 @@ export const useCleanup = (callback: (signal: AbortSignal) => void) => {
   });
 };
 
+export const useCleanupTimeout = (callback: () => void, delay: number) => {
+  const timeoutId = setTimeout(callback, delay);
+
+  onCleanup(() => clearTimeout(timeoutId));
+};
+
 export type RefFunction<T> = (el: T) => void;
 export type Ref<T> = T | undefined | RefFunction<T>;
 export const mergeRefs = <T,>(...refsFuncs: Ref<T>[]): RefFunction<T> => {

@@ -1,5 +1,6 @@
 import { scrollableElement } from "@/common";
 import { useCleanup } from "@/lib/solid";
+import { onMount } from "solid-js";
 
 export const useInfiniteScroll = (onInfiniteScroll: () => void) =>
   useCleanup((signal) => {
@@ -17,5 +18,5 @@ export const useInfiniteScroll = (onInfiniteScroll: () => void) =>
       signal,
       passive: true,
     });
-    onScroll();
+    onMount(onScroll);
   });

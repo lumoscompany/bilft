@@ -154,6 +154,8 @@ export const pick = <TObj extends object, TKeys extends keyof TObj>(
   return res;
 };
 
+export const sortNumbers = (arr: number[]) => arr.toSorted((a, b) => a - b);
+
 type UnwrapSignals<T extends Record<string, unknown>> = {
   [TKey in keyof T]: T[TKey] extends Accessor<infer TValue> ? TValue : T[TKey];
 };
