@@ -10,7 +10,7 @@ import type {
   NoteArray,
   NoteWithComment,
 } from "@/api/model";
-import { assertOk, type StyleProps } from "@/common";
+import { type StyleProps } from "@/common";
 import { BottomDialog } from "@/features/BottomDialog";
 import { SignalHelper, type Ref } from "@/lib/solid";
 import {
@@ -26,7 +26,11 @@ import { ErrorHelper, type ModalStatus } from "./common";
 
 // hard to generalize
 export const CommentCreator = (
-  props: { noteId: string; onCreated(): void; boardId: string } & StyleProps & {
+  props: {
+    noteId: string;
+    onCreated(comment: model.Comment): void;
+    boardId: string;
+  } & StyleProps & {
       ref?: Ref<HTMLFormElement>;
     } & Pick<PostInputProps, "onBlur" | "onFocus">,
 ) => {
@@ -80,7 +84,7 @@ export const CommentCreator = (
         setWalletError(walletError);
         return;
       }
-      queryClient.setQueryData(
+      /* queryClient.setQueryData(
         keysFactory.comments({
           noteId: props.noteId,
         }).queryKey,
@@ -103,8 +107,7 @@ export const CommentCreator = (
             pages,
           };
         },
-      );
-
+      ); */
       queryClient.setQueryData(
         keysFactory.notes({
           board: props.boardId,
@@ -151,7 +154,7 @@ export const CommentCreator = (
         setInputValue("");
         setIsAnonymous(false);
         setWalletError(null);
-        props.onCreated();
+        props.onCreated(comment);
       });
     },
   }));
