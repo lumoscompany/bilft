@@ -1,4 +1,4 @@
-import { assertOk } from "@/common";
+import { assertOk } from "@/lib/assert";
 import { createContext, useContext } from "solid-js";
 
 const ScreenSizeContext = createContext<null | {

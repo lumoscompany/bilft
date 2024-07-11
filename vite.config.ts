@@ -82,6 +82,9 @@ export default defineConfig(async ({ mode, command }) => {
     server: {
       port: 1234,
     },
+    test: {
+      environment: "happy-dom",
+    },
     plugins: [
       command !== "build" &&
         terminal({

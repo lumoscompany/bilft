@@ -10,7 +10,8 @@
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "lint": "eslint source",
-    "serve": "vite preview"
+    "serve": "vite preview",
+    "test": "vitest"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.0.18",
@@ -32,6 +33,7 @@
     "autoprefixer": "^10.4.19",
     "eslint": "^9.1.1",
     "eslint-plugin-solid": "^0.14.1",
+    "happy-dom": "^14.12.3",
     "postcss": "^8.4.38",
     "prettier": "^3.2.5",
     "prettier-plugin-organize-imports": "^3.2.4",
@@ -45,6 +47,7 @@
     "vite-plugin-node-polyfills": "^0.21.0",
     "vite-plugin-terminal": "^1.2.0",
     "vite-tsconfig-paths": "^4.3.2",
+    "vitest": "^2.0.2",
     "zod": "^3.23.8"
   },
   "browserslist": {

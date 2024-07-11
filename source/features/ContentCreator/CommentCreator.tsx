@@ -28,7 +28,7 @@ import { ErrorHelper, type ModalStatus } from "./common";
 export const CommentCreator = (
   props: {
     noteId: string;
-    onCreated(comment: model.Comment): void;
+    onCreated(comment: model.Comment): Promise<void>;
     boardId: string;
   } & StyleProps & {
       ref?: Ref<HTMLFormElement>;
@@ -79,7 +79,7 @@ export const CommentCreator = (
         setWalletError(null);
       }
     },
-    onSuccess: ([comment, walletError]) => {
+    onSuccess: async ([comment, walletError]) => {
       if (!comment) {
         setWalletError(walletError);
         return;
@@ -150,11 +150,11 @@ export const CommentCreator = (
         },
       );
 
-      batch(() => {
+      await batch(() => {
         setInputValue("");
         setIsAnonymous(false);
         setWalletError(null);
-        props.onCreated(comment);
+        return props.onCreated(comment);
       });
     },
   }));

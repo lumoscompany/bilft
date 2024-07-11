@@ -1,4 +1,3 @@
-import { assertOk } from "@/common";
 import { useCleanup } from "@/lib/solid";
 import {
   createContext,
@@ -9,6 +8,7 @@ import {
   type ParentProps,
 } from "solid-js";
 import { useScreenSize } from "./screenSize";
+import { assertOk } from "@/lib/assert";
 
 let maxScreenSize = 0;
 const orientation = window.matchMedia("(orientation: portrait)");

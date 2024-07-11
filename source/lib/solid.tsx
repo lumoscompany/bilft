@@ -156,3 +156,32 @@ export const createInnerHeight = () => {
 
   return innerHeight;
 };
+
+export const createInterval = (interval: number, func: () => void) => {
+  const id = setInterval(func, interval);
+  onCleanup(() => {
+    clearInterval(id);
+  });
+};
+
+type UnwrapSignals<T extends Record<string, unknown>> = {
+  [TKey in keyof T]: T[TKey] extends Accessor<infer TValue> ? TValue : T[TKey];
+};
+export const unwrapSignals = <T extends Record<string, unknown>>(
+  obj: T,
+): UnwrapSignals<T> => {
+  const copy: Partial<UnwrapSignals<T>> = {};
+
+  for (const key in obj) {
+    const val = obj[key];
+    if (typeof val === "function") {
+      copy[key] = val();
+    } else {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-expect-error
+      copy[key] = val;
+    }
+  }
+
+  return copy as UnwrapSignals<T>;
+};

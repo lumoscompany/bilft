@@ -1,5 +1,5 @@
 import { initThemeParams, initUtils, retrieveLaunchParams } from "@tma.js/sdk";
-import { onCleanup, type Accessor } from "solid-js";
+import { assertOk } from "./lib/assert";
 
 export type StyleProps = {
   class?: string;
@@ -53,12 +53,6 @@ export const clsxString = (...items: string[]) => {
 
   return res;
 };
-
-export function assertOk(value: unknown): asserts value {
-  if (!value) {
-    throw new Error("Assertion failed " + value);
-  }
-}
 
 export const addPrefix = (id: string) => (id.startsWith("id") ? id : `id${id}`);
 export const removePrefix = (id: string) =>
@@ -134,13 +128,6 @@ export const formatPostTime = (createdAt: DateString) =>
     minute: "2-digit",
   });
 
-export const createInterval = (interval: number, func: () => void) => {
-  const id = setInterval(func, interval);
-  onCleanup(() => {
-    clearInterval(id);
-  });
-};
-
 export const pick = <TObj extends object, TKeys extends keyof TObj>(
   obj: TObj,
   keys: TKeys[],
@@ -152,30 +139,6 @@ export const pick = <TObj extends object, TKeys extends keyof TObj>(
   }
 
   return res;
-};
-
-export const sortNumbers = (arr: number[]) => arr.toSorted((a, b) => a - b);
-
-type UnwrapSignals<T extends Record<string, unknown>> = {
-  [TKey in keyof T]: T[TKey] extends Accessor<infer TValue> ? TValue : T[TKey];
-};
-export const unwrapSignals = <T extends Record<string, unknown>>(
-  obj: T,
-): UnwrapSignals<T> => {
-  const copy: Partial<UnwrapSignals<T>> = {};
-
-  for (const key in obj) {
-    const val = obj[key];
-    if (typeof val === "function") {
-      copy[key] = val();
-    } else {
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-expect-error
-      copy[key] = val;
-    }
-  }
-
-  return copy as UnwrapSignals<T>;
 };
 
 export type PxString = `${number}px`;
