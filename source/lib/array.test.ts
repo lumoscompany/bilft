@@ -33,6 +33,13 @@ describe(ArrayHelper.toInsertedInUniqueSortedArray.name, () => {
       ArrayHelper.toInsertedInUniqueSortedArray([1, 2, 3, 4, 7], [4, 5]),
     ).toEqual([1, 2, 3, 4, 5, 7]);
   });
+
+  it("must work with empty array", () => {
+    expect(ArrayHelper.toInsertedInUniqueSortedArray([], [1, 2, 3])).toEqual([
+      1, 2, 3,
+    ]);
+
+  });
 });
 
 describe(ArrayHelper.max, () => {
