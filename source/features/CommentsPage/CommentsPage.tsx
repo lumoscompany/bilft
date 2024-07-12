@@ -12,10 +12,15 @@ import {
   platform,
   scrollableElement,
 } from "@/common";
-import { AnonymousAvatarIcon } from "@/icons";
+import { AnonymousAvatarIcon, ArrowDownIcon } from "@/icons";
 import { ArrayHelper } from "@/lib/array";
 import { assertOk } from "@/lib/assert";
-import { createInnerHeight, mergeRefs, unwrapSignals } from "@/lib/solid";
+import {
+  createInnerHeight,
+  createTransitionPresence,
+  mergeRefs,
+  unwrapSignals,
+} from "@/lib/solid";
 import { queryClient } from "@/queryClient";
 import { A, useSearchParams } from "@solidjs/router";
 import {
@@ -29,6 +34,7 @@ import {
   Match,
   Switch,
   batch,
+  createComputed,
   createEffect,
   createMemo,
   createRenderEffect,
@@ -39,7 +45,6 @@ import {
   type Accessor,
 } from "solid-js";
 import { createMutable } from "solid-js/store";
-import { Portal } from "solid-js/web";
 import { Virtualizer } from "virtua/solid";
 import { AvatarIcon } from "../BoardNote/AvatarIcon";
 import { BoardNote } from "../BoardNote/BoardNote";
@@ -146,33 +151,51 @@ export const CommentsPage = () => {
   }));
 
   // [TODO]: if there will be problem on big pages - it'c necessary to rewrite it imperative
-  const comments = createMemo((prev: CommentItem[]) => {
-    const pages = commentPages();
-    if (pages.length !== commentsQueries.length) {
-      return prev;
-    }
-    const commentItems: CommentItem[] = [];
-    for (let i = 0; i < pages.length; ++i) {
-      const pageQuery = commentsQueries[i];
-
-      // [TODO]: handle errros
-      if (pageQuery.isSuccess) {
-        commentItems.push(...pageQuery.data.items);
+  type CommentsMemoRes = {
+    commentItems: CommentItem[];
+    firstVisiblePageNumber: number | null;
+  };
+  const commentsMemo = createMemo(
+    (prev: CommentsMemoRes) => {
+      const pages = commentPages();
+      let firstVisiblePageNumber: null | number = null;
+      if (pages.length !== commentsQueries.length) {
+        return prev;
       }
-    }
+      const commentItems: CommentItem[] = [];
+      for (let i = 0; i < pages.length; ++i) {
+        const pageQuery = commentsQueries[i];
 
-    return commentItems;
-  }, []);
+        // [TODO]: handle errros
+        if (pageQuery.isSuccess) {
+          firstVisiblePageNumber ??= pages[i];
+          commentItems.push(...pageQuery.data.items);
+        }
+      }
+      console.log({ firstVisiblePageNumber });
+
+      return { commentItems, firstVisiblePageNumber };
+    },
+    { firstVisiblePageNumber: null, commentItems: [] },
+    {
+      equals: (prev, next) =>
+        Object.is(prev?.commentItems, next?.commentItems) &&
+        Object.is(prev?.firstVisiblePageNumber, next?.firstVisiblePageNumber),
+    },
+  );
+
+  const comments = () => commentsMemo()?.commentItems;
+  const firstPageNumber = () => commentsMemo()?.firstVisiblePageNumber;
 
   const commentsCount = () => {
     // [TODO]: frank checking
     commentPages();
+    commentsQueries.length;
+    firstPageNumber();
 
     let lastCount = -1;
     const queries = queryClient.getQueryCache().findAll({
-      queryKey: keysFactory
-        .commentsNew({ noteId: note().id, page: 0 })
-        .queryKey.slice(0, -1),
+      queryKey: noteCommentsKey(note().id),
     }) as Array<Query<GetCommentResponse>>;
     for (const query of queries) {
       if (query.state.data?.count !== undefined) {
@@ -359,14 +382,14 @@ export const CommentsPage = () => {
         setIsReversed(true);
       });
 
-      console.log(
-        "isReversed.after",
-        unwrapSignals({
-          range,
-          isReversing,
-          commentPages,
-        }),
-      );
+      // console.log(
+      //   "isReversed.after",
+      //   unwrapSignals({
+      //     range,
+      //     isReversing,
+      //     commentPages,
+      //   }),
+      // );
     }
   };
 
@@ -576,6 +599,40 @@ export const CommentsPage = () => {
     });
   };
 
+  const showBottomScroller = createMemo(() => {
+    const count = commentsCount();
+
+    // console.log(
+    //   "sigs",
+    //   unwrapSignals({
+    //     count,
+    //     firstPageNumber,
+    //     range,
+    //     res:
+    //       (count ?? 0) -
+    //       COMMENTS_PAGE_SIZE * (firstPageNumber() ?? 0) -
+    //       (range()?.[1] ?? 0),
+    //   }),
+    // );
+    if (!count) {
+      return false;
+    }
+    return (
+      count -
+        COMMENTS_PAGE_SIZE * (firstPageNumber() ?? 0) -
+        (range()?.[1] ?? 0) >
+      30
+    );
+  });
+  let bottomScroller!: HTMLButtonElement;
+  const shouldShowBottomScroller = createTransitionPresence({
+    when: showBottomScroller,
+    element: () => bottomScroller,
+  });
+  createComputed(() => {
+    console.log("sefs", unwrapSignals(shouldShowBottomScroller));
+  });
+
   return (
     <main class="flex min-h-screen flex-col bg-secondary-bg px-4">
       <BoardNote ref={setBeforeListElement("note")} class="my-4">
@@ -770,23 +827,26 @@ export const CommentsPage = () => {
               }
             : undefined
         }
-        class="sticky bottom-0 -mx-2 mt-auto bg-secondary-bg px-2 pb-6 pt-2"
+        class="sticky bottom-0 isolate -mx-2 mt-auto bg-secondary-bg px-2 pb-6 pt-2"
       >
+        <button
+          onClick={() => onScrollDown(null)}
+          inert={!showBottomScroller()}
+          ref={bottomScroller}
+          class={clsxString(
+            "absolute bottom-full right-0 -z-10 flex aspect-square w-9 items-center justify-center rounded-full bg-section-bg transition-[opacity,transform] duration-[150ms,300ms] contain-strict active:opacity-70",
+            showBottomScroller() ? "" : "translate-y-full opacity-0",
+            shouldShowBottomScroller.present() ? "visible" : "invisible",
+          )}
+        >
+          <ArrowDownIcon class="scale-90 text-accent" />
+        </button>
         <CommentCreator
           boardId={boardId()}
           noteId={note().id}
           onCreated={onScrollDown}
         />
       </div>
-
-      <Portal>
-        <button
-          onClick={() => onScrollDown(null)}
-          class="fixed bottom-4 right-4 aspect-square w-10 rounded-full bg-section-bg font-inter text-xs contain-strict"
-        >
-          Go down
-        </button>
-      </Portal>
     </main>
   );
 };

@@ -1,8 +1,10 @@
 import {
   createEffect,
   createMemo,
+  createRenderEffect,
   createSignal,
   onCleanup,
+  onMount,
   untrack,
   type Accessor,
 } from "solid-js";
@@ -58,9 +60,21 @@ export const createTransitionPresence = <T,>(params: {
 } => {
   const timeout = params.timeout ?? 2000;
   const show = createMemo(() => !!params.when());
+  const whenAndNoElement = params.when() && !params.element();
   const [status, setStatus] = createSignal<TransitionPresenceStatus>(
     params.when() ? (params.element() ? "present" : "presenting") : "hidden",
   );
+  if (whenAndNoElement) {
+    onMount(() => {
+      setStatus(
+        params.when()
+          ? params.element()
+            ? "present"
+            : "presenting"
+          : "hidden",
+      );
+    });
+  }
 
   const whenOrPrev = createMemo<T | undefined | null | false>((prev) =>
     status() === "hidden"
@@ -70,7 +84,8 @@ export const createTransitionPresence = <T,>(params: {
         : prev,
   );
 
-  createDisposeEffect(() => {
+  // we need to execute effect before render
+  createRenderEffect(() => {
     if (!show() || untrack(() => status() === "hiding")) {
       status();
       return;
@@ -82,7 +97,7 @@ export const createTransitionPresence = <T,>(params: {
       setStatus((cur) => (cur === "presenting" ? "present" : cur));
     });
 
-    return () => {
+    onCleanup(() => {
       const dismiss = () => {
         setStatus("hidden");
       };
@@ -102,6 +117,10 @@ export const createTransitionPresence = <T,>(params: {
         const curAnimations = _element.getAnimations({
           subtree: true,
         });
+        console.log({
+          curAnimations,
+          prevAnimations,
+        });
 
         let newAnimationsPromise: Promise<unknown> | null = null;
 
@@ -116,16 +135,17 @@ export const createTransitionPresence = <T,>(params: {
 
         if (!newAnimationsPromise) {
           dismiss();
-        } else {
-          Promise.race([
-            new Promise<void>((resolve) => {
-              setTimeout(resolve, timeout);
-            }),
-            newAnimationsPromise,
-          ]).finally(dismiss);
+          return;
         }
+
+        Promise.race([
+          new Promise<void>((resolve) => {
+            setTimeout(resolve, timeout);
+          }),
+          newAnimationsPromise,
+        ]).finally(dismiss);
       });
-    };
+    });
   });
 
   return {
