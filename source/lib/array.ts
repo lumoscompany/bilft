@@ -18,6 +18,18 @@ export const ArrayHelper = {
     }
     return null;
   },
+  findLastGapAsc: (arr: number[]) => {
+    for (let i = arr.length - 2; i >= 0; --i) {
+      const prev = arr[i + 1];
+      const cur = arr[i];
+
+      if (prev - cur > 1) {
+        return i;
+      }
+    }
+
+    return null;
+  },
   max: (arr: number[]) => {
     let max = arr[0] ?? 0;
     for (let i = 0; i < arr.length; ++i) {

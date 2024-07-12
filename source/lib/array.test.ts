@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ArrayHelper } from "./array";
 
-describe(ArrayHelper.toInsertedInUniqueSortedArray.name, () => {
+describe(ArrayHelper.toInsertedInUniqueSortedArray, () => {
   it("inserts correctly to ordered array", () => {
     expect(
       ArrayHelper.toInsertedInUniqueSortedArray([1, 2, 4], [5, 6]),
@@ -38,7 +38,6 @@ describe(ArrayHelper.toInsertedInUniqueSortedArray.name, () => {
     expect(ArrayHelper.toInsertedInUniqueSortedArray([], [1, 2, 3])).toEqual([
       1, 2, 3,
     ]);
-
   });
 });
 
@@ -56,10 +55,25 @@ describe(ArrayHelper.findGapAsc, () => {
     expect(ArrayHelper.findGapAsc([1, 3])).toBe(1);
 
     expect(ArrayHelper.findGapAsc([1, 2, 3, 4, 5, 6, 7, 10])).toBe(7);
+    expect(ArrayHelper.findGapAsc([1, 3, 4, 5, 6, 7, 10])).toBe(1);
   });
-  it("shouldn't detect gaps false gaps", () => {
+  it("shouldn't detect false gaps", () => {
     expect(ArrayHelper.findGapAsc([1, 2, 3, 4])).toBe(null);
 
     expect(ArrayHelper.findGapAsc([-12, -11, -10])).toBe(null);
+  });
+});
+
+describe(ArrayHelper.findLastGapAsc, () => {
+  it("handles array with gap", () => {
+    expect(ArrayHelper.findLastGapAsc([1, 3])).toBe(0);
+    expect(ArrayHelper.findLastGapAsc([1, 2, 3, 4, 5, 6, 7, 10])).toBe(6);
+    expect(ArrayHelper.findLastGapAsc([1, 3, 4, 5, 6, 7, 10])).toBe(5);
+  });
+
+  it("shouldn't detect false gaps", () => {
+    expect(ArrayHelper.findLastGapAsc([1, 2, 3, 4])).toBe(null);
+
+    expect(ArrayHelper.findLastGapAsc([-12, -11, -10])).toBe(null);
   });
 });

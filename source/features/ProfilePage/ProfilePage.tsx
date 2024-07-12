@@ -20,6 +20,7 @@ import { PostCreator } from "@/features/ContentCreator/PostCreator";
 import { LoadingSvg } from "@/features/LoadingSvg";
 import { setVirtualizerHandle } from "@/features/pageTransitions";
 import { Virtualizer } from "virtua/solid";
+import { createCommentsPageUrl } from "../CommentsPage/CommentsPage";
 import { useInfiniteScroll } from "../infiniteScroll";
 import { CommentNoteFooterLayout } from "./CommantNoteFooterLayour";
 
@@ -74,12 +75,11 @@ const UserProfilePage = (props: {
 
   const navigate = useNavigate();
 
-  const navigateToComment = (note: NoteWithComment, boardId: string) => {
-    const params = new URLSearchParams([
-      ["note", JSON.stringify(note)],
-      ["boardId", boardId],
-    ]);
-    navigate(`/comments/${note.id}?${params.toString()}`);
+  const navigateToComment = (note: NoteWithComment) => {
+    const boardId = boardQuery.data?.id;
+    if (!boardId) return;
+
+    navigate(createCommentsPageUrl(note, boardId, note.commentsCount, false));
   };
 
   return (
@@ -147,10 +147,8 @@ const UserProfilePage = (props: {
                       href="#"
                       onClick={(e) => {
                         e.preventDefault();
-                        const boardId = boardQuery.data?.id;
-                        if (!boardId) return;
 
-                        navigateToComment(note, boardId);
+                        navigateToComment(note);
                       }}
                       type="button"
                       class="absolute inset-0 -z-10 select-none"
