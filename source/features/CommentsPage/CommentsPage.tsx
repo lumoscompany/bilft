@@ -278,22 +278,6 @@ export const CommentsPage = () => {
         ? "start"
         : null,
   );
-  const prevFetchingSide = (() => {
-    const [sig, setSig] = createSignal(fetchingSide());
-
-    createEffect(
-      on(
-        () => fetchingSide(),
-        (curFetchingSide) => {
-          if (curFetchingSide) {
-            setSig(curFetchingSide);
-          }
-        },
-      ),
-    );
-
-    return sig;
-  })();
 
   const [range, setRange] = createSignal<[number, number] | undefined>(
     undefined,
@@ -315,12 +299,28 @@ export const CommentsPage = () => {
   const [isReversing, setIsReversing] = createSignal<{
     scrollIndex: number;
     targetPageNumbers: number[];
-    doNotCheckBefore: number;
+    gapStartIndex: number | null;
     fallbackPageNumber: number[];
   } | null>(null);
-  createEffect(() => {
-    console.log("range", range());
-  });
+
+  const onFallbackReverse = () => {
+    const currentReversing = isReversing();
+    if (!currentReversing) {
+      return;
+    }
+    console.log(
+      "reverted reverse",
+      unwrapSignals({
+        currentReversing,
+        range,
+      }),
+    );
+
+    batch(() => {
+      setCommentPages(currentReversing?.fallbackPageNumber);
+      setIsReversing(null);
+    });
+  };
   const onScrollEnd = () => {
     const isReversed = (() => {
       const curIsReversing = isReversing();
@@ -333,8 +333,12 @@ export const CommentsPage = () => {
         return false;
       }
       const [start, end] = _range;
-
-      return scrollIndex >= start && scrollIndex <= end;
+      // if we scrolled gap line - consider list reversed -> remove top part
+      return (
+        (curIsReversing.gapStartIndex !== null &&
+          start > curIsReversing.gapStartIndex) ||
+        (scrollIndex >= start && scrollIndex <= end)
+      );
     })();
 
     if (isReversed) {
@@ -393,25 +397,6 @@ export const CommentsPage = () => {
     return commentPages().at(-1) !== pagesCountOfCommentsCount(count);
   };
 
-  const onFallbackReverse = () => {
-    const currentReversing = isReversing();
-    if (!currentReversing) {
-      return;
-    }
-    console.log(
-      "reverted reverse",
-      unwrapSignals({
-        currentReversing,
-        range,
-      }),
-    );
-
-    batch(() => {
-      setCommentPages(currentReversing?.fallbackPageNumber);
-      setIsReversing(null);
-    });
-  };
-
   const reverseListMutation = createMutation(() => ({
     mutationFn: async (comment: Comment | null) => {
       if (commentsQueries.length !== commentPages().length) {
@@ -438,6 +423,7 @@ export const CommentsPage = () => {
       // if not - we should stick to top and remove bottom items
       // if pageSize where we trying to scroll is less than 6 elements - we need to load it first
       // if page will have less than 6 elements - we need to load previous page
+      // [TODO]: handle stop
 
       const itemsOnNewPage = newCount % COMMENTS_PAGE_SIZE;
       const promisesArr: Promise<unknown>[] = [];
@@ -486,6 +472,7 @@ export const CommentsPage = () => {
         batch(() => {
           const prevShift = shift;
           shift = false;
+          const fallbackCommentPages = commentPages();
           setCommentPages(
             ArrayHelper.toInsertedInUniqueSortedArray(commentPages(), [
               newPageNumber - 1,
@@ -493,11 +480,13 @@ export const CommentsPage = () => {
             ]),
           );
           const gapIndex = ArrayHelper.findGapAsc(commentPages());
+          const gapStartIndex =
+            gapIndex !== null ? gapIndex * COMMENTS_PAGE_SIZE : null;
 
           setIsReversing(() => ({
-            fallbackPageNumber: commentPages(),
+            fallbackPageNumber: fallbackCommentPages,
             scrollIndex: -1,
-            doNotCheckBefore: Date.now() + 200,
+            gapStartIndex,
             targetPageNumbers: gapIndex
               ? commentPages().slice(gapIndex)
               : commentPages(),
@@ -540,8 +529,6 @@ export const CommentsPage = () => {
       shift = fetchingSide() === "start";
     }
   });
-  // const shift = () =>
-  //   !isReversing() && listMode() === "reversed" && prevFetchingSide() !== "end";
 
   createRenderEffect(
     on(
@@ -554,12 +541,25 @@ export const CommentsPage = () => {
             shift,
             isReversing,
             listMode,
-            prevFetchingSize: prevFetchingSide,
           }),
         );
       },
     ),
   );
+
+  const onScrollDown = async (comment: Comment | null) => {
+    if (reverseListMutation.isPending || isReversing()) {
+      return;
+    }
+    if (!comment && isReversed()) {
+      getVirtualizerHandle()?.scrollToIndex(comments().length - 1, {
+        smooth: true,
+      });
+      return;
+    }
+
+    await reverseListMutation.mutateAsync(comment);
+  };
 
   const compensateScrollPositionFromAppearance = (el: HTMLElement) => {
     let elSize = 0;
@@ -775,19 +775,13 @@ export const CommentsPage = () => {
         <CommentCreator
           boardId={boardId()}
           noteId={note().id}
-          // eslint-disable-next-line solid/reactivity
-          onCreated={async (comment) => {
-            !reverseListMutation.isPending &&
-              (await reverseListMutation.mutateAsync(comment));
-          }}
+          onCreated={onScrollDown}
         />
       </div>
 
       <Portal>
         <button
-          onClick={() =>
-            !reverseListMutation.isPending && reverseListMutation.mutate(null)
-          }
+          onClick={() => onScrollDown(null)}
           class="fixed bottom-4 right-4 aspect-square w-10 rounded-full bg-section-bg font-inter text-xs contain-strict"
         >
           Go down
