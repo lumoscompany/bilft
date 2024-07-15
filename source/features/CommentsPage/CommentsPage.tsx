@@ -32,12 +32,11 @@ import {
 } from "@tanstack/solid-query";
 import {
   Match,
+  Show,
   Switch,
   batch,
-  createComputed,
   createEffect,
   createMemo,
-  createRenderEffect,
   createSignal,
   on,
   onCleanup,
@@ -554,28 +553,29 @@ export const CommentsPage = () => {
     }
   });
 
-  createRenderEffect(
-    on(
-      () => comments().length,
-      (length) => {
-        console.log(
-          "length change",
-          unwrapSignals({
-            length,
-            shift,
-            isReversing,
-            listMode,
-          }),
-        );
-      },
-    ),
-  );
+  // createRenderEffect(
+  //   on(
+  //     () => comments().length,
+  //     (length) => {
+  //       console.log(
+  //         "length change",
+  //         unwrapSignals({
+  //           length,
+  //           shift,
+  //           isReversing,
+  //           listMode,
+  //         }),
+  //       );
+  //     },
+  //   ),
+  // );
 
   const onScrollDown = async (comment: Comment | null) => {
     if (reverseListMutation.isPending || isReversing()) {
       return;
     }
     if (!comment && isReversed()) {
+      console.log("scrolling to last");
       getVirtualizerHandle()?.scrollToIndex(comments().length - 1, {
         smooth: true,
       });
@@ -590,7 +590,7 @@ export const CommentsPage = () => {
     onMount(() => {
       queueMicrotask(() => {
         elSize = el.offsetHeight;
-        console.log("size", elSize);
+        // console.log("size", elSize);
         getVirtualizerHandle()?.scrollBy(elSize);
       });
     });
@@ -601,26 +601,20 @@ export const CommentsPage = () => {
   };
 
   const showBottomScroller = createMemo(() => {
+    // for some reason on IOS scroll is not working when keyboard open
+    // [TODO]: figure out why
+    if (platform === "ios" && keyboard.isKeyboardOpen()) {
+      return false;
+    }
     const count = commentsCount();
 
-    // console.log(
-    //   "sigs",
-    //   unwrapSignals({
-    //     count,
-    //     firstPageNumber,
-    //     range,
-    //     res:
-    //       (count ?? 0) -
-    //       COMMENTS_PAGE_SIZE * (firstPageNumber() ?? 0) -
-    //       (range()?.[1] ?? 0),
-    //   }),
-    // );
     if (!count) {
       return false;
     }
+
     return (
       count -
-        COMMENTS_PAGE_SIZE * (firstPageNumber() ?? 0) -
+        COMMENTS_PAGE_SIZE * ((firstPageNumber() ?? 1) - 1) -
         (range()?.[1] ?? 0) >
       10
     );
@@ -630,9 +624,9 @@ export const CommentsPage = () => {
     when: showBottomScroller,
     element: () => bottomScroller,
   });
-  createComputed(() => {
-    console.log("sefs", unwrapSignals(shouldShowBottomScroller));
-  });
+  // createComputed(() => {
+  //   console.log("sefs", unwrapSignals(shouldShowBottomScroller));
+  // });
 
   return (
     <main class="flex min-h-screen flex-col bg-secondary-bg px-4">
@@ -811,14 +805,23 @@ export const CommentsPage = () => {
         </Match>
       </Switch>
 
-      {platform === "ios" && commentInputTranslateTopPx && (
-        <div
-          class="h-0 contain-strict"
-          style={{
-            height: commentInputTranslateTopPx(),
-          }}
-        />
-      )}
+      <Show
+        when={
+          platform === "ios" &&
+          commentInputTranslateTopPx &&
+          commentInputTranslateTopPx()
+        }
+      >
+        {(height) => (
+          <div
+            class="h-0 contain-strict"
+            style={{
+              height: height(),
+            }}
+          />
+        )}
+      </Show>
+
       <section
         ref={commentCreatorContainerRef}
         style={
@@ -828,15 +831,15 @@ export const CommentsPage = () => {
               }
             : undefined
         }
-        class="sticky bottom-0 isolate -mx-2 mt-auto px-2 pb-6 pt-2"
+        class="sticky bottom-0 isolate -mx-2 mt-auto touch-none px-2 pb-6 pt-2"
       >
         <button
           {...createInputFocusPreventer.FRIENDLY}
-          onClick={() => onScrollDown(null)}
+          onClick={() => queueMicrotask(() => onScrollDown(null))}
           inert={!showBottomScroller()}
           ref={bottomScroller}
           class={clsxString(
-            "absolute bottom-[calc(100%+12px)] right-0 -z-10 flex aspect-square w-9 items-center justify-center rounded-full bg-section-bg transition-[background,transform] duration-[150ms,300ms] contain-strict active:opacity-65",
+            "absolute bottom-[calc(100%+12px)] right-0 -z-10 flex aspect-square w-9 items-center justify-center rounded-full bg-section-bg transition-[background,transform] duration-[150ms,300ms] contain-strict after:absolute after:-inset-5 after:content-[''] active:opacity-65",
             showBottomScroller() ? "" : "translate-y-[calc(100%+12px)]",
             shouldShowBottomScroller.present() ? "visible" : "invisible",
           )}
@@ -847,6 +850,7 @@ export const CommentsPage = () => {
         <div class="absolute inset-0 -z-10 bg-secondary-bg" />
 
         <CommentCreator
+          class="touch-none"
           boardId={boardId()}
           noteId={note().id}
           onCreated={onScrollDown}

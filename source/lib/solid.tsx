@@ -205,3 +205,7 @@ export const unwrapSignals = <T extends Record<string, unknown>>(
 
   return copy as UnwrapSignals<T>;
 };
+
+export const unwrapUntrackSignals = <T extends Record<string, unknown>>(
+  obj: T,
+): UnwrapSignals<T> => untrack(() => unwrapSignals(obj));

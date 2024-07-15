@@ -1,11 +1,11 @@
 import { clsxString, platform, type StyleProps } from "@/common";
 import { ArrowUpIcon } from "@/icons";
-import { mergeRefs } from "@/lib/solid";
+import { mergeRefs, useCleanup } from "@/lib/solid";
 import {
   Show,
-  createEffect,
   createMemo,
   createSignal,
+  onMount,
   type Accessor,
   type JSX,
   type Ref,
@@ -32,24 +32,27 @@ const _createInputFocusPreventer = (
   focusTarget: () => HTMLElement | undefined,
   shouldRefocusOnFriendly: Accessor<boolean>,
 ) =>
-  createEffect(() => {
-    window.addEventListener(
-      "click",
-      (e) => {
-        const target = focusTarget();
-        if (
-          target &&
-          shouldRefocusOnFriendly() &&
-          e.target instanceof HTMLElement &&
-          e.target.dataset.refocusFriendly === "1"
-        ) {
-          target.focus();
-        }
-      },
-      {
-        capture: true,
-      },
-    );
+  onMount(() => {
+    useCleanup((signal) => {
+      window.addEventListener(
+        "click",
+        (e) => {
+          const target = focusTarget();
+          if (
+            target &&
+            shouldRefocusOnFriendly() &&
+            e.target instanceof HTMLElement &&
+            e.target.dataset.refocusFriendly === "1"
+          ) {
+            target.focus();
+          }
+        },
+        {
+          capture: true,
+          signal,
+        },
+      );
+    });
   });
 
 export const createInputFocusPreventer = Object.assign(
