@@ -1,7 +1,15 @@
 import { clsxString, platform, type StyleProps } from "@/common";
 import { ArrowUpIcon } from "@/icons";
 import { mergeRefs } from "@/lib/solid";
-import { Show, createMemo, createSignal, type JSX, type Ref } from "solid-js";
+import {
+  Show,
+  createEffect,
+  createMemo,
+  createSignal,
+  type Accessor,
+  type JSX,
+  type Ref,
+} from "solid-js";
 import { LoadingSvg } from "../LoadingSvg";
 import { useKeyboardStatus } from "../keyboardStatus";
 import { CheckboxUI } from "./common";
@@ -19,6 +27,39 @@ export type PostInputProps = StyleProps & {
   ref?: Ref<HTMLFormElement>;
   position: "top" | "bottom";
 };
+
+const _createInputFocusPreventer = (
+  focusTarget: () => HTMLElement | undefined,
+  shouldRefocusOnFriendly: Accessor<boolean>,
+) =>
+  createEffect(() => {
+    window.addEventListener(
+      "click",
+      (e) => {
+        const target = focusTarget();
+        if (
+          target &&
+          shouldRefocusOnFriendly() &&
+          e.target instanceof HTMLElement &&
+          e.target.dataset.refocusFriendly === "1"
+        ) {
+          target.focus();
+        }
+      },
+      {
+        capture: true,
+      },
+    );
+  });
+
+export const createInputFocusPreventer = Object.assign(
+  _createInputFocusPreventer,
+  {
+    FRIENDLY: {
+      "data-refocus-friendly": "1",
+    },
+  },
+);
 
 // [TODO]: share number with backend
 const MAX_POST_LENGTH = 1200;
@@ -39,6 +80,10 @@ export function PostInput(props: PostInputProps) {
     );
   }
   const { isKeyboardOpen } = useKeyboardStatus();
+  createInputFocusPreventer(
+    () => inputRef,
+    () => isKeyboardOpen(),
+  );
 
   return (
     <form
@@ -94,11 +139,8 @@ export function PostInput(props: PostInputProps) {
           data-checked={props.isAnonymous ? "" : undefined}
         >
           <input
+            {...createInputFocusPreventer.FRIENDLY}
             onChange={(e) => {
-              // preventing keyboard from closing
-              if (isKeyboardOpen()) {
-                inputRef?.focus();
-              }
               props.setIsAnonymous(e.target.checked);
             }}
             checked={props.isAnonymous}

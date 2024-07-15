@@ -49,6 +49,7 @@ import { Virtualizer } from "virtua/solid";
 import { AvatarIcon } from "../BoardNote/AvatarIcon";
 import { BoardNote } from "../BoardNote/BoardNote";
 import { CommentCreator } from "../ContentCreator/CommentCreator";
+import { createInputFocusPreventer } from "../ContentCreator/PostInput";
 import { LoadingSvg } from "../LoadingSvg";
 import { useKeyboardStatus } from "../keyboardStatus";
 import { getVirtualizerHandle, setVirtualizerHandle } from "../pageTransitions";
@@ -621,7 +622,7 @@ export const CommentsPage = () => {
       count -
         COMMENTS_PAGE_SIZE * (firstPageNumber() ?? 0) -
         (range()?.[1] ?? 0) >
-      30
+      10
     );
   });
   let bottomScroller!: HTMLButtonElement;
@@ -818,7 +819,7 @@ export const CommentsPage = () => {
           }}
         />
       )}
-      <div
+      <section
         ref={commentCreatorContainerRef}
         style={
           platform === "ios" && commentInputTranslateTopPx
@@ -827,26 +828,31 @@ export const CommentsPage = () => {
               }
             : undefined
         }
-        class="sticky bottom-0 isolate -mx-2 mt-auto bg-secondary-bg px-2 pb-6 pt-2"
+        class="sticky bottom-0 isolate -mx-2 mt-auto px-2 pb-6 pt-2"
       >
         <button
+          {...createInputFocusPreventer.FRIENDLY}
           onClick={() => onScrollDown(null)}
           inert={!showBottomScroller()}
           ref={bottomScroller}
           class={clsxString(
-            "absolute bottom-full right-0 -z-10 flex aspect-square w-9 items-center justify-center rounded-full bg-section-bg transition-[opacity,transform] duration-[150ms,300ms] contain-strict active:opacity-70",
-            showBottomScroller() ? "" : "translate-y-full opacity-0",
+            "absolute bottom-[calc(100%+12px)] right-0 -z-10 flex aspect-square w-9 items-center justify-center rounded-full bg-section-bg transition-[background,transform] duration-[150ms,300ms] contain-strict active:opacity-65",
+            showBottomScroller() ? "" : "translate-y-[calc(100%+12px)]",
             shouldShowBottomScroller.present() ? "visible" : "invisible",
           )}
+          aria-label="Scroll to the bottom"
         >
-          <ArrowDownIcon class="scale-90 text-accent" />
+          <ArrowDownIcon class="scale-[85%] text-hint" />
         </button>
+        <div class="absolute inset-0 -z-10 bg-secondary-bg" />
+
         <CommentCreator
           boardId={boardId()}
           noteId={note().id}
           onCreated={onScrollDown}
         />
-      </div>
+        {/* </div> */}
+      </section>
     </main>
   );
 };
