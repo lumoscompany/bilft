@@ -190,6 +190,7 @@ export const PostCreator = (props: { boardId: string } & StyleProps) => {
   return (
     <>
       <PostInput
+        preventScrollTouches={false}
         position="top"
         isAnonymous={isAnonymous()}
         setIsAnonymous={setIsAnonymous}

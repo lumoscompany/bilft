@@ -831,15 +831,15 @@ export const CommentsPage = () => {
               }
             : undefined
         }
-        class="sticky bottom-0 isolate -mx-2 mt-auto touch-none px-2 pb-6 pt-2"
+        class="sticky bottom-0 isolate -mx-2 mt-auto px-2 pb-6 pt-2 [&_*]:overscroll-y-contain"
       >
         <button
           {...createInputFocusPreventer.FRIENDLY}
-          onClick={() => queueMicrotask(() => onScrollDown(null))}
+          onClick={() => onScrollDown(null)}
           inert={!showBottomScroller()}
           ref={bottomScroller}
           class={clsxString(
-            "absolute bottom-[calc(100%+12px)] right-0 -z-10 flex aspect-square w-9 items-center justify-center rounded-full bg-section-bg transition-[background,transform] duration-[150ms,300ms] contain-strict after:absolute after:-inset-5 after:content-[''] active:opacity-65",
+            "absolute bottom-[calc(100%+12px)] right-0 -z-10 flex aspect-square w-9 items-center justify-center rounded-full bg-section-bg transition-[background,transform] duration-[150ms,300ms] contain-strict after:absolute after:-inset-3 after:content-[''] active:opacity-65",
             showBottomScroller() ? "" : "translate-y-[calc(100%+12px)]",
             shouldShowBottomScroller.present() ? "visible" : "invisible",
           )}
@@ -850,12 +850,10 @@ export const CommentsPage = () => {
         <div class="absolute inset-0 -z-10 bg-secondary-bg" />
 
         <CommentCreator
-          class="touch-none"
           boardId={boardId()}
           noteId={note().id}
           onCreated={onScrollDown}
         />
-        {/* </div> */}
       </section>
     </main>
   );

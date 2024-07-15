@@ -229,6 +229,7 @@ export const CommentCreator = (
   return (
     <>
       <PostInput
+        preventScrollTouches
         onBlur={props.onBlur}
         onFocus={props.onFocus}
         position="bottom"

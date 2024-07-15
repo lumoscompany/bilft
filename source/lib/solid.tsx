@@ -29,6 +29,15 @@ export const useCleanup = (callback: (signal: AbortSignal) => void) => {
   });
 };
 
+export const useObserverCleanup = (
+  callback: () => null | { disconnect(): void },
+) => {
+  const observer = callback();
+  if (observer) {
+    onCleanup(() => observer.disconnect());
+  }
+};
+
 export const useCleanupTimeout = (callback: () => void, delay: number) => {
   const timeoutId = setTimeout(callback, delay);
 
