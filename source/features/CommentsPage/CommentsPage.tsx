@@ -13,12 +13,11 @@ import {
   scrollableElement,
 } from "@/common";
 import { AnonymousAvatarIcon, ArrowDownIcon } from "@/icons";
-import { ArrayHelper } from "@/lib/array";
+import { ArrayHelper, type IsEqual } from "@/lib/array";
 import { assertOk } from "@/lib/assert";
 import {
   createInnerHeight,
   createTransitionPresence,
-  mergeRefs,
   unwrapSignals,
 } from "@/lib/solid";
 import { queryClient } from "@/queryClient";
@@ -61,18 +60,19 @@ import {
 } from "./scrollAdjusters";
 import { wait } from "./utils";
 
-// const LOADING_ITEM: CommentItem = {
-//   type: "loading",
-// };
-// const ERROR_ITEM: CommentItem = {
-//   type: "error",
-// };
+type CommentItem = { type: "loader"; id: "prev-item" | "next-item" } | Comment;
+const PREV_LOADING_ITEM: CommentItem = {
+  type: "loader",
+  id: "prev-item",
+};
+const NEXT_LOADING_ITEM: CommentItem = {
+  type: "loader",
+  id: "next-item",
+};
 
 const pagesCountOfCommentsCount = (commentsCount: number) => {
   return Math.ceil(commentsCount / COMMENTS_PAGE_SIZE);
 };
-
-type CommentItem = Comment;
 
 const noteCommentsKey = (noteId: string) =>
   keysFactory
@@ -115,6 +115,66 @@ export const createCommentsPageUrl = (
   return `/comments/${note.id}?${params.toString()}`;
 };
 
+const createOneSideArraySync = <T,>(
+  arr: () => T[],
+  anchorElement: () => number,
+  isEqual: IsEqual<T>,
+) => {
+  const [sig, setArr] = createSignal(arr());
+  const [isInsertingBefore, setIsInsertingBefore] = createSignal(false);
+
+  const [hasTimer, setHasTimer] = createSignal(false);
+  let animationEndPromise: null | Promise<void> = null;
+  createEffect(() => {
+    if (hasTimer()) {
+      return;
+    }
+    const equal = ArrayHelper.isEqual(sig(), arr(), isEqual);
+    // console.log(
+    //   unwrapUntrackSignals({
+    //     sig,
+    //     arr,
+    //     equal,
+    //     anchorElement,
+    //   }),
+    // );
+
+    if (equal) {
+      return;
+    }
+
+    setHasTimer(true);
+    const pr = Promise.withResolvers<void>();
+    animationEndPromise = pr.promise;
+
+    // delaying rerenders to release event loop
+    requestAnimationFrame(() => {
+      // console.log("we are here");
+      setTimeout(() => {
+        try {
+          const res = ArrayHelper.oneSideChange(
+            sig(),
+            arr(),
+            isEqual,
+            anchorElement(),
+          );
+          console.log(res.front, anchorElement());
+          batch(() => {
+            setArr(res.data);
+            setIsInsertingBefore(res.front);
+          });
+        } finally {
+          pr.resolve();
+          animationEndPromise = null;
+          setHasTimer(false);
+        }
+      });
+    });
+  });
+
+  return [sig, isInsertingBefore, () => animationEndPromise] as const;
+};
+
 export const CommentsPage = () => {
   const [searchParams] = useSearchParams();
 
@@ -154,6 +214,7 @@ export const CommentsPage = () => {
   type CommentsMemoRes = {
     commentItems: CommentItem[];
     firstVisiblePageNumber: number | null;
+    lastCommentId: string | null;
   };
   const commentsMemo = createMemo(
     (prev: CommentsMemoRes) => {
@@ -172,20 +233,25 @@ export const CommentsPage = () => {
           commentItems.push(...pageQuery.data.items);
         }
       }
-      console.log({ firstVisiblePageNumber });
 
-      return { commentItems, firstVisiblePageNumber };
+      return {
+        commentItems,
+        firstVisiblePageNumber,
+        lastCommentId: commentItems.at(-1)?.id ?? null,
+      };
     },
-    { firstVisiblePageNumber: null, commentItems: [] },
+    { firstVisiblePageNumber: null, commentItems: [], lastCommentId: null },
     {
       equals: (prev, next) =>
         Object.is(prev?.commentItems, next?.commentItems) &&
-        Object.is(prev?.firstVisiblePageNumber, next?.firstVisiblePageNumber),
+        Object.is(prev?.firstVisiblePageNumber, next?.firstVisiblePageNumber) &&
+        Object.is(prev?.lastCommentId, next.lastCommentId),
     },
   );
 
   const comments = () => commentsMemo()?.commentItems;
   const firstPageNumber = () => commentsMemo()?.firstVisiblePageNumber;
+  const lastCommentId = () => commentsMemo()?.lastCommentId;
 
   const commentsCount = () => {
     // [TODO]: frank checking
@@ -302,13 +368,9 @@ export const CommentsPage = () => {
         : null,
   );
 
-  const [range, setRange] = createSignal<[number, number] | undefined>(
-    undefined,
-    {
-      equals: (a, b) =>
-        a === b || (!!a && !!b && a[0] === b[0] && a[1] === b[1]),
-    },
-  );
+  const [range, setRange] = createSignal<[number, number]>([0, 0], {
+    equals: (a, b) => a === b || (!!a && !!b && a[0] === b[0] && a[1] === b[1]),
+  });
   const tailStatus = ([startIndex, endIndex]: [number, number]) => {
     const isStart = startIndex < 2;
     const isEnd = endIndex >= comments().length - 2;
@@ -522,26 +584,28 @@ export const CommentsPage = () => {
       }
 
       wait(1_000).then(onFallbackReverse);
-      requestAnimationFrame(() => {
-        const commentIndex =
-          comment && comments().findIndex((it) => it.id === comment.id);
-        const scrollIndex =
-          commentIndex === null || commentIndex === -1
-            ? comments().length - 1
-            : commentIndex;
+      (oneWayItems[2]()?.then.bind(oneWayItems[2]()) ?? requestAnimationFrame)(
+        () => {
+          const commentIndex =
+            comment && comments().findIndex((it) => it.id === comment.id);
+          const scrollIndex =
+            commentIndex === null || commentIndex === -1
+              ? comments().length - 1
+              : commentIndex;
 
-        setIsReversing((current) =>
-          current
-            ? {
-                ...current,
-                scrollIndex,
-              }
-            : current,
-        );
-        getVirtualizerHandle()?.scrollToIndex(scrollIndex, {
-          smooth: true,
-        });
-      });
+          setIsReversing((current) =>
+            current
+              ? {
+                  ...current,
+                  scrollIndex,
+                }
+              : current,
+          );
+          getVirtualizerHandle()?.scrollToIndex(scrollIndex, {
+            smooth: true,
+          });
+        },
+      );
     },
   }));
 
@@ -624,8 +688,34 @@ export const CommentsPage = () => {
     when: showBottomScroller,
     element: () => bottomScroller,
   });
-  // createComputed(() => {
-  //   console.log("sefs", unwrapSignals(shouldShowBottomScroller));
+
+  const avg = (a: number, b: number) => ((a + b) / 2) | 0;
+  const _commentsWithLoaders = createMemo(() => {
+    const copy: CommentItem[] = [];
+    if (hasPrevPage()) {
+      copy.push(PREV_LOADING_ITEM);
+    }
+    copy.push(...comments());
+    if (hasNextPage()) {
+      copy.push(NEXT_LOADING_ITEM);
+    }
+    return copy;
+  });
+  const oneWayItems = createOneSideArraySync(
+    () => _commentsWithLoaders(),
+    () => {
+      const min = _commentsWithLoaders().length > 1 ? 1 : 0;
+      return Math.max(min, avg(...range()));
+    },
+    (a, b) => a === b || a.id === b.id,
+  );
+  // createEffect(() => {
+  //   console.log(
+  //     unwrapSignals({
+  //       length: oneWayItems[0]().length,
+  //       shift: oneWayItems[1],
+  //     }),
+  //   );
   // });
 
   return (
@@ -677,131 +767,98 @@ export const CommentsPage = () => {
           </div>
         </Match>
         <Match when={comments().length > 0}>
-          <Switch>
-            <Match
-              when={
-                hasPrevPage() &&
-                commentsQueries.at(0)?.isError &&
-                commentsQueries.at(0)
-              }
-            >
-              {(query) => (
-                <section
-                  ref={mergeRefs(
-                    setBeforeListElement("error"),
-                    compensateScrollPositionFromAppearance,
-                  )}
-                  class="my-3 flex w-full justify-center font-inter text-[17px] font-medium leading-[22px] text-text"
-                >
-                  Failed to load previous comments page
-                  <button
-                    onClick={() => {
-                      query().refetch();
-                    }}
-                    class="ml-1 text-accent transition-opacity active:opacity-50"
-                  >
-                    Retry
-                  </button>
-                </section>
-              )}
-            </Match>
-            <Match when={hasPrevPage()}>
-              <div
-                ref={mergeRefs(
-                  setBeforeListElement("loader"),
-                  compensateScrollPositionFromAppearance,
-                )}
-                role="status"
-                class="my-3 flex w-full justify-center"
-              >
-                <LoadingSvg class="w-8 fill-accent text-transparent" />
-                <span class="sr-only">Next comments page is loading</span>
-              </div>
-            </Match>
-          </Switch>
           <Virtualizer
             itemSize={110}
             onScrollEnd={onScrollEnd}
             ref={(handle) => setVirtualizerHandle(handle)}
             startMargin={scrollMarginTop()}
-            data={comments()}
+            data={oneWayItems[0]()}
             scrollRef={scrollableElement}
-            shift={(() => shift)()}
+            shift={oneWayItems[1]()}
             onRangeChange={(startIndex, endIndex) => {
               setRange([startIndex, endIndex]);
             }}
           >
-            {(comment, index) => (
-              <article
-                data-not-last={index !== comments().length - 1 ? "" : undefined}
-                class={clsxString(
-                  "mb-4 grid grid-cols-[36px,1fr] grid-rows-[auto,auto,auto] gap-y-[2px] pb-4 [&[data-not-last]]:border-b-[0.4px] [&[data-not-last]]:border-b-separator",
-                )}
-              >
-                <Switch>
-                  <Match when={comment.author}>
-                    {(author) => (
-                      <A
-                        class="col-span-full flex flex-row items-center gap-x-[6px] pl-2 font-inter text-[17px] font-medium leading-[22px] text-text transition-opacity active:opacity-70"
-                        href={`/board/${author().id}`}
+            {(comment) => (
+              <Switch>
+                <Match when={comment.type !== "loader" && comment}>
+                  {(comment) => (
+                    <article
+                      data-last={
+                        comment().id === lastCommentId() ? "" : undefined
+                      }
+                      class={clsxString(
+                        "mb-4 grid grid-cols-[36px,1fr] grid-rows-[auto,auto,auto] gap-y-[2px] border-b-[0.4px] border-b-separator pb-4 data-[last]:border-none",
+                      )}
+                    >
+                      <Switch>
+                        <Match when={comment().author}>
+                          {(author) => (
+                            <div class="col-span-full flex">
+                              <A
+                                class="flex flex-row items-center gap-x-[6px] pl-2 font-inter text-[17px] font-medium leading-[22px] text-text transition-opacity active:opacity-70"
+                                href={`/board/${author().id}`}
+                              >
+                                <AvatarIcon
+                                  lazy
+                                  class="h-[22px] w-[22px]"
+                                  isLoading={false}
+                                  url={comment().author?.photo ?? null}
+                                />
+                                {author().name}
+                              </A>
+                            </div>
+                          )}
+                        </Match>
+                        <Match when={comment().type === "anonymous"}>
+                          <div class="col-span-full flex flex-row items-center gap-x-[6px] pl-2 font-inter text-[17px] font-medium leading-[22px] text-text transition-opacity">
+                            <AnonymousAvatarIcon class="h-[22px] w-[22px]" />
+                            Anonymously
+                          </div>
+                        </Match>
+                      </Switch>
+                      <div class="col-start-2 max-w-full overflow-hidden whitespace-pre-wrap font-inter text-[16px] leading-[22px]">
+                        {comment().content}
+                      </div>
+                      <div class="col-start-2 font-inter text-[13px] leading-[18px] text-hint">
+                        {formatPostDate(comment().createdAt)} at{" "}
+                        {formatPostTime(comment().createdAt)}
+                      </div>
+                    </article>
+                  )}
+                </Match>
+
+                <Match
+                  when={
+                    comment.type === "loader" &&
+                    commentsQueries.at(comment.id === "next-item" ? -1 : 0)
+                      ?.isError &&
+                    commentsQueries.at(comment.id === "next-item" ? -1 : 0)
+                  }
+                >
+                  {(query) => (
+                    <section class="my-3 flex w-full justify-center font-inter text-[17px] font-medium leading-[22px] text-text">
+                      Failed to load comments page
+                      <button
+                        onClick={() => {
+                          query().refetch();
+                        }}
+                        class="ml-1 text-accent transition-opacity active:opacity-50"
                       >
-                        <AvatarIcon
-                          lazy
-                          class="h-[22px] w-[22px]"
-                          isLoading={false}
-                          url={comment.author?.photo ?? null}
-                        />
-                        {author().name}
-                      </A>
-                    )}
-                  </Match>
-                  <Match when={comment.type === "anonymous"}>
-                    <div class="col-span-full flex flex-row items-center gap-x-[6px] pl-2 font-inter text-[17px] font-medium leading-[22px] text-text transition-opacity">
-                      <AnonymousAvatarIcon class="h-[22px] w-[22px]" />
-                      Anonymously
-                    </div>
-                  </Match>
-                </Switch>
-                <div class="col-start-2 max-w-full overflow-hidden whitespace-pre-wrap font-inter text-[16px] leading-[22px]">
-                  {comment.content}
-                </div>
-                <div class="col-start-2 font-inter text-[13px] leading-[18px] text-hint">
-                  {formatPostDate(comment.createdAt)} at{" "}
-                  {formatPostTime(comment.createdAt)}
-                </div>
-              </article>
+                        Retry
+                      </button>
+                    </section>
+                  )}
+                </Match>
+                <Match when={comment.type === "loader"}>
+                  <div role="status" class="my-3 flex w-full justify-center">
+                    <LoadingSvg class="w-8 fill-accent text-transparent" />
+                    <span class="sr-only">Comments page is loading</span>
+                  </div>
+                </Match>
+              </Switch>
             )}
           </Virtualizer>
-
-          <Switch>
-            <Match
-              when={
-                hasNextPage() &&
-                commentsQueries.at(-1)?.isError &&
-                commentsQueries.at(-1)
-              }
-            >
-              {(query) => (
-                <section class="my-3 flex w-full justify-center font-inter text-[17px] font-medium leading-[22px] text-text">
-                  Failed to load next comments page
-                  <button
-                    onClick={() => {
-                      query().refetch();
-                    }}
-                    class="ml-1 text-accent transition-opacity active:opacity-50"
-                  >
-                    Retry
-                  </button>
-                </section>
-              )}
-            </Match>
-            <Match when={hasNextPage()}>
-              <div role="status" class="my-3 flex w-full justify-center">
-                <LoadingSvg class="w-8 fill-accent text-transparent" />
-                <span class="sr-only">Next comments page is loading</span>
-              </div>
-            </Match>
-          </Switch>
         </Match>
       </Switch>
 

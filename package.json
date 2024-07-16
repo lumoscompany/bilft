@@ -23,7 +23,7 @@
     "axios": "^1.6.8",
     "solid-js": "^1.8.17",
     "solid-sonner": "^0.2.8",
-    "virtua": "^0.33.2",
+    "virtua": "~0.33.0",
     "vite-plugin-solid": "^2.10.2"
   },
   "devDependencies": {
