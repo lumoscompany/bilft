@@ -1,6 +1,7 @@
 import type { Comment } from "@/api/model";
-import { assertOk, platform } from "@/common";
+import { platform } from "@/common";
 import { AnonymousAvatarIcon } from "@/icons";
+import { assertOk } from "@/lib/assert";
 import { A } from "@solidjs/router";
 import { Show, createEffect, createMemo, createSignal, on } from "solid-js";
 import { AvatarIcon } from "../BoardNote/AvatarIcon";

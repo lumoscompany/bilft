@@ -1,14 +1,4 @@
-import { useNavigate, useParams } from "@solidjs/router";
-import { createInfiniteQuery, createQuery } from "@tanstack/solid-query";
-import {
-  For,
-  Match,
-  Show,
-  Switch,
-  createMemo,
-  type ParentProps,
-} from "solid-js";
-import { keysFactory } from "../../api/api";
+import { keysFactory } from "@/api/api";
 import {
   addPrefix,
   clsxString,
@@ -17,15 +7,22 @@ import {
   removePrefix,
   scrollableElement,
   type StyleProps,
-} from "../../common";
-import { ArrowPointUp } from "../../icons";
+} from "@/common";
+import { ArrowPointUp } from "@/icons";
+import { A, useNavigate, useParams } from "@solidjs/router";
+import { createInfiniteQuery, createQuery } from "@tanstack/solid-query";
+import { Match, Show, Switch, createMemo, type ParentProps } from "solid-js";
 
 import type { NoteWithComment } from "@/api/model";
-import { AvatarIcon } from "../BoardNote/AvatarIcon";
-import { BoardNote } from "../BoardNote/BoardNote";
-import { LoadingSvg } from "../LoadingSvg";
+import { AvatarIcon } from "@/features/BoardNote/AvatarIcon";
+import { BoardNote } from "@/features/BoardNote/BoardNote";
+import { PostCreator } from "@/features/ContentCreator/PostCreator";
+import { LoadingSvg } from "@/features/LoadingSvg";
+import { setVirtualizerHandle } from "@/features/pageTransitions";
+import { Virtualizer } from "virtua/solid";
+import { createCommentsPageUrl } from "../CommentsPage/CommentsPage";
+import { useInfiniteScroll } from "../infiniteScroll";
 import { CommentNoteFooterLayout } from "./CommantNoteFooterLayour";
-import { PostCreator } from "./PostCreator";
 
 const UserStatus = (props: ParentProps<StyleProps>) => (
   <article class={clsxString("relative flex flex-col", props.class ?? "")}>
@@ -69,6 +66,21 @@ const UserProfilePage = (props: {
   const notes = createMemo(() =>
     notesQuery.isSuccess ? notesQuery.data.pages.flatMap((it) => it.data) : [],
   );
+
+  useInfiniteScroll(() => {
+    if (notesQuery.hasNextPage && !notesQuery.isFetchingNextPage) {
+      notesQuery.fetchNextPage();
+    }
+  });
+
+  const navigate = useNavigate();
+
+  const navigateToComment = (note: NoteWithComment) => {
+    const boardId = boardQuery.data?.id;
+    if (!boardId) return;
+
+    navigate(createCommentsPageUrl(note, boardId, note.commentsCount, false));
+  };
 
   return (
     <main class="flex min-h-screen flex-col pb-6 pt-4 text-text">
@@ -121,10 +133,27 @@ const UserProfilePage = (props: {
             </div>
           </Match>
           <Match when={notes().length > 0}>
-            <For each={notes()}>
+            <Virtualizer
+              ref={(handle) => setVirtualizerHandle(handle)}
+              data={notes()}
+              itemSize={160}
+              scrollRef={scrollableElement}
+              startMargin={282}
+            >
               {(note) => (
-                <BoardNote class="mx-4 mb-4">
-                  <BoardNote.Card>
+                <BoardNote class="mx-4 mb-4 contain-content">
+                  <BoardNote.Card class="relative isolate">
+                    <A
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+
+                        navigateToComment(note);
+                      }}
+                      type="button"
+                      class="absolute inset-0 -z-10 select-none"
+                    />
+
                     {/* extends to match based on type */}
                     <Switch
                       fallback={
@@ -151,17 +180,23 @@ const UserProfilePage = (props: {
                         )}
                       </Match>
                     </Switch>
-                    <BoardNote.Divider />
-                    <BoardNote.Content>{note.content}</BoardNote.Content>
+                    <BoardNote.Divider class="pointer-events-none" />
+                    <BoardNote.Content class="pointer-events-none">
+                      {note.content}
+                    </BoardNote.Content>
                   </BoardNote.Card>
                   <Show when={boardQuery.data?.id}>
                     {(boardId) => (
-                      <CommentFooter note={note} boardId={boardId()} />
+                      <CommentFooter
+                        note={note}
+                        onNavigateNote={navigateToComment}
+                        boardId={boardId()}
+                      />
                     )}
                   </Show>
                 </BoardNote>
               )}
-            </For>
+            </Virtualizer>
 
             <Switch>
               <Match when={notesQuery.isFetchingNextPage}>
@@ -205,15 +240,11 @@ export const ProfilePage = () => {
   );
 };
 
-function CommentFooter(props: { boardId: string; note: NoteWithComment }) {
-  const navigate = useNavigate();
-
-  const navigateToComment = () => {
-    navigate(
-      `/comments/${props.note.id}?note=${JSON.stringify(props.note)}&boardId=${props.boardId}`,
-    );
-  };
-
+function CommentFooter(props: {
+  boardId: string;
+  note: NoteWithComment;
+  onNavigateNote(note: NoteWithComment, boardId: string): void;
+}) {
   return (
     <div class="mx-4 mt-2 flex self-stretch">
       <Switch>
@@ -222,14 +253,14 @@ function CommentFooter(props: { boardId: string; note: NoteWithComment }) {
             <CommentNoteFooterLayout
               commentsCount={props.note.commentsCount}
               lastComment={lastComment()}
-              onClick={navigateToComment}
+              onClick={() => props.onNavigateNote(props.note, props.boardId)}
             />
           )}
         </Match>
         <Match when={props.note.commentsCount === 0}>
           <button
             type="button"
-            onClick={navigateToComment}
+            onClick={() => props.onNavigateNote(props.note, props.boardId)}
             class="ml-auto font-inter text-[15px] leading-[18px] text-accent transition-opacity active:opacity-70"
           >
             post you reply

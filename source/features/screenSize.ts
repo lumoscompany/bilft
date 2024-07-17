@@ -1,9 +1,10 @@
-import { assertOk } from "@/common";
+import { assertOk } from "@/lib/assert";
 import { createContext, useContext } from "solid-js";
 
 const ScreenSizeContext = createContext<null | {
   width(): number;
   height(): number;
+  heightTransition(): number;
 }>(null);
 
 export const ScreenSizeProvider = ScreenSizeContext.Provider;

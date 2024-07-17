@@ -6,6 +6,7 @@ import {
   getProfileId,
   getSelfUserId,
   isEqualIds,
+  platform,
   removePrefix,
   themeParams,
 } from "@/common";
@@ -25,6 +26,7 @@ import { Toaster } from "solid-sonner";
 import { CommentsPage } from "./features/CommentsPage/CommentsPage";
 import { KeyboardStatusProvider } from "./features/keyboardStatus";
 import { createRouterWithPageTransition } from "./features/pageTransitions";
+import { useFixSafariScroll } from "./features/safariScrollFix";
 import { ScreenSizeProvider } from "./features/screenSize";
 import { AppQueryClientProvider } from "./queryClient";
 
@@ -44,6 +46,9 @@ bindThemeParamsCSSVars(themeParams);
 const createTgScreenSize = () => {
   const [width, setWidth] = createSignal(window.innerWidth);
   const [height, setHeight] = createSignal(window.innerHeight);
+  const [heightTransition, setHeightTransition] = createSignal(
+    window.innerHeight,
+  );
 
   onCleanup(
     on("viewport_changed", (e) => {
@@ -51,6 +56,8 @@ const createTgScreenSize = () => {
         setHeight(e.height);
         setWidth(e.width);
       }
+
+      setHeightTransition(e.height);
     }),
   );
   postEvent("web_app_request_viewport");
@@ -58,6 +65,7 @@ const createTgScreenSize = () => {
   return {
     width,
     height,
+    heightTransition,
   };
 };
 
@@ -97,6 +105,10 @@ const App = () => {
       `${windowSize.height()}px`,
     );
   });
+
+  if (platform === "ios") {
+    useFixSafariScroll();
+  }
 
   return (
     <AppQueryClientProvider>

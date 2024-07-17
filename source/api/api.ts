@@ -21,6 +21,11 @@ export type CreateNoteRequest = {
   type: "private" | "public" | "public-anonymous";
 };
 
+export type GetCommentResponse = {
+  count: number;
+  items: Comment[];
+};
+
 type RequestResponseMappings = {
   "/board/resolve": RequestResponse<{ value: string }, model.Board>;
   "/board/createNote": RequestResponse<CreateNoteRequest, model.Note>;
@@ -48,10 +53,7 @@ type RequestResponseMappings = {
       page: number;
       pageSize: number;
     },
-    {
-      count: number;
-      items: Comment[];
-    }
+    GetCommentResponse
   >;
 };
 type AvailableRequests = keyof RequestResponseMappings;
@@ -128,18 +130,38 @@ export const keysFactory = {
     queryFn: () => fetchMethod("/me", undefined),
     queryKey: ["me"],
   }),
-  comments: ({ noteId }: { noteId: string }) =>
+  comments: ({
+    noteId,
+    initialPage = 1,
+  }: {
+    noteId: string;
+    initialPage?: number;
+  }) =>
     infiniteQueryOptions({
       queryKey: ["comments", noteId],
-      initialPageParam: 1,
+      initialPageParam: initialPage,
       queryFn: ({ pageParam }) =>
         fetchMethod("/note/getComments", {
           noteID: noteId,
           page: pageParam,
-          pageSize: 30,
+          pageSize: COMMENTS_PAGE_SIZE,
         }),
+      getPreviousPageParam: (_, __, firstPageParam) =>
+        firstPageParam > 1 ? firstPageParam - 1 : undefined,
       getNextPageParam: ({ items }, _, lastPageParam) =>
         items.length > 0 ? lastPageParam + 1 : undefined,
       reconcile: "id",
     }),
+
+  commentsNew: ({ noteId, page }: { noteId: string; page: number }) =>
+    queryOptions({
+      queryKey: ["comments-new", noteId, page],
+      queryFn: () =>
+        fetchMethod("/note/getComments", {
+          noteID: noteId,
+          page,
+          pageSize: COMMENTS_PAGE_SIZE,
+        }),
+    }),
 };
+export const COMMENTS_PAGE_SIZE = 16;

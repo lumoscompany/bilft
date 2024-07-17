@@ -1,5 +1,5 @@
 import { initThemeParams, initUtils, retrieveLaunchParams } from "@tma.js/sdk";
-import type { Accessor } from "solid-js";
+import { assertOk } from "./lib/assert";
 
 export type StyleProps = {
   class?: string;
@@ -31,7 +31,10 @@ const findScrollElement = () => {
   }
 };
 
-const _scrollEl = findScrollElement();
+const _scrollEl = document.getElementById("scroll-target");
+if (import.meta.env.DEV) {
+  assertOk(_scrollEl === findScrollElement());
+}
 assertOk(_scrollEl);
 export const scrollableElement = _scrollEl as HTMLElement;
 
@@ -50,12 +53,6 @@ export const clsxString = (...items: string[]) => {
 
   return res;
 };
-
-export function assertOk(value: unknown): asserts value {
-  if (!value) {
-    throw new Error("Assertion failed " + value);
-  }
-}
 
 export const addPrefix = (id: string) => (id.startsWith("id") ? id : `id${id}`);
 export const removePrefix = (id: string) =>
@@ -131,25 +128,20 @@ export const formatPostTime = (createdAt: DateString) =>
     minute: "2-digit",
   });
 
-type UnwrapSignals<T extends Record<string, unknown>> = {
-  [TKey in keyof T]: T[TKey] extends Accessor<infer TValue> ? TValue : T[TKey];
-};
-export const unwrapSignals = <T extends Record<string, unknown>>(
-  obj: T,
-): UnwrapSignals<T> => {
-  const copy: Partial<UnwrapSignals<T>> = {};
+export const pick = <TObj extends object, TKeys extends keyof TObj>(
+  obj: TObj,
+  keys: TKeys[],
+): Pick<TObj, TKeys> => {
+  const res = {} as Pick<TObj, TKeys>;
 
-  for (const key in obj) {
-    const val = obj[key];
-    if (typeof val === "function") {
-      copy[key] = val();
-    } else {
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-expect-error
-      copy[key] = val;
-    }
+  for (const key of keys) {
+    res[key] = obj[key];
   }
 
-  return copy as UnwrapSignals<T>;
+  return res;
 };
 
+export type PxString = `${number}px`;
+export const PxString = {
+  fromNumber: (value: number): `${number}px` => `${value}px`,
+};

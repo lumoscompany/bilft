@@ -135,7 +135,7 @@ export const BottomDialog = <T,>(
                   }
             }
             ref={setDialogRef}
-            class="fixed inset-0 z-50 flex flex-col"
+            class="fixed contain-strict inset-0 z-50 flex flex-col"
           >
             <button
               class="absolute inset-0 bg-black/60 opacity-[var(--opacity,0)] transition-opacity duration-300"

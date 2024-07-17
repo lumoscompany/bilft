@@ -1,25 +1,38 @@
-import { assertOk } from "@/common";
+import { useCleanup } from "@/lib/solid";
 import {
   createContext,
   createEffect,
+  createMemo,
   createSignal,
   useContext,
   type ParentProps,
 } from "solid-js";
 import { useScreenSize } from "./screenSize";
+import { assertOk } from "@/lib/assert";
 
 let maxScreenSize = 0;
 const orientation = window.matchMedia("(orientation: portrait)");
 
 const useKeyboardStatusImpl = () => {
   const [isKeyboardOpen, setIsKeyboardOpen] = createSignal(false);
+  const [isPortrait, setIsPortrait] = createSignal(orientation.matches);
 
   const { height } = useScreenSize();
+
+  useCleanup((signal) => {
+    orientation.addEventListener(
+      "change",
+      () => {
+        setIsPortrait(orientation.matches);
+      },
+      { signal },
+    );
+  });
 
   createEffect(() => {
     height();
 
-    if (!orientation.matches) {
+    if (!isPortrait()) {
       setIsKeyboardOpen(false);
       return;
     }
@@ -30,14 +43,26 @@ const useKeyboardStatusImpl = () => {
     setIsKeyboardOpen(maxScreenSize * 0.8 > height());
   });
 
+  const estimateKeyboardSize = createMemo((prev: null | number) => {
+    if (isKeyboardOpen()) {
+      return Math.max(prev ?? 0, maxScreenSize - height());
+    }
+    return prev;
+  }, null);
+
   return {
     isKeyboardOpen,
+    isPortrait,
+    estimateKeyboardSize,
   };
 };
 
-const keyboardStatus = createContext<{
+export type KeyboardStatus = {
   isKeyboardOpen(): boolean;
-} | null>(null);
+  isPortrait(): boolean;
+  estimateKeyboardSize(): number | null;
+};
+const keyboardStatus = createContext<KeyboardStatus | null>(null);
 export const KeyboardStatusProvider = (props: ParentProps) => (
   <keyboardStatus.Provider value={useKeyboardStatusImpl()}>
     {props.children}

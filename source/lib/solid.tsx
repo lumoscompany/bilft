@@ -1,8 +1,10 @@
 import {
   createEffect,
   createMemo,
+  createRenderEffect,
   createSignal,
   onCleanup,
+  onMount,
   untrack,
   type Accessor,
 } from "solid-js";
@@ -25,6 +27,21 @@ export const useCleanup = (callback: (signal: AbortSignal) => void) => {
   onCleanup(() => {
     abortController.abort();
   });
+};
+
+export const useObserverCleanup = (
+  callback: () => null | { disconnect(): void },
+) => {
+  const observer = callback();
+  if (observer) {
+    onCleanup(() => observer.disconnect());
+  }
+};
+
+export const useCleanupTimeout = (callback: () => void, delay: number) => {
+  const timeoutId = setTimeout(callback, delay);
+
+  onCleanup(() => clearTimeout(timeoutId));
 };
 
 export type RefFunction<T> = (el: T) => void;
@@ -52,9 +69,21 @@ export const createTransitionPresence = <T,>(params: {
 } => {
   const timeout = params.timeout ?? 2000;
   const show = createMemo(() => !!params.when());
+  const whenAndNoElement = params.when() && !params.element();
   const [status, setStatus] = createSignal<TransitionPresenceStatus>(
     params.when() ? (params.element() ? "present" : "presenting") : "hidden",
   );
+  if (whenAndNoElement) {
+    onMount(() => {
+      setStatus(
+        params.when()
+          ? params.element()
+            ? "present"
+            : "presenting"
+          : "hidden",
+      );
+    });
+  }
 
   const whenOrPrev = createMemo<T | undefined | null | false>((prev) =>
     status() === "hidden"
@@ -64,7 +93,8 @@ export const createTransitionPresence = <T,>(params: {
         : prev,
   );
 
-  createDisposeEffect(() => {
+  // we need to execute effect before render
+  createRenderEffect(() => {
     if (!show() || untrack(() => status() === "hiding")) {
       status();
       return;
@@ -76,7 +106,7 @@ export const createTransitionPresence = <T,>(params: {
       setStatus((cur) => (cur === "presenting" ? "present" : cur));
     });
 
-    return () => {
+    onCleanup(() => {
       const dismiss = () => {
         setStatus("hidden");
       };
@@ -96,6 +126,10 @@ export const createTransitionPresence = <T,>(params: {
         const curAnimations = _element.getAnimations({
           subtree: true,
         });
+        console.log({
+          curAnimations,
+          prevAnimations,
+        });
 
         let newAnimationsPromise: Promise<unknown> | null = null;
 
@@ -110,16 +144,17 @@ export const createTransitionPresence = <T,>(params: {
 
         if (!newAnimationsPromise) {
           dismiss();
-        } else {
-          Promise.race([
-            new Promise<void>((resolve) => {
-              setTimeout(resolve, timeout);
-            }),
-            newAnimationsPromise,
-          ]).finally(dismiss);
+          return;
         }
+
+        Promise.race([
+          new Promise<void>((resolve) => {
+            setTimeout(resolve, timeout);
+          }),
+          newAnimationsPromise,
+        ]).finally(dismiss);
       });
-    };
+    });
   });
 
   return {
@@ -131,3 +166,55 @@ export const createTransitionPresence = <T,>(params: {
 export const SignalHelper = {
   map: <T, R>(sig: Accessor<T>, map: (value: T) => R) => map(sig()),
 };
+
+export const createWindowScrollTop = () => {
+  const [windowScrollTop, setWindowScrollTop] = createSignal(window.screenTop);
+
+  window.addEventListener("scroll", () => {
+    setWindowScrollTop(window.scrollY);
+  });
+
+  return windowScrollTop;
+};
+export const createInnerHeight = () => {
+  const [innerHeight, setInnerHeight] = createSignal(window.innerHeight);
+
+  window.addEventListener("resize", () => {
+    setInnerHeight(window.innerHeight);
+  });
+
+  return innerHeight;
+};
+
+export const createInterval = (interval: number, func: () => void) => {
+  const id = setInterval(func, interval);
+  onCleanup(() => {
+    clearInterval(id);
+  });
+};
+
+type UnwrapSignals<T extends Record<string, unknown>> = {
+  [TKey in keyof T]: T[TKey] extends Accessor<infer TValue> ? TValue : T[TKey];
+};
+export const unwrapSignals = <T extends Record<string, unknown>>(
+  obj: T,
+): UnwrapSignals<T> => {
+  const copy: Partial<UnwrapSignals<T>> = {};
+
+  for (const key in obj) {
+    const val = obj[key];
+    if (typeof val === "function") {
+      copy[key] = val();
+    } else {
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-expect-error
+      copy[key] = val;
+    }
+  }
+
+  return copy as UnwrapSignals<T>;
+};
+
+export const unwrapUntrackSignals = <T extends Record<string, unknown>>(
+  obj: T,
+): UnwrapSignals<T> => untrack(() => unwrapSignals(obj));
