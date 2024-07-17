@@ -22,11 +22,12 @@ import {
   unwrapSignals,
 } from "@/lib/solid";
 import { queryClient } from "@/queryClient";
-import { A, useSearchParams } from "@solidjs/router";
+import { A, useParams, useSearchParams } from "@solidjs/router";
 import {
   Query,
   createMutation,
   createQueries,
+  createQuery,
   useQueryClient,
   type QueryKey,
 } from "@tanstack/solid-query";
@@ -174,22 +175,16 @@ const createOneSideArraySync = <T,>(
 };
 
 export const CommentsPage = () => {
-  const [searchParams] = useSearchParams();
+  const params = useParams();
 
   const [isReversed, setIsReversed] = useReversed();
-  const note = createMemo(() => {
-    assertOk(searchParams.note);
-    return JSON.parse(searchParams.note) as Note;
-  });
-  const boardId = createMemo(() => {
-    assertOk(searchParams.boardId);
-    return searchParams.boardId;
-  });
+  const note = createQuery(() => keysFactory.note(params.noteId));
+  const noteId = () => params.noteId;
 
   const queryClient = useQueryClient();
 
   const [commentPages, setCommentPages] = createInitialPagesList(
-    note(),
+    noteId(),
     isReversed,
   );
 
@@ -197,7 +192,7 @@ export const CommentsPage = () => {
     queries: commentPages().map((page) =>
       keysFactory.commentsNew({
         page,
-        noteId: note().id,
+        noteId: noteId(),
       }),
     ),
   }));
@@ -226,7 +221,7 @@ export const CommentsPage = () => {
           return;
         }
         const minusKey = keysFactory.commentsNew({
-          noteId: note().id,
+          noteId: noteId(),
           page: -1,
         }).queryKey;
         const currentData = queryClient.getQueryData(minusKey);
@@ -240,7 +235,7 @@ export const CommentsPage = () => {
           queryClient.setQueryData(
             keysFactory.commentsNew({
               page,
-              noteId: note().id,
+              noteId: noteId(),
             }).queryKey,
             currentData,
           );
@@ -309,7 +304,7 @@ export const CommentsPage = () => {
 
     let lastCount = -1;
     const queries = queryClient.getQueryCache().findAll({
-      queryKey: noteCommentsKey(note().id),
+      queryKey: noteCommentsKey(noteId()),
     }) as Array<Query<GetCommentResponse>>;
     for (const query of queries) {
       if (query.state.data?.count !== undefined) {
@@ -564,7 +559,7 @@ export const CommentsPage = () => {
         const promisesArr: Promise<unknown>[] = [];
 
         const newPageQueryOptions = keysFactory.commentsNew({
-          noteId: note().id,
+          noteId: noteId(),
           page: newPageNumber,
         });
         const newPageQueryKey = newPageQueryOptions.queryKey;
@@ -594,7 +589,7 @@ export const CommentsPage = () => {
           promisesArr.push(
             queryClient.ensureQueryData(
               keysFactory.commentsNew({
-                noteId: note().id,
+                noteId: noteId(),
                 page: newPageNumber - 1,
               }),
             ),
@@ -773,24 +768,39 @@ export const CommentsPage = () => {
     <main class="flex min-h-screen flex-col bg-secondary-bg px-4">
       <BoardNote ref={setBeforeListElement("note")} class="my-4">
         <BoardNote.Card>
-          <Switch
-            fallback={<BoardNote.PrivateHeader createdAt={note().createdAt} />}
+          <Show
+            fallback={
+              <div class="flex min-h-[82px] items-center justify-center">
+                <LoadingSvg class="w-10 fill-accent text-transparent" />
+              </div>
+            }
+            when={note.data}
           >
-            <Match when={note().author}>
-              {(author) => (
-                <BoardNote.PublicHeader
-                  name={author().name}
-                  avatarUrl={author().photo}
-                  authorId={author().id}
-                  createdAt={note().createdAt}
-                />
-              )}
-            </Match>
-          </Switch>
+            {(note) => (
+              <>
+                <Switch
+                  fallback={
+                    <BoardNote.PrivateHeader createdAt={note().createdAt} />
+                  }
+                >
+                  <Match when={note().author}>
+                    {(author) => (
+                      <BoardNote.PublicHeader
+                        name={author().name}
+                        avatarUrl={author().photo}
+                        authorId={author().id}
+                        createdAt={note().createdAt}
+                      />
+                    )}
+                  </Match>
+                </Switch>
 
-          <BoardNote.Divider />
+                <BoardNote.Divider />
 
-          <BoardNote.Content>{note().content}</BoardNote.Content>
+                <BoardNote.Content>{note().content}</BoardNote.Content>
+              </>
+            )}
+          </Show>
         </BoardNote.Card>
       </BoardNote>
 
@@ -978,7 +988,7 @@ export const CommentsPage = () => {
 
         <CommentCreator
           boardId={boardId()}
-          noteId={note().id}
+          noteId={noteId()}
           onCreated={onScrollDown}
         />
       </section>
@@ -1063,9 +1073,9 @@ function createListMarginTop(defaultMarginTop: number) {
   ] as const;
 }
 
-function createInitialPagesList(note: Note, isReversed: () => boolean) {
+function createInitialPagesList(noteId: string, isReversed: () => boolean) {
   const pages = getPagesNumbers(
-    getAllNoteCommentsQueries(note.id).filter(isLoaded),
+    getAllNoteCommentsQueries(noteId).filter(isLoaded),
   );
   if (import.meta.env.DEV) {
     assertOk(pages.every((it) => typeof it === "number"));

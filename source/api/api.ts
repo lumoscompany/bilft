@@ -1,5 +1,5 @@
 import axios from "axios";
-import { model } from ".";
+import type * as model from "./model";
 
 import { authData } from "@/common";
 import { infiniteQueryOptions, queryOptions } from "@tanstack/solid-query";
@@ -160,6 +160,15 @@ export const keysFactory = {
       getNextPageParam: ({ items }, _, lastPageParam) =>
         items.length > 0 ? lastPageParam + 1 : undefined,
       reconcile: "id",
+    }),
+
+  note: (noteId: string) =>
+    queryOptions({
+      queryKey: ["note", noteId],
+      queryFn: () =>
+        fetchMethod("/note/resolve", {
+          noteId,
+        }),
     }),
 
   commentsNew: ({ noteId, page }: { noteId: string; page: number }) =>
