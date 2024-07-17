@@ -126,10 +126,10 @@ export const createTransitionPresence = <T,>(params: {
         const curAnimations = _element.getAnimations({
           subtree: true,
         });
-        console.log({
-          curAnimations,
-          prevAnimations,
-        });
+        // console.log({
+        //   curAnimations,
+        //   prevAnimations,
+        // });
 
         let newAnimationsPromise: Promise<unknown> | null = null;
 

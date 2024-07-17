@@ -6,6 +6,7 @@ import {
 import type { Comment, Note } from "@/api/model";
 import {
   PxString,
+  clamp,
   clsxString,
   formatPostDate,
   formatPostTime,
@@ -36,6 +37,7 @@ import {
   batch,
   createEffect,
   createMemo,
+  createRenderEffect,
   createSignal,
   on,
   onCleanup,
@@ -70,7 +72,7 @@ const NEXT_LOADING_ITEM: CommentItem = {
 };
 
 const pagesCountOfCommentsCount = (commentsCount: number) => {
-  return Math.ceil(commentsCount / COMMENTS_PAGE_SIZE);
+  return Math.max(Math.ceil(commentsCount / COMMENTS_PAGE_SIZE), 1);
 };
 
 const noteCommentsKey = (noteId: string) =>
@@ -101,22 +103,16 @@ const REVERSED_KEY = "reversed";
 export const createCommentsPageUrl = (
   note: Note,
   boardId: string,
-  commentsCount: number,
   reversed: boolean,
 ) => {
   const params = new URLSearchParams([
     ["note", JSON.stringify(note)],
     ["boardId", boardId],
-    ["commentsCount", String(commentsCount)],
     [REVERSED_KEY, String(reversed)],
   ]);
 
   return `/comments/${note.id}?${params.toString()}`;
 };
-
-if (import.meta.env.DEV) {
-  console.log(navigator.userAgent);
-}
 
 const createOneSideArraySync = <T,>(
   arr: () => T[],
@@ -158,9 +154,9 @@ const createOneSideArraySync = <T,>(
             sig(),
             arr(),
             isEqual,
-            anchorElement(),
+            clamp(anchorElement(), 0, sig().length - 1),
           );
-          console.log(res.front, anchorElement());
+
           batch(() => {
             setArr(res.data);
             setIsInsertingBefore(res.front);
@@ -217,7 +213,7 @@ export const CommentsPage = () => {
           return null;
         }
         if (
-          commentPages.length !== commentPages().length ||
+          commentsQueries.length !== commentPages().length ||
           !commentsQueries[0].isSuccess
         ) {
           return null;
@@ -241,8 +237,20 @@ export const CommentsPage = () => {
         const page = pagesCountOfCommentsCount(currentData.count);
 
         batch(() => {
-          queryClient.setQueryData(minusKey, currentData);
+          queryClient.setQueryData(
+            keysFactory.commentsNew({
+              page,
+              noteId: note().id,
+            }).queryKey,
+            currentData,
+          );
           setCommentPages([page]);
+        });
+
+        waitAddition(() => {
+          getVirtualizerHandle()?.scrollToIndex(commentItems().length - 1, {
+            align: "start",
+          });
         });
       },
     ),
@@ -258,6 +266,8 @@ export const CommentsPage = () => {
     (prev: CommentsMemoRes) => {
       const pages = commentPages();
       let firstVisiblePageNumber: null | number = null;
+      // console.log(pages.length, commentsQueries.length, performance.now());
+      // tanstack query batches updates with queueMicrotask
       if (pages.length !== commentsQueries.length) {
         return prev;
       }
@@ -483,6 +493,15 @@ export const CommentsPage = () => {
     }
   };
 
+  const waitAddition = (callback: () => void) => {
+    const pr = addedElements();
+    if (pr) {
+      pr.then(() => waitAddition(callback));
+      return;
+    }
+    callback();
+  };
+
   const isSomethingLoading = createMemo(() =>
     commentsQueries.some((it) => it.isLoading),
   );
@@ -532,7 +551,9 @@ export const CommentsPage = () => {
         const newPageNumber = pagesCountOfCommentsCount(newCount);
 
         // [TODO]: use last **loaded** page
-        const lastPage = commentPages().at(-1);
+        const lastPage = commentPages().findLast((it) => {
+          return commentsQueries[it].isSuccess;
+        });
         assertOk(lastPage !== undefined);
         // what can happen?
         // user can stop scroll - if we are after point of gap - we need to stick to bottom and remove items
@@ -609,15 +630,6 @@ export const CommentsPage = () => {
         });
       }
 
-      const waitAddition = (callback: () => void) => {
-        const pr = addedElements();
-        if (pr) {
-          pr.then(() => setTimeout(() => waitAddition(callback)));
-          return;
-        }
-        callback();
-      };
-
       waitAddition(() => {
         wait(1_500).then(onFallbackReverse);
 
@@ -646,23 +658,23 @@ export const CommentsPage = () => {
     },
   }));
 
-  // createRenderEffect(
-  //   on(
-  //     () => comments().length,
-  //     (length) => {
-  //       console.log(
-  //         "length change",
-  //         unwrapSignals({
-  //           length,
-  //           shift,
-  //           isReversing,
-  //           listMode,
-  //         }),
-  //       );
-  //     },
-  //   ),
-  // );
-  //
+  createRenderEffect(
+    on(
+      () => comments().length,
+      (length) => {
+        console.log(
+          "length change",
+          unwrapSignals({
+            length,
+            // shift,
+            isReversing,
+            isReversed,
+          }),
+        );
+      },
+    ),
+  );
+
   createEffect(() => {
     console.log(
       unwrapSignals({
@@ -739,6 +751,23 @@ export const CommentsPage = () => {
   //     }),
   //   );
   // });
+  //
+  // createComputed(
+  //   on(
+  //     () => commentItems().length,
+  //     (length) => {
+  //       console.log(
+  //         "one side items length change",
+  //         unwrapSignals({
+  //           length,
+  //           // shift,
+  //           isReversing,
+  //           isReversed,
+  //         }),
+  //       );
+  //     },
+  //   ),
+  // );
 
   return (
     <main class="flex min-h-screen flex-col bg-secondary-bg px-4">
@@ -1042,7 +1071,7 @@ function createInitialPagesList(note: Note, isReversed: () => boolean) {
     assertOk(pages.every((it) => typeof it === "number"));
   }
   if (pages.length === 0) {
-    return createSignal([1]);
+    return createSignal(isReversed() ? [-1] : [1]);
   }
 
   const sortedPages = ArrayHelper.sortNumbersAsc(pages);
@@ -1075,7 +1104,7 @@ function useReversed() {
       setSearchParams(
         {
           ...searchParams,
-          [REVERSED_KEY]: newIsReversed,
+          [REVERSED_KEY]: newIsReversed ? "true" : "false",
         },
         {
           replace: true,

@@ -79,7 +79,7 @@ const UserProfilePage = (props: {
     const boardId = boardQuery.data?.id;
     if (!boardId) return;
 
-    navigate(createCommentsPageUrl(note, boardId, note.commentsCount, false));
+    navigate(createCommentsPageUrl(note, boardId, false));
   };
 
   return (

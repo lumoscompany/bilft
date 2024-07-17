@@ -187,3 +187,6 @@ export type PxString = `${number}px`;
 export const PxString = {
   fromNumber: (value: number): `${number}px` => `${value}px`,
 };
+
+export const clamp = (item: number, min: number, max: number) =>
+  Math.max(min, Math.min(item, max));
