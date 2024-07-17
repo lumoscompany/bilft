@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { model } from ".";
+import { model } from ".";
 
 import { authData } from "@/common";
 import { infiniteQueryOptions, queryOptions } from "@tanstack/solid-query";
@@ -33,6 +33,12 @@ type RequestResponseMappings = {
     { board: string; next?: string },
     model.NoteArray
   >;
+  "/note/resolve": RequestResponse<
+    { noteId: string },
+    model.Note & {
+      boardId: string;
+    }
+  >;
   "/me": RequestResponse<
     void,
     {
@@ -50,6 +56,9 @@ type RequestResponseMappings = {
   "/note/getComments": RequestResponse<
     {
       noteID: string;
+      /**
+       * @description positive or -1
+       */
       page: number;
       pageSize: number;
     },
