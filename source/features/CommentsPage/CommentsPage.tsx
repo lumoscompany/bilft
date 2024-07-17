@@ -39,7 +39,6 @@ import {
   createSignal,
   on,
   onCleanup,
-  onMount,
   type Accessor,
 } from "solid-js";
 import { createMutable } from "solid-js/store";
@@ -115,6 +114,10 @@ export const createCommentsPageUrl = (
   return `/comments/${note.id}?${params.toString()}`;
 };
 
+if (import.meta.env.DEV) {
+  console.log(navigator.userAgent);
+}
+
 const createOneSideArraySync = <T,>(
   arr: () => T[],
   anchorElement: () => number,
@@ -149,7 +152,6 @@ const createOneSideArraySync = <T,>(
 
     // delaying rerenders to release event loop
     requestAnimationFrame(() => {
-      // console.log("we are here");
       setTimeout(() => {
         try {
           const res = ArrayHelper.oneSideChange(
@@ -179,15 +181,10 @@ export const CommentsPage = () => {
   const [searchParams] = useSearchParams();
 
   const [isReversed, setIsReversed] = useReversed();
-  // [TODO]: add validation
   const note = createMemo(() => {
     assertOk(searchParams.note);
     return JSON.parse(searchParams.note) as Note;
   });
-  const initialCommentsCount = (() => {
-    assertOk(searchParams.commentsCount);
-    return Number(searchParams.commentsCount);
-  })();
   const boardId = createMemo(() => {
     assertOk(searchParams.boardId);
     return searchParams.boardId;
@@ -195,10 +192,9 @@ export const CommentsPage = () => {
 
   const queryClient = useQueryClient();
 
-  const [commentPages, setCommentPages] = getInitialPagesList(
+  const [commentPages, setCommentPages] = createInitialPagesList(
     note(),
     isReversed,
-    initialCommentsCount,
   );
 
   const commentsQueries = createQueries(() => ({
@@ -209,6 +205,48 @@ export const CommentsPage = () => {
       }),
     ),
   }));
+  // -1 => realPageNumber, to simplify paging
+  createEffect(
+    on(
+      () => {
+        const minusOneIndex = commentPages().indexOf(-1);
+        if (import.meta.env.DEV) {
+          assertOk(minusOneIndex === -1 || minusOneIndex === 0);
+        }
+        if (minusOneIndex === -1) {
+          return null;
+        }
+        if (
+          commentPages.length !== commentPages().length ||
+          !commentsQueries[0].isSuccess
+        ) {
+          return null;
+        }
+
+        return minusOneIndex;
+      },
+      (index) => {
+        if (index === null) {
+          return;
+        }
+        const minusKey = keysFactory.commentsNew({
+          noteId: note().id,
+          page: -1,
+        }).queryKey;
+        const currentData = queryClient.getQueryData(minusKey);
+        // must exist since we checked it earlier
+        assertOk(currentData);
+        queryClient.cancelQueries({ queryKey: minusKey });
+
+        const page = pagesCountOfCommentsCount(currentData.count);
+
+        batch(() => {
+          queryClient.setQueryData(minusKey, currentData);
+          setCommentPages([page]);
+        });
+      },
+    ),
+  );
 
   // [TODO]: if there will be problem on big pages - it'c necessary to rewrite it imperative
   type CommentsMemoRes = {
@@ -274,7 +312,7 @@ export const CommentsPage = () => {
 
   // [1,2,3] -> [1,2,3,100] -> [100]
   // [99, 100, 101] -> [1,2,3,99,100,101] -> [1,2,3]
-  const onScrollGap = (isStart: boolean, isEnd: boolean) => {
+  const onScrollGap = (isNearStart: boolean, isNearEnd: boolean) => {
     // console.log(
     //   unwrapSignals({
     //     isStart,
@@ -290,10 +328,10 @@ export const CommentsPage = () => {
       return;
     }
 
-    if (listMode() === "regular" && isStart) {
-      isStart = false;
+    if (!isReversed() && isNearStart) {
+      isNearStart = false;
     }
-    const direction = isStart ? "start" : isEnd ? "end" : null;
+    const direction = isNearStart ? "start" : isNearEnd ? "end" : null;
 
     if (!direction) {
       return;
@@ -305,6 +343,7 @@ export const CommentsPage = () => {
     const _commentsCount = commentsCount();
     if (
       _commentsCount === null ||
+      _commentsCount === 0 ||
       (direction === "end" &&
         commentPages().at(-1) === pagesCountOfCommentsCount(_commentsCount))
     ) {
@@ -357,25 +396,14 @@ export const CommentsPage = () => {
   let commentCreatorContainerRef!: HTMLDivElement;
   createOnResizeScrollAdjuster(() => commentCreatorContainerRef);
 
-  const listMode = createMemo<"reversed" | "regular">(() =>
-    isReversed() ? "reversed" : "regular",
-  );
-  const fetchingSide = createMemo<"end" | "start" | null>(() =>
-    commentsQueries.at(-1)?.isLoading
-      ? "end"
-      : commentsQueries.at(0)?.isLoading
-        ? "start"
-        : null,
-  );
-
   const [range, setRange] = createSignal<[number, number]>([0, 0], {
     equals: (a, b) => a === b || (!!a && !!b && a[0] === b[0] && a[1] === b[1]),
   });
-  const tailStatus = ([startIndex, endIndex]: [number, number]) => {
-    const isStart = startIndex < 2;
-    const isEnd = endIndex >= comments().length - 2;
+  const getRangeStatus = ([startIndex, endIndex]: [number, number]) => {
+    const isNearStart = startIndex < 10;
+    const isNearEnd = endIndex >= comments().length - 9;
 
-    return [isStart, isEnd] as const;
+    return [isNearStart, isNearEnd] as const;
   };
 
   /**
@@ -432,12 +460,12 @@ export const CommentsPage = () => {
       batch(() => {
         const pages = currentReversing.targetPageNumbers;
         if (pages) {
-          const prevShift = shift;
-          shift = true;
+          // const prevShift = shift;
+          // shift = true;
           setCommentPages(pages);
-          queueMicrotask(() => {
-            shift = prevShift;
-          });
+          // queueMicrotask(() => {
+          //   shift = prevShift;
+          // });
         }
 
         setIsReversing(null);
@@ -461,21 +489,25 @@ export const CommentsPage = () => {
 
   createEffect(
     on(
-      () => !isReversing() && !isSomethingLoading() && range(),
+      () =>
+        !isReversing() &&
+        !isSomethingLoading() &&
+        !commentPages().includes(-1) &&
+        range(),
       (curRange) => {
         if (!curRange) {
           return;
         }
 
-        onScrollGap(...tailStatus(curRange));
+        onScrollGap(...getRangeStatus(curRange));
       },
     ),
   );
 
-  const hasPrevPage = () => commentPages()[0] !== 1;
+  const hasPrevPage = () => commentPages()[0] !== 1 || commentPages()[0] === -1;
   const hasNextPage = () => {
     const count = commentsCount();
-    if (!count) {
+    if (!count || commentPages()[0] === -1) {
       return false;
     }
 
@@ -490,73 +522,71 @@ export const CommentsPage = () => {
         }
         return;
       }
+      assertOk(!isReversing());
       console.log("onCreated");
       // [TODO]: figure out what to do
-      if (listMode() === "reversed" || isReversing()) {
-        return;
-      }
-      const count = commentsCount();
-      assertOk(count);
-      const newCount = comment ? count + 1 : count;
-      const newPageNumber = pagesCountOfCommentsCount(newCount);
+      const newPageNumber = await (async () => {
+        const count = commentsCount();
+        assertOk(count);
+        const newCount = comment ? count + 1 : count;
+        const newPageNumber = pagesCountOfCommentsCount(newCount);
 
-      // [TODO]: use last loaded page
-      const lastPage = commentPages().at(-1);
-      assertOk(lastPage !== undefined);
-      // what can happen?
-      // user can stop scroll - if we are after point of gap - we need to stick to bottom and remove items
-      // if not - we should stick to top and remove bottom items
-      // if pageSize where we trying to scroll is less than 6 elements - we need to load it first
-      // if page will have less than 6 elements - we need to load previous page
-      // [TODO]: handle stop
+        // [TODO]: use last **loaded** page
+        const lastPage = commentPages().at(-1);
+        assertOk(lastPage !== undefined);
+        // what can happen?
+        // user can stop scroll - if we are after point of gap - we need to stick to bottom and remove items
+        // if not - we should stick to top and remove bottom items
+        // if pageSize where we trying to scroll is less than 6 elements - we need to load it first
+        // if page will have less than 6 elements - we need to load previous page
+        const itemsOnNewPage = newCount % COMMENTS_PAGE_SIZE;
+        const promisesArr: Promise<unknown>[] = [];
 
-      const itemsOnNewPage = newCount % COMMENTS_PAGE_SIZE;
-      const promisesArr: Promise<unknown>[] = [];
+        const newPageQueryOptions = keysFactory.commentsNew({
+          noteId: note().id,
+          page: newPageNumber,
+        });
+        const newPageQueryKey = newPageQueryOptions.queryKey;
+        await queryClient.cancelQueries({
+          queryKey: newPageQueryKey,
+        });
+        if (
+          comment &&
+          (queryClient.getQueryData(newPageQueryKey) || itemsOnNewPage === 1)
+        ) {
+          queryClient.setQueryData(newPageQueryKey, (curData) =>
+            curData
+              ? {
+                  count: newCount,
+                  items: [...curData.items, comment],
+                }
+              : {
+                  count: newCount,
+                  items: [comment],
+                },
+          );
+        } else {
+          promisesArr.push(queryClient.ensureQueryData(newPageQueryOptions));
+        }
+        const loadPrevPage = itemsOnNewPage < 6 && newPageNumber > 1;
+        if (loadPrevPage) {
+          promisesArr.push(
+            queryClient.ensureQueryData(
+              keysFactory.commentsNew({
+                noteId: note().id,
+                page: newPageNumber - 1,
+              }),
+            ),
+          );
+        }
 
-      const newPageQueryOptions = keysFactory.commentsNew({
-        noteId: note().id,
-        page: newPageNumber,
-      });
-      const newPageQueryKey = newPageQueryOptions.queryKey;
-      await queryClient.cancelQueries({
-        queryKey: newPageQueryKey,
-      });
-      if (
-        comment &&
-        (queryClient.getQueryData(newPageQueryKey) || itemsOnNewPage === 1)
-      ) {
-        queryClient.setQueryData(newPageQueryKey, (curData) =>
-          curData
-            ? {
-                count: newCount,
-                items: [...curData.items, comment],
-              }
-            : {
-                count: newCount,
-                items: [comment],
-              },
-        );
-      } else {
-        promisesArr.push(queryClient.ensureQueryData(newPageQueryOptions));
-      }
-      const loadPrevPage = itemsOnNewPage < 6 && newPageNumber > 1;
-      if (loadPrevPage) {
-        promisesArr.push(
-          queryClient.ensureQueryData(
-            keysFactory.commentsNew({
-              noteId: note().id,
-              page: newPageNumber - 1,
-            }),
-          ),
-        );
-      }
+        await Promise.all(promisesArr);
+        return newPageNumber;
+      })();
 
-      await Promise.all(promisesArr);
-      console.log("ensured load", promisesArr.length);
+      // console.log("ensured load", promisesArr.length);
       if (!commentPages().includes(newPageNumber)) {
         batch(() => {
-          const prevShift = shift;
-          shift = false;
           const fallbackCommentPages = commentPages();
           setCommentPages(
             ArrayHelper.toInsertedInUniqueSortedArray(commentPages(), [
@@ -576,22 +606,29 @@ export const CommentsPage = () => {
               ? commentPages().slice(gapIndex)
               : commentPages(),
           }));
-
-          queueMicrotask(() => {
-            shift = prevShift;
-          });
         });
       }
 
-      wait(1_000).then(onFallbackReverse);
-      (oneWayItems[2]()?.then.bind(oneWayItems[2]()) ?? requestAnimationFrame)(
-        () => {
+      const waitAddition = (callback: () => void) => {
+        const pr = addedElements();
+        if (pr) {
+          pr.then(() => setTimeout(() => waitAddition(callback)));
+          return;
+        }
+        callback();
+      };
+
+      waitAddition(() => {
+        wait(1_500).then(onFallbackReverse);
+
+        requestAnimationFrame(() => {
           const commentIndex =
             comment && comments().findIndex((it) => it.id === comment.id);
           const scrollIndex =
             commentIndex === null || commentIndex === -1
               ? comments().length - 1
               : commentIndex;
+          assertOk(scrollIndex !== -1);
 
           setIsReversing((current) =>
             current
@@ -604,18 +641,10 @@ export const CommentsPage = () => {
           getVirtualizerHandle()?.scrollToIndex(scrollIndex, {
             smooth: true,
           });
-        },
-      );
+        });
+      });
     },
   }));
-
-  let shift = !!isReversed();
-
-  createEffect(() => {
-    if (isReversed()) {
-      shift = fetchingSide() === "start";
-    }
-  });
 
   // createRenderEffect(
   //   on(
@@ -633,6 +662,14 @@ export const CommentsPage = () => {
   //     },
   //   ),
   // );
+  //
+  createEffect(() => {
+    console.log(
+      unwrapSignals({
+        commentPages,
+      }),
+    );
+  });
 
   const onScrollDown = async (comment: Comment | null) => {
     if (reverseListMutation.isPending || isReversing()) {
@@ -647,21 +684,6 @@ export const CommentsPage = () => {
     }
 
     await reverseListMutation.mutateAsync(comment);
-  };
-
-  const compensateScrollPositionFromAppearance = (el: HTMLElement) => {
-    let elSize = 0;
-    onMount(() => {
-      queueMicrotask(() => {
-        elSize = el.offsetHeight;
-        // console.log("size", elSize);
-        getVirtualizerHandle()?.scrollBy(elSize);
-      });
-    });
-    onCleanup(() => {
-      if (!elSize) return;
-      getVirtualizerHandle()?.scrollBy(-elSize);
-    });
   };
 
   const showBottomScroller = createMemo(() => {
@@ -701,7 +723,7 @@ export const CommentsPage = () => {
     }
     return copy;
   });
-  const oneWayItems = createOneSideArraySync(
+  const [commentItems, shift, addedElements] = createOneSideArraySync(
     () => _commentsWithLoaders(),
     () => {
       const min = _commentsWithLoaders().length > 1 ? 1 : 0;
@@ -712,8 +734,8 @@ export const CommentsPage = () => {
   // createEffect(() => {
   //   console.log(
   //     unwrapSignals({
-  //       length: oneWayItems[0]().length,
-  //       shift: oneWayItems[1],
+  //       length: () => commentItems().length,
+  //       shift,
   //     }),
   //   );
   // });
@@ -770,11 +792,24 @@ export const CommentsPage = () => {
           <Virtualizer
             itemSize={110}
             onScrollEnd={onScrollEnd}
+            onScroll={(e) => {
+              if (platform !== "ios" || e > 0) {
+                return;
+              }
+              const firstItem = _commentsWithLoaders()[0];
+              if (
+                firstItem &&
+                firstItem.type === "loader" &&
+                firstItem.id === "prev-item"
+              ) {
+                getVirtualizerHandle()?.scrollTo(0);
+              }
+            }}
             ref={(handle) => setVirtualizerHandle(handle)}
             startMargin={scrollMarginTop()}
-            data={oneWayItems[0]()}
+            data={commentItems()}
+            shift={shift()}
             scrollRef={scrollableElement}
-            shift={oneWayItems[1]()}
             onRangeChange={(startIndex, endIndex) => {
               setRange([startIndex, endIndex]);
             }}
@@ -788,7 +823,10 @@ export const CommentsPage = () => {
                         comment().id === lastCommentId() ? "" : undefined
                       }
                       class={clsxString(
-                        "mb-4 grid grid-cols-[36px,1fr] grid-rows-[auto,auto,auto] gap-y-[2px] border-b-[0.4px] border-b-separator pb-4 data-[last]:border-none",
+                        "mb-4 grid grid-cols-[36px,1fr] grid-rows-[auto,auto,auto] gap-y-[2px] border-b-[0.4px] border-b-separator bg-secondary-bg pb-4 data-[last]:border-none",
+                        platform === "ios"
+                          ? "relative after:absolute after:inset-x-0 after:top-[calc(100%+0.4px)] after:h-4 after:bg-secondary-bg"
+                          : "",
                       )}
                     >
                       <Switch>
@@ -837,7 +875,7 @@ export const CommentsPage = () => {
                   }
                 >
                   {(query) => (
-                    <section class="my-3 flex w-full justify-center font-inter text-[17px] font-medium leading-[22px] text-text">
+                    <section class="flex w-full justify-center bg-secondary-bg py-3 font-inter text-[17px] font-medium leading-[22px] text-text">
                       Failed to load comments page
                       <button
                         onClick={() => {
@@ -851,7 +889,10 @@ export const CommentsPage = () => {
                   )}
                 </Match>
                 <Match when={comment.type === "loader"}>
-                  <div role="status" class="my-3 flex w-full justify-center">
+                  <div
+                    role="status"
+                    class="flex w-full justify-center bg-secondary-bg py-3"
+                  >
                     <LoadingSvg class="w-8 fill-accent text-transparent" />
                     <span class="sr-only">Comments page is loading</span>
                   </div>
@@ -993,11 +1034,7 @@ function createListMarginTop(defaultMarginTop: number) {
   ] as const;
 }
 
-function getInitialPagesList(
-  note: Note,
-  isReversed: () => boolean,
-  initialCommentsCount: number,
-) {
+function createInitialPagesList(note: Note, isReversed: () => boolean) {
   const pages = getPagesNumbers(
     getAllNoteCommentsQueries(note.id).filter(isLoaded),
   );
@@ -1022,9 +1059,7 @@ function getInitialPagesList(
   }
 
   if (resPages.length === 0) {
-    return createSignal(
-      isReversed() ? [pagesCountOfCommentsCount(initialCommentsCount)] : [1],
-    );
+    return createSignal(isReversed() ? [-1] : [1]);
   }
 
   return createSignal(resPages);

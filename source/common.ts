@@ -58,6 +58,50 @@ export const addPrefix = (id: string) => (id.startsWith("id") ? id : `id${id}`);
 export const removePrefix = (id: string) =>
   id.startsWith("id") ? id.slice(2) : id;
 
+type StartParam =
+  | {
+      type: "board";
+      data: string;
+    }
+  | {
+      type: "note";
+      data: string;
+    };
+function unescapeBase64Url(str: string) {
+  return (str + "===".slice((str.length + 3) % 4))
+
+    .replace(/-/g, "+")
+
+    .replace(/_/g, "/");
+}
+export const getStartParam = (): StartParam | null => {
+  const startParamId = launchParams.initData?.startParam;
+
+  if (!startParamId) {
+    return null;
+  }
+  if (!startParamId.startsWith("b64")) {
+    return {
+      type: "board",
+      data: startParamId,
+    };
+  }
+  const content = JSON.parse(
+    Buffer.from(unescapeBase64Url(startParamId.slice(3)), "base64").toString(),
+  ) as {
+    noteId?: string;
+  };
+  if (!content.noteId || typeof content.noteId !== "string") {
+    console.error("unknown content", content);
+    return null;
+  }
+
+  return {
+    type: "board",
+    data: content.noteId,
+  };
+};
+
 export function getProfileId() {
   const searchParams = new URLSearchParams(window.location.search);
   const searchParamsID = searchParams.get("id");
@@ -72,9 +116,7 @@ export function getProfileId() {
     }
   }
 
-  {
-    return addPrefix(getSelfUserId());
-  }
+  return addPrefix(getSelfUserId());
 }
 export const getProfileIdWithoutPrefix = () => removePrefix(getProfileId());
 

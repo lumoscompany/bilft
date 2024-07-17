@@ -3,9 +3,8 @@ import { render } from "solid-js/web";
 import "./index.css";
 
 import {
-  getProfileId,
   getSelfUserId,
-  isEqualIds,
+  getStartParam,
   platform,
   removePrefix,
   themeParams,
@@ -70,19 +69,29 @@ const createTgScreenSize = () => {
 };
 
 const App = () => {
-  const isOpenedSelfProfile = isEqualIds(getSelfUserId(), getProfileId());
+  const targetEntry: BrowserNavigatorAnyHistoryItem<unknown> = (() => {
+    const startParam = getStartParam();
+    if (startParam?.type === "note") {
+      return {
+        pathname: `/comments/${startParam.data}`,
+      };
+    }
+
+    return {
+      pathname: `/board/${removePrefix(startParam?.data ?? getSelfUserId())}`,
+    };
+  })();
+  console.log({ targetEntry });
   const selfEntry: BrowserNavigatorAnyHistoryItem<unknown> = {
     pathname: `/board/${removePrefix(getSelfUserId())}`,
   };
   const navigator = initNavigator("app-navigator-state");
 
-  if (isOpenedSelfProfile) {
+  if (selfEntry.pathname === targetEntry.pathname) {
     navigator.replace(selfEntry);
   } else {
     navigator.replace(selfEntry);
-    navigator.push({
-      pathname: `/board/${removePrefix(getProfileId())}`,
-    });
+    navigator.push(targetEntry);
   }
   navigator.attach();
   onCleanup(() => {
