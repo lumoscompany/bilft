@@ -69,23 +69,21 @@ export const CommentsPage = () => {
     isReversed,
     setIsReversed,
     (comment) => {
-      queueMicrotask(() =>
-        waitAddition(() => {
-          requestAnimationFrame(() => {
-            console.log("scroll");
-            const commentIndex =
-              comment && commentItems().findIndex((it) => it.id === comment.id);
-            const scrollIndex =
-              commentIndex === null || commentIndex === -1
-                ? commentItems().length - 1
-                : commentIndex;
-            assertOk(scrollIndex !== -1);
-            getVirtualizerHandle()?.scrollToIndex(scrollIndex, {
-              smooth: true,
-            });
+      waitAddition(() => {
+        requestAnimationFrame(() => {
+          console.log("scroll");
+          const commentIndex =
+            comment && commentItems().findIndex((it) => it.id === comment.id);
+          const scrollIndex =
+            commentIndex === null || commentIndex === -1
+              ? commentItems().length - 1
+              : commentIndex;
+          assertOk(scrollIndex !== -1);
+          getVirtualizerHandle()?.scrollToIndex(scrollIndex, {
+            smooth: true,
           });
-        }),
-      );
+        });
+      });
     },
     () =>
       waitAddition(() => {
