@@ -139,28 +139,6 @@ export const keysFactory = {
     queryFn: () => fetchMethod("/me", undefined),
     queryKey: ["me"],
   }),
-  comments: ({
-    noteId,
-    initialPage = 1,
-  }: {
-    noteId: string;
-    initialPage?: number;
-  }) =>
-    infiniteQueryOptions({
-      queryKey: ["comments", noteId],
-      initialPageParam: initialPage,
-      queryFn: ({ pageParam }) =>
-        fetchMethod("/note/getComments", {
-          noteID: noteId,
-          page: pageParam,
-          pageSize: COMMENTS_PAGE_SIZE,
-        }),
-      getPreviousPageParam: (_, __, firstPageParam) =>
-        firstPageParam > 1 ? firstPageParam - 1 : undefined,
-      getNextPageParam: ({ items }, _, lastPageParam) =>
-        items.length > 0 ? lastPageParam + 1 : undefined,
-      reconcile: "id",
-    }),
 
   note: (noteId: string) =>
     queryOptions({
@@ -171,7 +149,7 @@ export const keysFactory = {
         }),
     }),
 
-  commentsNew: ({ noteId, page }: { noteId: string; page: number }) =>
+  comments: ({ noteId, page }: { noteId: string; page: number }) =>
     queryOptions({
       queryKey: ["comments-new", noteId, page],
       queryFn: () =>

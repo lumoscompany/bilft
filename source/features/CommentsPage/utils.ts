@@ -1,8 +1,10 @@
 import type { Note } from "@/api/model";
 import { clamp } from "@/common";
 import { ArrayHelper, type IsEqual } from "@/lib/array";
+import { assertOk } from "@/lib/assert";
 import { useSearchParams } from "@solidjs/router";
-import { batch, createEffect, createSignal } from "solid-js";
+import { batch, createEffect, createSignal, on, onCleanup } from "solid-js";
+import { createMutable } from "solid-js/store";
 
 export const wait = (delayMs: number) =>
   new Promise<void>((resolve) => {
@@ -89,6 +91,7 @@ export const createOneSideArraySync = <T>(
           });
         } finally {
           pr.resolve();
+          assertOk(animationEndPromise === pr.promise);
           animationEndPromise = null;
           setHasTimer(false);
         }
@@ -100,3 +103,81 @@ export const createOneSideArraySync = <T>(
 };
 
 export const IntAvg = (a: number, b: number) => ((a + b) / 2) | 0;
+
+export function createListMarginTop(defaultMarginTop: number) {
+  const [scrollMarginTop, setScrollMarginTop] =
+    createSignal<number>(defaultMarginTop);
+  const beforeListElements = createMutable<Record<string, HTMLElement>>({});
+  createEffect(() => {
+    const maxTopFromEntries = (entires: ResizeObserverEntry[]) => {
+      let maxScrollTop: number | null = null;
+      for (const entry of entires) {
+        const curMarginTopPlusSize =
+          (entry?.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height) +
+          entry.target.scrollTop;
+
+        maxScrollTop =
+          maxScrollTop === null
+            ? curMarginTopPlusSize
+            : Math.max(curMarginTopPlusSize, maxScrollTop);
+      }
+
+      return maxScrollTop;
+    };
+
+    const maxTopFromElements = (elements: HTMLElement[]) => {
+      let maxScrollTop: number | null = null;
+      for (const element of elements) {
+        const curMarginTopPlusSize = element.scrollTop + element.offsetHeight;
+
+        maxScrollTop =
+          maxScrollTop === null
+            ? curMarginTopPlusSize
+            : Math.max(curMarginTopPlusSize, maxScrollTop);
+      }
+
+      return maxScrollTop;
+    };
+
+    const onNewMaxTopScroll = (newMarginTopScroll: number | null) => {
+      if (
+        newMarginTopScroll !== null &&
+        Math.abs(scrollMarginTop() - newMarginTopScroll) >= 2
+      ) {
+        setScrollMarginTop(newMarginTopScroll);
+      }
+    };
+
+    const observer = new ResizeObserver((entries) => {
+      onNewMaxTopScroll(maxTopFromEntries(entries));
+    });
+
+    createEffect(
+      on(
+        () => Object.values(beforeListElements),
+        (elements) => {
+          for (const el of elements) {
+            observer.observe(el);
+          }
+
+          onCleanup(() => {
+            for (const el of elements) {
+              observer.unobserve(el);
+            }
+          });
+          onNewMaxTopScroll(maxTopFromElements(elements));
+        },
+      ),
+    );
+  });
+
+  return [
+    scrollMarginTop,
+    (elId: string) => (beforeListElement: HTMLElement) => {
+      onCleanup(() => {
+        delete beforeListElements[elId];
+      });
+      beforeListElements[elId] = beforeListElement;
+    },
+  ] as const;
+}

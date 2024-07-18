@@ -70,11 +70,6 @@ export const CommentCreator = (
       );
     },
     onSettled: () => {
-      queryClient.invalidateQueries({
-        queryKey: keysFactory.comments({
-          noteId: props.noteId,
-        }).queryKey,
-      });
       assertOk(props.boardId);
       queryClient.invalidateQueries({
         queryKey: keysFactory.notes({
@@ -92,31 +87,6 @@ export const CommentCreator = (
         setWalletError(walletError);
         return;
       }
-      /* queryClient.setQueryData(
-        keysFactory.comments({
-          noteId: props.noteId,
-        }).queryKey,
-        (data) => {
-          if (!data || !data.pages || data.pages.length < 1) {
-            return data;
-          }
-          const lastPage = data.pages.at(-1);
-          assertOk(lastPage);
-
-          const pages = data.pages.slice(0, -1);
-
-          pages.push({
-            count: lastPage.count,
-            items: [...lastPage.items, comment],
-          });
-
-          return {
-            pageParams: data.pageParams,
-            pages,
-          };
-        },
-      ); */
-
       assertOk(props.boardId);
       queryClient.setQueryData(
         keysFactory.notes({
@@ -160,11 +130,12 @@ export const CommentCreator = (
         },
       );
 
-      await batch(() => {
+      await props.onCreated(comment);
+
+      batch(() => {
         setInputValue("");
         setIsAnonymous(false);
         setWalletError(null);
-        return props.onCreated(comment);
       });
     },
   }));

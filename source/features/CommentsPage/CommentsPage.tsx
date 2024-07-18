@@ -1,8 +1,4 @@
-import {
-  COMMENTS_PAGE_SIZE,
-  keysFactory,
-  type GetCommentResponse,
-} from "@/api/api";
+import { COMMENTS_PAGE_SIZE, keysFactory } from "@/api/api";
 import type { Comment } from "@/api/model";
 import {
   PxString,
@@ -13,36 +9,20 @@ import {
   scrollableElement,
 } from "@/common";
 import { AnonymousAvatarIcon, ArrowDownIcon } from "@/icons";
-import { ArrayHelper } from "@/lib/array";
 import { assertOk } from "@/lib/assert";
-import {
-  createInnerHeight,
-  createTransitionPresence,
-  unwrapSignals,
-} from "@/lib/solid";
-import { queryClient } from "@/queryClient";
+import { createInnerHeight, createTransitionPresence } from "@/lib/solid";
 import { A, useParams } from "@solidjs/router";
-import {
-  Query,
-  createMutation,
-  createQueries,
-  createQuery,
-  useQueryClient,
-  type QueryKey,
-} from "@tanstack/solid-query";
+import { createQuery } from "@tanstack/solid-query";
 import {
   Match,
   Show,
   Switch,
-  batch,
   createEffect,
   createMemo,
   createSignal,
   on,
-  onCleanup,
   type Accessor,
 } from "solid-js";
-import { createMutable } from "solid-js/store";
 import { Virtualizer } from "virtua/solid";
 import { AvatarIcon } from "../BoardNote/AvatarIcon";
 import { BoardNote } from "../BoardNote/BoardNote";
@@ -52,13 +32,19 @@ import { LoadingSvg } from "../LoadingSvg";
 import { useKeyboardStatus } from "../keyboardStatus";
 import { getVirtualizerHandle, setVirtualizerHandle } from "../pageTransitions";
 import { useScreenSize } from "../screenSize";
+import { createReversingCommentsQuery } from "./createReversingCommentsQuery";
 import {
   createCommentInputBottomOffset,
   createOnResizeScrollAdjuster,
   createSafariScrollAdjuster,
   createScrollAdjuster,
 } from "./scrollAdjusters";
-import { IntAvg, createOneSideArraySync, useReversed, wait } from "./utils";
+import {
+  IntAvg,
+  createListMarginTop,
+  createOneSideArraySync,
+  useReversed,
+} from "./utils";
 
 type CommentItem = { type: "loader"; id: "prev-item" | "next-item" } | Comment;
 const PREV_LOADING_ITEM: CommentItem = {
@@ -70,223 +56,43 @@ const NEXT_LOADING_ITEM: CommentItem = {
   id: "next-item",
 };
 
-const pagesCountOfCommentsCount = (commentsCount: number) => {
-  return Math.max(Math.ceil(commentsCount / COMMENTS_PAGE_SIZE), 1);
-};
-
-const noteCommentsKey = (noteId: string) =>
-  keysFactory
-    .commentsNew({
-      noteId: noteId,
-      page: 0,
-    })
-    .queryKey.slice(0, -1);
-
-const getAllNoteCommentsQueries = (noteId: string) => {
-  const defaultKey = noteCommentsKey(noteId);
-  const pages = queryClient.getQueryCache().findAll({
-    queryKey: defaultKey,
-  });
-
-  return pages;
-};
-
-const isLoaded = (items: Query) => {
-  return items.state.status === "success";
-};
-
-const getPagesNumbers = (queries: { readonly queryKey: QueryKey }[]) =>
-  queries.map((it) => it.queryKey.at(-1) as number);
-
 export const CommentsPage = () => {
   const params = useParams();
-
-  const [isReversed, setIsReversed] = useReversed();
-  const note = createQuery(() => keysFactory.note(params.noteId));
   const noteId = () => params.noteId;
 
-  const queryClient = useQueryClient();
-
-  const [commentPages, setCommentPages] = createInitialPagesList(
-    noteId(),
-    isReversed,
-  );
+  const note = createQuery(() => keysFactory.note(params.noteId));
   const boardId = () => note.data?.boardId;
 
-  const commentsQueries = createQueries(() => ({
-    queries: commentPages().map((page) =>
-      keysFactory.commentsNew({
-        page,
-        noteId: noteId(),
-      }),
-    ),
-  }));
-  // -1 => realPageNumber, to simplify paging
-  createEffect(
-    on(
-      () => {
-        const minusOneIndex = commentPages().indexOf(-1);
-        if (import.meta.env.DEV) {
-          assertOk(minusOneIndex === -1 || minusOneIndex === 0);
-        }
-        if (minusOneIndex === -1) {
-          return null;
-        }
-        if (
-          commentsQueries.length !== commentPages().length ||
-          !commentsQueries[0].isSuccess
-        ) {
-          return null;
-        }
-
-        return minusOneIndex;
-      },
-      (index) => {
-        if (index === null) {
-          return;
-        }
-        const minusKey = keysFactory.commentsNew({
-          noteId: noteId(),
-          page: -1,
-        }).queryKey;
-        const currentData = queryClient.getQueryData(minusKey);
-        // must exist since we checked it earlier
-        assertOk(currentData);
-        queryClient.cancelQueries({ queryKey: minusKey });
-
-        const page = pagesCountOfCommentsCount(currentData.count);
-
-        batch(() => {
-          queryClient.setQueryData(
-            keysFactory.commentsNew({
-              page,
-              noteId: noteId(),
-            }).queryKey,
-            currentData,
-          );
-          setCommentPages([page]);
-        });
-
+  const [isReversed, setIsReversed] = useReversed();
+  const reversingComments = createReversingCommentsQuery(
+    noteId,
+    isReversed,
+    setIsReversed,
+    (comment) => {
+      queueMicrotask(() =>
         waitAddition(() => {
-          getVirtualizerHandle()?.scrollToIndex(commentItems().length - 1, {
-            align: "start",
+          requestAnimationFrame(() => {
+            console.log("scroll");
+            const commentIndex =
+              comment && commentItems().findIndex((it) => it.id === comment.id);
+            const scrollIndex =
+              commentIndex === null || commentIndex === -1
+                ? commentItems().length - 1
+                : commentIndex;
+            assertOk(scrollIndex !== -1);
+            getVirtualizerHandle()?.scrollToIndex(scrollIndex, {
+              smooth: true,
+            });
           });
-        });
-      },
-    ),
+        }),
+      );
+    },
+    () =>
+      waitAddition(() => {
+        getVirtualizerHandle()?.scrollToIndex(commentItems().length - 1);
+      }),
   );
 
-  // [TODO]: if there will be problem on big pages - it'c necessary to rewrite it imperative
-  type CommentsMemoRes = {
-    commentItems: CommentItem[];
-    firstVisiblePageNumber: number | null;
-    lastCommentId: string | null;
-  };
-  const commentsMemo = createMemo(
-    (prev: CommentsMemoRes) => {
-      const pages = commentPages();
-      let firstVisiblePageNumber: null | number = null;
-      // tanstack query batches updates with queueMicrotask
-      if (pages.length !== commentsQueries.length) {
-        return prev;
-      }
-      const commentItems: CommentItem[] = [];
-      for (let i = 0; i < pages.length; ++i) {
-        const pageQuery = commentsQueries[i];
-
-        if (pageQuery.isSuccess) {
-          firstVisiblePageNumber ??= pages[i];
-          commentItems.push(...pageQuery.data.items);
-        }
-      }
-
-      return {
-        commentItems,
-        firstVisiblePageNumber,
-        lastCommentId: commentItems.at(-1)?.id ?? null,
-      };
-    },
-    { firstVisiblePageNumber: null, commentItems: [], lastCommentId: null },
-    {
-      equals: (prev, next) =>
-        Object.is(prev?.commentItems, next?.commentItems) &&
-        Object.is(prev?.firstVisiblePageNumber, next?.firstVisiblePageNumber) &&
-        Object.is(prev?.lastCommentId, next.lastCommentId),
-    },
-  );
-
-  const comments = () => commentsMemo()?.commentItems;
-  const firstPageNumber = () => commentsMemo()?.firstVisiblePageNumber;
-  const lastCommentId = () => commentsMemo()?.lastCommentId;
-
-  const commentsCount = () => {
-    // [TODO]: frank checking
-    commentPages();
-    commentsQueries.length;
-    firstPageNumber();
-
-    return commentsCountFromCache(noteId());
-  };
-
-  // [1,2,3] -> [1,2,3,100] -> [100]
-  // [99, 100, 101] -> [1,2,3,99,100,101] -> [1,2,3]
-  const onScrollGap = (isNearStart: boolean, isNearEnd: boolean) => {
-    // console.log(
-    //   unwrapSignals({
-    //     isStart,
-    //     isEnd,
-    //     commentPages,
-    //     listMode,
-    //     commentPagesLength: commentPages().length,
-    //     queries: commentsQueries.length,
-    //   }),
-    // );
-    assertOk(commentPages().length > 0);
-    if (commentPages().length !== commentsQueries.length) {
-      return;
-    }
-
-    if (!isReversed() && isNearStart) {
-      isNearStart = false;
-    }
-    const direction = isNearStart ? "start" : isNearEnd ? "end" : null;
-
-    if (!direction) {
-      return;
-    }
-
-    if (direction === "start" && commentPages()[0] === 1) {
-      return;
-    }
-    const _commentsCount = commentsCount();
-    if (
-      _commentsCount === null ||
-      _commentsCount === 0 ||
-      (direction === "end" &&
-        commentPages().at(-1) === pagesCountOfCommentsCount(_commentsCount))
-    ) {
-      return;
-    }
-
-    batch(() => {
-      setCommentPages((items) =>
-        direction === "start"
-          ? [items[0] - 1, ...items]
-          : [...items, items.at(-1)! + 1],
-      );
-    });
-  };
-  if (import.meta.env.DEV) {
-    createEffect(() => {
-      // check that our list is in ascending order
-      // console.log(unwrap(comments()));
-      assertOk(
-        commentPages().every(
-          (it, index, arr) => index === 0 || arr[index - 1] < it,
-        ),
-      );
-    });
-  }
   const { height: tgHeight } = useScreenSize();
   const keyboard = useKeyboardStatus();
 
@@ -319,264 +125,56 @@ export const CommentsPage = () => {
   });
   const getRangeStatus = ([startIndex, endIndex]: [number, number]) => {
     const isNearStart = startIndex < 10;
-    const isNearEnd = endIndex >= comments().length - 9;
+    const isNearEnd = endIndex >= reversingComments.comments().length - 9;
 
     return [isNearStart, isNearEnd] as const;
-  };
-
-  /**
-   * reversing - process of think with scroll down
-   */
-  const [isReversing, setIsReversing] = createSignal<{
-    scrollIndex: number;
-    targetPageNumbers: number[];
-    gapStartIndex: number | null;
-    fallbackPageNumber: number[];
-  } | null>(null);
-
-  const onFallbackReverse = () => {
-    const currentReversing = isReversing();
-    if (!currentReversing) {
-      return;
-    }
-    console.log(
-      "reverted reverse",
-      unwrapSignals({
-        currentReversing,
-        range,
-      }),
-    );
-
-    batch(() => {
-      setCommentPages(currentReversing?.fallbackPageNumber);
-      setIsReversing(null);
-    });
-  };
-  const onScrollEnd = () => {
-    const isReversed = (() => {
-      const curIsReversing = isReversing();
-      if (!curIsReversing) {
-        return;
-      }
-      const scrollIndex = curIsReversing?.scrollIndex;
-      const _range = range();
-      if (!_range) {
-        return false;
-      }
-      const [start, end] = _range;
-      // if we scrolled gap line - consider list reversed -> remove top part
-      return (
-        (curIsReversing.gapStartIndex !== null &&
-          start > curIsReversing.gapStartIndex) ||
-        (scrollIndex >= start && scrollIndex <= end)
-      );
-    })();
-
-    if (isReversed) {
-      const currentReversing = isReversing();
-      assertOk(currentReversing);
-      batch(() => {
-        const pages = currentReversing.targetPageNumbers;
-        if (pages) {
-          // const prevShift = shift;
-          // shift = true;
-          setCommentPages(pages);
-          // queueMicrotask(() => {
-          //   shift = prevShift;
-          // });
-        }
-
-        setIsReversing(null);
-        setIsReversed(true);
-      });
-
-      // console.log(
-      //   "isReversed.after",
-      //   unwrapSignals({
-      //     range,
-      //     isReversing,
-      //     commentPages,
-      //   }),
-      // );
-    }
   };
 
   const waitAddition = (callback: () => void) => {
     const pr = addedElements();
     if (pr) {
-      pr.then(() => waitAddition(callback));
+      const onResolve = () => waitAddition(callback);
+
+      pr.then(onResolve);
       return;
     }
     callback();
   };
 
   const isSomethingLoading = createMemo(() =>
-    commentsQueries.some((it) => it.isLoading),
+    reversingComments.commentsQueries.some((it) => it.isLoading),
   );
 
   createEffect(
     on(
       () =>
-        !isReversing() &&
+        !reversingComments.isReversing() &&
         !isSomethingLoading() &&
-        !commentPages().includes(-1) &&
+        !reversingComments.commentPages().includes(-1) &&
         range(),
       (curRange) => {
         if (!curRange) {
           return;
         }
 
-        onScrollGap(...getRangeStatus(curRange));
+        reversingComments.fetchNext(...getRangeStatus(curRange));
       },
     ),
   );
 
-  const hasPrevPage = () => commentPages()[0] !== 1 || commentPages()[0] === -1;
-  const hasNextPage = () => {
-    const count = commentsCount();
-    if (!count || commentPages()[0] === -1) {
-      return false;
-    }
-
-    return commentPages().at(-1) !== pagesCountOfCommentsCount(count);
-  };
-
-  const reverseListMutation = createMutation(() => ({
-    mutationFn: async (comment: Comment | null) => {
-      if (commentsQueries.length !== commentPages().length) {
-        if (import.meta.env.DEV) {
-          console.warn("unexpected length mismatch");
-        }
-        return;
-      }
-      assertOk(!isReversing());
-      console.log("onCreated");
-      // [TODO]: figure out what to do
-      const newPageNumber = await (async () => {
-        const count = commentsCount();
-        assertOk(count);
-        const newCount = comment ? count + 1 : count;
-        const newPageNumber = pagesCountOfCommentsCount(newCount);
-
-        // [TODO]: use last **loaded** page
-        const lastPage = commentPages().findLast((_, index) => {
-          return commentsQueries[index].isSuccess;
-        });
-        assertOk(lastPage !== undefined);
-        // what can happen?
-        // user can stop scroll - if we are after point of gap - we need to stick to bottom and remove items
-        // if not - we should stick to top and remove bottom items
-        // if pageSize where we trying to scroll is less than 6 elements - we need to load it first
-        // if page will have less than 6 elements - we need to load previous page
-        const itemsOnNewPage = newCount % COMMENTS_PAGE_SIZE;
-        const promisesArr: Promise<unknown>[] = [];
-
-        const newPageQueryOptions = keysFactory.commentsNew({
-          noteId: noteId(),
-          page: newPageNumber,
-        });
-        const newPageQueryKey = newPageQueryOptions.queryKey;
-        await queryClient.cancelQueries({
-          queryKey: newPageQueryKey,
-        });
-        if (
-          comment &&
-          (queryClient.getQueryData(newPageQueryKey) || itemsOnNewPage === 1)
-        ) {
-          queryClient.setQueryData(newPageQueryKey, (curData) =>
-            curData
-              ? {
-                  count: newCount,
-                  items: [...curData.items, comment],
-                }
-              : {
-                  count: newCount,
-                  items: [comment],
-                },
-          );
-        } else {
-          promisesArr.push(queryClient.ensureQueryData(newPageQueryOptions));
-        }
-        const loadPrevPage = itemsOnNewPage < 6 && newPageNumber > 1;
-        if (loadPrevPage) {
-          promisesArr.push(
-            queryClient.ensureQueryData(
-              keysFactory.commentsNew({
-                noteId: noteId(),
-                page: newPageNumber - 1,
-              }),
-            ),
-          );
-        }
-
-        await Promise.all(promisesArr);
-        return newPageNumber;
-      })();
-
-      // console.log("ensured load", promisesArr.length);
-      if (!commentPages().includes(newPageNumber)) {
-        batch(() => {
-          const fallbackCommentPages = commentPages();
-          setCommentPages(
-            ArrayHelper.toInsertedInUniqueSortedArray(commentPages(), [
-              newPageNumber - 1,
-              newPageNumber,
-            ]),
-          );
-          const gapIndex = ArrayHelper.findGapAsc(commentPages());
-          const gapStartIndex =
-            gapIndex !== null ? gapIndex * COMMENTS_PAGE_SIZE : null;
-
-          setIsReversing(() => ({
-            fallbackPageNumber: fallbackCommentPages,
-            scrollIndex: -1,
-            gapStartIndex,
-            targetPageNumbers: gapIndex
-              ? commentPages().slice(gapIndex)
-              : commentPages(),
-          }));
-        });
-      }
-
-      waitAddition(() => {
-        wait(1_500).then(onFallbackReverse);
-
-        requestAnimationFrame(() => {
-          const commentIndex =
-            comment && comments().findIndex((it) => it.id === comment.id);
-          const scrollIndex =
-            commentIndex === null || commentIndex === -1
-              ? comments().length - 1
-              : commentIndex;
-          assertOk(scrollIndex !== -1);
-
-          setIsReversing((current) =>
-            current
-              ? {
-                  ...current,
-                  scrollIndex,
-                }
-              : current,
-          );
-          getVirtualizerHandle()?.scrollToIndex(scrollIndex, {
-            smooth: true,
-          });
-        });
-      });
-    },
-  }));
-
   // createRenderEffect(
   //   on(
-  //     () => comments().length,
+  //     () => reversingComments.comments().length,
   //     (length) => {
   //       console.log(
   //         "length change",
   //         unwrapSignals({
   //           length,
   //           // shift,
-  //           isReversing,
+  //           isReversing: reversingComments.isReversing(),
   //           isReversed,
+  //           pages: reversingComments.commentPages(),
+  //           now: performance.now(),
   //         }),
   //       );
   //     },
@@ -592,18 +190,18 @@ export const CommentsPage = () => {
   // });
 
   const onScrollDown = async (comment: Comment | null) => {
-    if (reverseListMutation.isPending || isReversing()) {
+    if (reversingComments.isReversing()) {
       return;
     }
     if (!comment && isReversed()) {
       console.log("scrolling to last");
-      getVirtualizerHandle()?.scrollToIndex(comments().length - 1, {
+      getVirtualizerHandle()?.scrollToIndex(commentItems().length - 1, {
         smooth: true,
       });
       return;
     }
 
-    await reverseListMutation.mutateAsync(comment);
+    await reversingComments.reverse(comment);
   };
 
   const showBottomScroller = createMemo(() => {
@@ -612,7 +210,7 @@ export const CommentsPage = () => {
     if (platform === "ios" && keyboard.isKeyboardOpen()) {
       return false;
     }
-    const count = commentsCount();
+    const count = reversingComments.commentsCount();
 
     if (!count) {
       return false;
@@ -620,7 +218,8 @@ export const CommentsPage = () => {
 
     return (
       count -
-        COMMENTS_PAGE_SIZE * ((firstPageNumber() ?? 1) - 1) -
+        COMMENTS_PAGE_SIZE *
+          ((reversingComments.firstLoadedPageNumber() ?? 1) - 1) -
         (range()?.[1] ?? 0) >
       10
     );
@@ -634,11 +233,11 @@ export const CommentsPage = () => {
 
   const _commentsWithLoaders = createMemo(() => {
     const copy: CommentItem[] = [];
-    if (hasPrevPage()) {
+    if (reversingComments.hasPrevPage()) {
       copy.push(PREV_LOADING_ITEM);
     }
-    copy.push(...comments());
-    if (hasNextPage()) {
+    copy.push(...reversingComments.comments());
+    if (reversingComments.hasNextPage()) {
       copy.push(NEXT_LOADING_ITEM);
     }
     return copy;
@@ -718,14 +317,12 @@ export const CommentsPage = () => {
       </BoardNote>
 
       <Switch>
-        <Match
-          when={commentsQueries[0]?.isLoading && commentsQueries.length === 1}
-        >
+        <Match when={reversingComments.isLoading()}>
           <div class="flex w-full flex-1 items-center justify-center">
             <LoadingSvg class="w-8 fill-accent text-transparent" />
           </div>
         </Match>
-        <Match when={comments().length === 0}>
+        <Match when={reversingComments.comments().length === 0}>
           <div class="flex flex-col items-center p-8">
             <img
               src="/assets/empty-notes.webp"
@@ -740,10 +337,12 @@ export const CommentsPage = () => {
             </p>
           </div>
         </Match>
-        <Match when={comments().length > 0}>
+        <Match when={reversingComments.comments().length > 0}>
           <Virtualizer
             itemSize={110}
-            onScrollEnd={onScrollEnd}
+            onScrollEnd={() => {
+              reversingComments.checkIsReversed(range());
+            }}
             onScroll={(e) => {
               if (platform !== "ios" || e > 0) {
                 return;
@@ -772,7 +371,9 @@ export const CommentsPage = () => {
                   {(comment) => (
                     <article
                       data-last={
-                        comment().id === lastCommentId() ? "" : undefined
+                        comment().id === reversingComments.lastCommentId()
+                          ? ""
+                          : undefined
                       }
                       class={clsxString(
                         "mb-4 grid grid-cols-[36px,1fr] grid-rows-[auto,auto,auto] gap-y-[2px] border-b-[0.4px] border-b-separator bg-secondary-bg pb-4 data-[last]:border-none",
@@ -821,9 +422,12 @@ export const CommentsPage = () => {
                 <Match
                   when={
                     comment.type === "loader" &&
-                    commentsQueries.at(comment.id === "next-item" ? -1 : 0)
-                      ?.isError &&
-                    commentsQueries.at(comment.id === "next-item" ? -1 : 0)
+                    reversingComments.commentsQueries.at(
+                      comment.id === "next-item" ? -1 : 0,
+                    )?.isError &&
+                    reversingComments.commentsQueries.at(
+                      comment.id === "next-item" ? -1 : 0,
+                    )
                   }
                 >
                   {(query) => (
@@ -909,125 +513,3 @@ export const CommentsPage = () => {
     </main>
   );
 };
-function commentsCountFromCache(noteId: string) {
-  let lastCount = -1;
-  const queries = queryClient.getQueryCache().findAll({
-    queryKey: noteCommentsKey(noteId),
-  }) as Array<Query<GetCommentResponse>>;
-  for (const query of queries) {
-    if (query.state.data?.count !== undefined) {
-      lastCount = Math.max(query.state.data.count, lastCount);
-    }
-  }
-
-  return lastCount === -1 ? null : lastCount;
-}
-
-function createListMarginTop(defaultMarginTop: number) {
-  const [scrollMarginTop, setScrollMarginTop] =
-    createSignal<number>(defaultMarginTop);
-  const beforeListElements = createMutable<Record<string, HTMLElement>>({});
-  createEffect(() => {
-    const maxTopFromEntries = (entires: ResizeObserverEntry[]) => {
-      let maxScrollTop: number | null = null;
-      for (const entry of entires) {
-        const curMarginTopPlusSize =
-          (entry?.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height) +
-          entry.target.scrollTop;
-
-        maxScrollTop =
-          maxScrollTop === null
-            ? curMarginTopPlusSize
-            : Math.max(curMarginTopPlusSize, maxScrollTop);
-      }
-
-      return maxScrollTop;
-    };
-
-    const maxTopFromElements = (elements: HTMLElement[]) => {
-      let maxScrollTop: number | null = null;
-      for (const element of elements) {
-        const curMarginTopPlusSize = element.scrollTop + element.offsetHeight;
-
-        maxScrollTop =
-          maxScrollTop === null
-            ? curMarginTopPlusSize
-            : Math.max(curMarginTopPlusSize, maxScrollTop);
-      }
-
-      return maxScrollTop;
-    };
-
-    const onNewMaxTopScroll = (newMarginTopScroll: number | null) => {
-      if (
-        newMarginTopScroll !== null &&
-        Math.abs(scrollMarginTop() - newMarginTopScroll) >= 2
-      ) {
-        setScrollMarginTop(newMarginTopScroll);
-      }
-    };
-
-    const observer = new ResizeObserver((entries) => {
-      onNewMaxTopScroll(maxTopFromEntries(entries));
-    });
-
-    createEffect(
-      on(
-        () => Object.values(beforeListElements),
-        (elements) => {
-          for (const el of elements) {
-            observer.observe(el);
-          }
-
-          onCleanup(() => {
-            for (const el of elements) {
-              observer.unobserve(el);
-            }
-          });
-          onNewMaxTopScroll(maxTopFromElements(elements));
-        },
-      ),
-    );
-  });
-
-  return [
-    scrollMarginTop,
-    (elId: string) => (beforeListElement: HTMLElement) => {
-      onCleanup(() => {
-        delete beforeListElements[elId];
-      });
-      beforeListElements[elId] = beforeListElement;
-    },
-  ] as const;
-}
-
-function createInitialPagesList(noteId: string, isReversed: () => boolean) {
-  const pages = getPagesNumbers(
-    getAllNoteCommentsQueries(noteId).filter(isLoaded),
-  );
-  if (import.meta.env.DEV) {
-    assertOk(pages.every((it) => typeof it === "number"));
-  }
-  if (pages.length === 0) {
-    return createSignal(isReversed() ? [-1] : [1]);
-  }
-
-  const sortedPages = ArrayHelper.sortNumbersAsc(pages);
-  let resPages: number[];
-  if (isReversed()) {
-    const gapIndex = ArrayHelper.findLastGapAsc(sortedPages);
-
-    resPages =
-      gapIndex === null ? sortedPages : sortedPages.slice(gapIndex + 1);
-  } else {
-    const gapIndex = ArrayHelper.findGapAsc(sortedPages);
-
-    resPages = gapIndex === null ? sortedPages : sortedPages.slice(0, gapIndex);
-  }
-
-  if (resPages.length === 0) {
-    return createSignal(isReversed() ? [-1] : [1]);
-  }
-
-  return createSignal(resPages);
-}
