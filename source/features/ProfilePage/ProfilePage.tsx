@@ -21,7 +21,7 @@ import { LoadingSvg } from "@/features/LoadingSvg";
 import { setVirtualizerHandle } from "@/features/pageTransitions";
 import { queryClient } from "@/queryClient";
 import { Virtualizer } from "virtua/solid";
-import { createCommentsPageUrl } from "../CommentsPage/CommentsPage";
+import { createCommentsPageUrl } from "../CommentsPage/utils";
 import { useInfiniteScroll } from "../infiniteScroll";
 import { CommentNoteFooterLayout } from "./CommantNoteFooterLayour";
 

@@ -3,10 +3,9 @@ import {
   keysFactory,
   type GetCommentResponse,
 } from "@/api/api";
-import type { Comment, Note } from "@/api/model";
+import type { Comment } from "@/api/model";
 import {
   PxString,
-  clamp,
   clsxString,
   formatPostDate,
   formatPostTime,
@@ -14,7 +13,7 @@ import {
   scrollableElement,
 } from "@/common";
 import { AnonymousAvatarIcon, ArrowDownIcon } from "@/icons";
-import { ArrayHelper, type IsEqual } from "@/lib/array";
+import { ArrayHelper } from "@/lib/array";
 import { assertOk } from "@/lib/assert";
 import {
   createInnerHeight,
@@ -22,7 +21,7 @@ import {
   unwrapSignals,
 } from "@/lib/solid";
 import { queryClient } from "@/queryClient";
-import { A, useParams, useSearchParams } from "@solidjs/router";
+import { A, useParams } from "@solidjs/router";
 import {
   Query,
   createMutation,
@@ -38,7 +37,6 @@ import {
   batch,
   createEffect,
   createMemo,
-  createRenderEffect,
   createSignal,
   on,
   onCleanup,
@@ -60,7 +58,7 @@ import {
   createSafariScrollAdjuster,
   createScrollAdjuster,
 } from "./scrollAdjusters";
-import { wait } from "./utils";
+import { IntAvg, createOneSideArraySync, useReversed, wait } from "./utils";
 
 type CommentItem = { type: "loader"; id: "prev-item" | "next-item" } | Comment;
 const PREV_LOADING_ITEM: CommentItem = {
@@ -99,76 +97,6 @@ const isLoaded = (items: Query) => {
 
 const getPagesNumbers = (queries: { readonly queryKey: QueryKey }[]) =>
   queries.map((it) => it.queryKey.at(-1) as number);
-
-const REVERSED_KEY = "reversed";
-export const createCommentsPageUrl = (note: Note, reversed: boolean) => {
-  const baseUrl = `/comments/${note.id}`;
-  if (!reversed) {
-    return baseUrl;
-  }
-
-  const params = new URLSearchParams([[REVERSED_KEY, String(reversed)]]);
-  return `${baseUrl}?${params.toString()}`;
-};
-
-const createOneSideArraySync = <T,>(
-  arr: () => T[],
-  anchorElement: () => number,
-  isEqual: IsEqual<T>,
-) => {
-  const [sig, setArr] = createSignal(arr());
-  const [isInsertingBefore, setIsInsertingBefore] = createSignal(false);
-
-  const [hasTimer, setHasTimer] = createSignal(false);
-  let animationEndPromise: null | Promise<void> = null;
-  createEffect(() => {
-    if (hasTimer()) {
-      return;
-    }
-    const equal = ArrayHelper.isEqual(sig(), arr(), isEqual);
-    // console.log(
-    //   unwrapUntrackSignals({
-    //     sig,
-    //     arr,
-    //     equal,
-    //     anchorElement,
-    //   }),
-    // );
-
-    if (equal) {
-      return;
-    }
-
-    setHasTimer(true);
-    const pr = Promise.withResolvers<void>();
-    animationEndPromise = pr.promise;
-
-    // delaying rerenders to release event loop
-    requestAnimationFrame(() => {
-      setTimeout(() => {
-        try {
-          const res = ArrayHelper.oneSideChange(
-            sig(),
-            arr(),
-            isEqual,
-            clamp(anchorElement(), 0, sig().length - 1),
-          );
-
-          batch(() => {
-            setArr(res.data);
-            setIsInsertingBefore(res.front);
-          });
-        } finally {
-          pr.resolve();
-          animationEndPromise = null;
-          setHasTimer(false);
-        }
-      });
-    });
-  });
-
-  return [sig, isInsertingBefore, () => animationEndPromise] as const;
-};
 
 export const CommentsPage = () => {
   const params = useParams();
@@ -258,7 +186,6 @@ export const CommentsPage = () => {
     (prev: CommentsMemoRes) => {
       const pages = commentPages();
       let firstVisiblePageNumber: null | number = null;
-      // console.log(pages.length, commentsQueries.length, performance.now());
       // tanstack query batches updates with queueMicrotask
       if (pages.length !== commentsQueries.length) {
         return prev;
@@ -267,7 +194,6 @@ export const CommentsPage = () => {
       for (let i = 0; i < pages.length; ++i) {
         const pageQuery = commentsQueries[i];
 
-        // [TODO]: handle errros
         if (pageQuery.isSuccess) {
           firstVisiblePageNumber ??= pages[i];
           commentItems.push(...pageQuery.data.items);
@@ -299,17 +225,7 @@ export const CommentsPage = () => {
     commentsQueries.length;
     firstPageNumber();
 
-    let lastCount = -1;
-    const queries = queryClient.getQueryCache().findAll({
-      queryKey: noteCommentsKey(noteId()),
-    }) as Array<Query<GetCommentResponse>>;
-    for (const query of queries) {
-      if (query.state.data?.count !== undefined) {
-        lastCount = Math.max(query.state.data.count, lastCount);
-      }
-    }
-
-    return lastCount === -1 ? null : lastCount;
+    return commentsCountFromCache(noteId());
   };
 
   // [1,2,3] -> [1,2,3,100] -> [100]
@@ -543,8 +459,8 @@ export const CommentsPage = () => {
         const newPageNumber = pagesCountOfCommentsCount(newCount);
 
         // [TODO]: use last **loaded** page
-        const lastPage = commentPages().findLast((it) => {
-          return commentsQueries[it].isSuccess;
+        const lastPage = commentPages().findLast((_, index) => {
+          return commentsQueries[index].isSuccess;
         });
         assertOk(lastPage !== undefined);
         // what can happen?
@@ -650,30 +566,30 @@ export const CommentsPage = () => {
     },
   }));
 
-  createRenderEffect(
-    on(
-      () => comments().length,
-      (length) => {
-        console.log(
-          "length change",
-          unwrapSignals({
-            length,
-            // shift,
-            isReversing,
-            isReversed,
-          }),
-        );
-      },
-    ),
-  );
+  // createRenderEffect(
+  //   on(
+  //     () => comments().length,
+  //     (length) => {
+  //       console.log(
+  //         "length change",
+  //         unwrapSignals({
+  //           length,
+  //           // shift,
+  //           isReversing,
+  //           isReversed,
+  //         }),
+  //       );
+  //     },
+  //   ),
+  // );
 
-  createEffect(() => {
-    console.log(
-      unwrapSignals({
-        commentPages,
-      }),
-    );
-  });
+  // createEffect(() => {
+  //   console.log(
+  //     unwrapSignals({
+  //       commentPages,
+  //     }),
+  //   );
+  // });
 
   const onScrollDown = async (comment: Comment | null) => {
     if (reverseListMutation.isPending || isReversing()) {
@@ -709,13 +625,13 @@ export const CommentsPage = () => {
       10
     );
   });
+
   let bottomScroller!: HTMLButtonElement;
   const shouldShowBottomScroller = createTransitionPresence({
     when: showBottomScroller,
     element: () => bottomScroller,
   });
 
-  const avg = (a: number, b: number) => ((a + b) / 2) | 0;
   const _commentsWithLoaders = createMemo(() => {
     const copy: CommentItem[] = [];
     if (hasPrevPage()) {
@@ -731,7 +647,7 @@ export const CommentsPage = () => {
     () => _commentsWithLoaders(),
     () => {
       const min = _commentsWithLoaders().length > 1 ? 1 : 0;
-      return Math.max(min, avg(...range()));
+      return Math.max(min, IntAvg(...range()));
     },
     (a, b) => a === b || a.id === b.id,
   );
@@ -993,6 +909,20 @@ export const CommentsPage = () => {
     </main>
   );
 };
+function commentsCountFromCache(noteId: string) {
+  let lastCount = -1;
+  const queries = queryClient.getQueryCache().findAll({
+    queryKey: noteCommentsKey(noteId),
+  }) as Array<Query<GetCommentResponse>>;
+  for (const query of queries) {
+    if (query.state.data?.count !== undefined) {
+      lastCount = Math.max(query.state.data.count, lastCount);
+    }
+  }
+
+  return lastCount === -1 ? null : lastCount;
+}
+
 function createListMarginTop(defaultMarginTop: number) {
   const [scrollMarginTop, setScrollMarginTop] =
     createSignal<number>(defaultMarginTop);
@@ -1100,25 +1030,4 @@ function createInitialPagesList(noteId: string, isReversed: () => boolean) {
   }
 
   return createSignal(resPages);
-}
-
-function useReversed() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const isReversed = () => searchParams[REVERSED_KEY] === "true";
-
-  return [
-    isReversed,
-    (newIsReversed: boolean) => {
-      setSearchParams(
-        {
-          ...searchParams,
-          [REVERSED_KEY]: newIsReversed ? "true" : "false",
-        },
-        {
-          replace: true,
-          scroll: false,
-        },
-      );
-    },
-  ] as const;
 }

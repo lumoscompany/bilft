@@ -182,4 +182,4 @@ export const keysFactory = {
         }),
     }),
 };
-export const COMMENTS_PAGE_SIZE = 16;
+export const COMMENTS_PAGE_SIZE = 20;
