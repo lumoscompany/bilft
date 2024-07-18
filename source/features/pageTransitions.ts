@@ -101,6 +101,9 @@ export function createRouter<State>(
           // redirecting via tma.js, to startViewTransition first
           if (typeof to === "number") {
             navigator.go(to);
+          } else if (options?.replace) {
+            // [TODO]: handle state param or never use it
+            navigator.replace(to);
           } else {
             // [TODO]: handle state param or never use it
             navigator.push(to);
