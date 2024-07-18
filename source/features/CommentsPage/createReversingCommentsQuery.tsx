@@ -316,7 +316,7 @@ export const createReversingCommentsQuery = (
       }
       assertOk(!isReversing());
       const count = commentsCount();
-      assertOk(count);
+      assertOk(count !== null);
       const newCount = comment ? count + 1 : count;
       const newPageNumber = pagesCountOfCommentsCount(newCount);
 
