@@ -81,7 +81,6 @@ const App = () => {
       pathname: `/board/${removePrefix(startParam?.data ?? getSelfUserId())}`,
     };
   })();
-  console.log({ targetEntry });
   const selfEntry: BrowserNavigatorAnyHistoryItem<unknown> = {
     pathname: `/board/${removePrefix(getSelfUserId())}`,
   };

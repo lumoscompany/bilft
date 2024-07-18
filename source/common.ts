@@ -86,18 +86,31 @@ export const getStartParam = (): StartParam | null => {
       data: startParamId,
     };
   }
-  const content = JSON.parse(
-    Buffer.from(unescapeBase64Url(startParamId.slice(3)), "base64").toString(),
-  ) as {
-    noteId?: string;
-  };
+  const content = (() => {
+    try {
+      return JSON.parse(
+        Buffer.from(
+          unescapeBase64Url(startParamId.slice(3)),
+          "base64",
+        ).toString(),
+      ) as {
+        noteId?: string;
+      };
+    } catch (err) {
+      console.error("failed to parse json", err);
+      return null;
+    }
+  })();
+  if (!content) {
+    return null;
+  }
   if (!content.noteId || typeof content.noteId !== "string") {
     console.error("unknown content", content);
     return null;
   }
 
   return {
-    type: "board",
+    type: "note",
     data: content.noteId,
   };
 };
