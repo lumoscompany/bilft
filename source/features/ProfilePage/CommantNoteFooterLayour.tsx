@@ -160,6 +160,7 @@ let resizeBatched = false;
 export const CommentNoteFooterLayout = (props: {
   lastComment: Omit<Comment, "createdAt">;
   commentsCount: number;
+  href: string;
   onClick(): void;
 }) => {
   const content = () => props.lastComment.content;
@@ -260,13 +261,13 @@ export const CommentNoteFooterLayout = (props: {
       </div>
       <Show
         fallback={
-          <button
-            type="button"
+          <A
+            href={props.href}
             onClick={() => props.onClick()}
             class="absolute bottom-0 right-0 bg-secondary-bg pl-2 font-inter text-[15px] leading-[18px] text-accent transition-opacity active:opacity-70"
           >
             {showMoreText()}
-          </button>
+          </A>
         }
         when={isTwoLineLayout()}
       >
@@ -275,13 +276,13 @@ export const CommentNoteFooterLayout = (props: {
             {layout()[1]}
           </div>
 
-          <button
-            type="button"
+          <A
+            href={props.href}
             onClick={() => props.onClick()}
             class="ml-auto shrink-0 pl-2 font-inter text-[15px] leading-[18px] text-accent transition-opacity active:opacity-70"
           >
             {showMoreText()}
-          </button>
+          </A>
         </div>
       </Show>
     </div>

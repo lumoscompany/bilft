@@ -28,6 +28,7 @@ export type PostInputProps = StyleProps & {
   ref?: Ref<HTMLFormElement>;
   position: "top" | "bottom";
   preventScrollTouches: boolean;
+  disabled?: boolean;
 };
 
 const _createInputFocusPreventer = (
@@ -202,7 +203,12 @@ export function PostInput(props: PostInputProps) {
           </p>
         </Show>
         <button
-          disabled={isEmpty() || props.isLoading || symbolsRemaining() <= 0}
+          disabled={
+            !!props.disabled ||
+            isEmpty() ||
+            props.isLoading ||
+            symbolsRemaining() <= 0
+          }
           class="relative ml-2 flex aspect-square w-7 items-center justify-center overflow-hidden rounded-full [&:disabled>svg>path]:fill-gray-400 [&>svg>path]:fill-accent"
         >
           <Show fallback={<ArrowUpIcon />} when={props.isLoading}>

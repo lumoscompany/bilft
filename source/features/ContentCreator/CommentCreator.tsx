@@ -12,6 +12,7 @@ import type {
 } from "@/api/model";
 import { type StyleProps } from "@/common";
 import { BottomDialog } from "@/features/BottomDialog";
+import { assertOk } from "@/lib/assert";
 import { SignalHelper, type Ref } from "@/lib/solid";
 import {
   createMutation,
@@ -19,7 +20,7 @@ import {
   useQueryClient,
 } from "@tanstack/solid-query";
 import { AxiosError } from "axios";
-import { batch, createMemo, createSignal } from "solid-js";
+import { batch, createEffect, createMemo, createSignal } from "solid-js";
 import { PostInput, type PostInputProps } from "./PostInput";
 import { WalletModalContent } from "./WalletModal";
 import { ErrorHelper, type ModalStatus } from "./common";
@@ -29,12 +30,18 @@ export const CommentCreator = (
   props: {
     noteId: string;
     onCreated(comment: model.Comment): Promise<void>;
-    boardId: string;
+    boardId: string | null;
+    disabled: boolean;
   } & StyleProps & {
       ref?: Ref<HTMLFormElement>;
     } & Pick<PostInputProps, "onBlur" | "onFocus">,
 ) => {
   const queryClient = useQueryClient();
+  if (import.meta.env.DEV) {
+    createEffect(() => {
+      assertOk(props.boardId || props.disabled);
+    });
+  }
 
   const [inputValue, setInputValue] = createSignal("");
   const [isAnonymous, setIsAnonymous] = createSignal(false);
@@ -68,6 +75,7 @@ export const CommentCreator = (
           noteId: props.noteId,
         }).queryKey,
       });
+      assertOk(props.boardId);
       queryClient.invalidateQueries({
         queryKey: keysFactory.notes({
           board: props.boardId,
@@ -108,6 +116,8 @@ export const CommentCreator = (
           };
         },
       ); */
+
+      assertOk(props.boardId);
       queryClient.setQueryData(
         keysFactory.notes({
           board: props.boardId,

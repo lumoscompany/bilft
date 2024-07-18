@@ -101,18 +101,14 @@ const getPagesNumbers = (queries: { readonly queryKey: QueryKey }[]) =>
   queries.map((it) => it.queryKey.at(-1) as number);
 
 const REVERSED_KEY = "reversed";
-export const createCommentsPageUrl = (
-  note: Note,
-  boardId: string,
-  reversed: boolean,
-) => {
-  const params = new URLSearchParams([
-    ["note", JSON.stringify(note)],
-    ["boardId", boardId],
-    [REVERSED_KEY, String(reversed)],
-  ]);
+export const createCommentsPageUrl = (note: Note, reversed: boolean) => {
+  const baseUrl = `/comments/${note.id}`;
+  if (!reversed) {
+    return baseUrl;
+  }
 
-  return `/comments/${note.id}?${params.toString()}`;
+  const params = new URLSearchParams([[REVERSED_KEY, String(reversed)]]);
+  return `${baseUrl}?${params.toString()}`;
 };
 
 const createOneSideArraySync = <T,>(
@@ -187,6 +183,7 @@ export const CommentsPage = () => {
     noteId(),
     isReversed,
   );
+  const boardId = () => note.data?.boardId;
 
   const commentsQueries = createQueries(() => ({
     queries: commentPages().map((page) =>
@@ -987,7 +984,8 @@ export const CommentsPage = () => {
         <div class="absolute inset-0 -z-10 bg-secondary-bg" />
 
         <CommentCreator
-          boardId={boardId()}
+          disabled={!note.isSuccess}
+          boardId={boardId() ?? null}
           noteId={noteId()}
           onCreated={onScrollDown}
         />
