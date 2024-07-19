@@ -1,8 +1,5 @@
-import {
-  createDisposeEffect,
-  createTransitionPresence,
-  useCleanup,
-} from "@/lib/solid";
+import { createTransitionPresence, useCleanup } from "@/lib/solid";
+import { type StyleProps } from "@/lib/types";
 import { useNavigate, useSearchParams } from "@solidjs/router";
 import {
   Show,
@@ -15,7 +12,6 @@ import {
   type JSX,
 } from "solid-js";
 import { Portal } from "solid-js/web";
-import { type StyleProps } from "@/lib/types";
 import { scrollableElement } from "./scroll";
 
 const useModalNavigation = ({
@@ -33,7 +29,7 @@ const useModalNavigation = ({
   const navigate = useNavigate();
 
   let isSet = false;
-  createDisposeEffect(() => {
+  createEffect(() => {
     if (!show()) {
       return;
     }
@@ -66,11 +62,11 @@ const useModalNavigation = ({
       isSet = false;
     });
 
-    return () => {
+    onCleanup(() => {
       if (isSet) {
         navigate(-1);
       }
-    };
+    });
   });
 };
 

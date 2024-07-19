@@ -1,8 +1,8 @@
-import { type StyleProps } from "@/lib/types";
-import { clsxString } from "@/lib/clsxString";
 import { platform } from "@/features/telegramIntegration";
 import { ArrowUpIcon } from "@/icons";
+import { clsxString } from "@/lib/clsxString";
 import { mergeRefs, useCleanup, useObserverCleanup } from "@/lib/solid";
+import { type StyleProps } from "@/lib/types";
 import {
   Show,
   createEffect,

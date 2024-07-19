@@ -109,11 +109,9 @@ export function createRouter<State>(
   });
 }
 
-export const createRouterWithPageTransition = ({
-  dangerousWillBePatched_navigator: navigator,
-}: {
-  dangerousWillBePatched_navigator: BrowserNavigator<unknown>;
-}): Component<BaseRouterProps> => {
+export const createRouterWithPageTransition = (
+  navigator: BrowserNavigator<unknown>,
+): Component<BaseRouterProps> => {
   const startViewTransition = document.startViewTransition?.bind(document);
 
   let idToScrollPosition: Map<string, number>;
