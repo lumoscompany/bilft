@@ -19,7 +19,7 @@ import {
   on,
   postEvent,
   type BrowserNavigatorAnyHistoryItem,
-} from "@tma.js/sdk";
+} from "@telegram-apps/sdk";
 import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import { Toaster } from "solid-sonner";
 import { CommentsPage } from "./features/CommentsPage/CommentsPage";

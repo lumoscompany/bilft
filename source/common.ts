@@ -1,4 +1,4 @@
-import { initThemeParams, initUtils, retrieveLaunchParams } from "@tma.js/sdk";
+import { initThemeParams, initUtils, retrieveLaunchParams } from "@telegram-apps/sdk";
 import { assertOk } from "./lib/assert";
 
 export type StyleProps = {
@@ -108,7 +108,6 @@ export const getStartParam = (): StartParam | null => {
   if (!content) {
     return null;
   }
-  console.log({ content });
   if (!content.noteId || typeof content.noteId !== "string") {
     console.error("unknown content", content);
     return null;

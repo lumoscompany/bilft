@@ -11,7 +11,7 @@ import {
 import { createTransitionPresence, mergeRefs, useCleanup } from "@/lib/solid";
 import { useTonConnectUI } from "@/lib/ton-connect-solid";
 import { createQuery } from "@tanstack/solid-query";
-import { postEvent } from "@tma.js/sdk";
+import { postEvent } from "@telegram-apps/sdk";
 import {
   Match,
   Show,

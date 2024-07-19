@@ -5,8 +5,8 @@ import {
   type BaseRouterProps,
 } from "@solidjs/router";
 
-import type { BrowserNavigator, BrowserNavigatorEvents } from "@tma.js/sdk";
-import { getHash, urlToPath } from "@tma.js/sdk";
+import type { BrowserNavigator, BrowserNavigatorEvents } from "@telegram-apps/sdk";
+import { getHash, urlToPath } from "@telegram-apps/sdk";
 import type { Component } from "solid-js";
 import { onCleanup } from "solid-js";
 import type { VirtualizerHandle } from "virtua/solid";
