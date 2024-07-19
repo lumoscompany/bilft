@@ -1,5 +1,5 @@
-import { type StyleProps } from "@/lib/types";
 import { clsxString } from "@/lib/clsxString";
+import { type StyleProps } from "@/lib/types";
 
 /**
  *

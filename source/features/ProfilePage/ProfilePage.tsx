@@ -1,6 +1,5 @@
 import { keysFactory } from "@/api/api";
 import type { NoteWithComment } from "@/api/model";
-import { type StyleProps } from "@/lib/types";
 import { AvatarIcon } from "@/features/BoardNote/AvatarIcon";
 import { BoardNote } from "@/features/BoardNote/BoardNote";
 import { PostCreator } from "@/features/ContentCreator/PostCreator";
@@ -13,6 +12,7 @@ import {
 } from "@/features/idUtils";
 import { ArrowPointUp } from "@/icons";
 import { clsxString } from "@/lib/clsxString";
+import { type StyleProps } from "@/lib/types";
 import { queryClient } from "@/queryClient";
 import { A, useParams } from "@solidjs/router";
 import { createInfiniteQuery, createQuery } from "@tanstack/solid-query";

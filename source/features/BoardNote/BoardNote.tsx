@@ -1,4 +1,3 @@
-import { type StyleProps } from "@/lib/types";
 import {
   formatPostDate,
   formatPostTime,
@@ -7,6 +6,7 @@ import {
 import { themeParams } from "@/features/telegramIntegration";
 import { AnonymousAvatarIcon } from "@/icons";
 import { clsxString } from "@/lib/clsxString";
+import { type StyleProps } from "@/lib/types";
 import { A } from "@solidjs/router";
 import type { ComponentProps, ParentProps } from "solid-js";
 import { AvatarIcon } from "./AvatarIcon";
