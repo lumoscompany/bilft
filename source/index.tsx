@@ -72,9 +72,10 @@ const createTgScreenSize = () => {
   };
 };
 
-const App = () => {
+const createNavigatorFromStartParam = (
+  startParam: ReturnType<typeof getStartParam>,
+) => {
   const targetEntry: BrowserNavigatorAnyHistoryItem<unknown> = (() => {
-    const startParam = getStartParam();
     if (startParam?.type === "note") {
       return {
         pathname: createCommentPagePathname(startParam.data.noteId),
@@ -91,14 +92,24 @@ const App = () => {
   const selfEntry: BrowserNavigatorAnyHistoryItem<unknown> = {
     pathname: `/board/${removePrefix(getSelfUserId())}`,
   };
-  const navigator = initNavigator("app-navigator-state");
+  const historySessionStorageKey = "app-navigator-state";
+  const hasPreviousHistory = !!sessionStorage.getItem(historySessionStorageKey);
 
+  const navigator = initNavigator(historySessionStorageKey);
+  if (hasPreviousHistory) {
+    return navigator;
+  }
   if (selfEntry.pathname === targetEntry.pathname) {
     navigator.replace(selfEntry);
-  } else {
-    navigator.replace(selfEntry);
-    navigator.push(targetEntry);
+    return navigator;
   }
+  navigator.replace(selfEntry);
+  navigator.push(targetEntry);
+  return navigator;
+};
+
+const App = () => {
+  const navigator = createNavigatorFromStartParam(getStartParam());
   navigator.attach();
   onCleanup(() => {
     void navigator.detach();
