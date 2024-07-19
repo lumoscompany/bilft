@@ -1,5 +1,7 @@
 import { keysFactory } from "@/api/api";
-import { clsxString, utils, type StyleProps } from "@/common";
+import { type StyleProps } from "@/lib/types";
+import { clsxString } from "@/lib/clsxString";
+import { utils } from "@/features/telegramIntegration";
 import {
   ArrowPointDownIcon,
   CloseIcon,

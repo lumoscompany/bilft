@@ -1,12 +1,12 @@
+import { type StyleProps } from "@/lib/types";
 import {
-  clsxString,
   formatPostDate,
   formatPostTime,
-  themeParams,
   type DateString,
-  type StyleProps,
-} from "@/common";
+} from "@/features/format";
+import { themeParams } from "@/features/telegramIntegration";
 import { AnonymousAvatarIcon } from "@/icons";
+import { clsxString } from "@/lib/clsxString";
 import { A } from "@solidjs/router";
 import type { ComponentProps, ParentProps } from "solid-js";
 import { AvatarIcon } from "./AvatarIcon";

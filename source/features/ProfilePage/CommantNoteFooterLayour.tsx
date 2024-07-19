@@ -1,5 +1,5 @@
 import type { Comment } from "@/api/model";
-import { platform } from "@/common";
+import { platform } from "@/features/telegramIntegration";
 import { AnonymousAvatarIcon } from "@/icons";
 import { assertOk } from "@/lib/assert";
 import { A } from "@solidjs/router";

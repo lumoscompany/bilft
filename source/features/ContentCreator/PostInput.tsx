@@ -1,4 +1,6 @@
-import { clsxString, platform, type StyleProps } from "@/common";
+import { type StyleProps } from "@/lib/types";
+import { clsxString } from "@/lib/clsxString";
+import { platform } from "@/features/telegramIntegration";
 import { ArrowUpIcon } from "@/icons";
 import { mergeRefs, useCleanup, useObserverCleanup } from "@/lib/solid";
 import {

@@ -6,7 +6,7 @@ import {
   keysFactory,
   type CreateNoteRequest,
 } from "@/api/api";
-import type { StyleProps } from "@/common";
+import type { StyleProps } from "@/lib/types";
 import { SignalHelper } from "@/lib/solid";
 import {
   createMutation,

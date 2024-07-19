@@ -1,5 +1,6 @@
 import type { ComponentProps } from "solid-js";
-import { clsxString, themeParams } from "./common";
+import { clsxString } from "./lib/clsxString";
+import { themeParams } from "./features/telegramIntegration";
 
 export const YoCoinIcon = (props: ComponentProps<"svg">) =>
   themeParams.isDark ? (

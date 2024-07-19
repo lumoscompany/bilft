@@ -1,4 +1,4 @@
-import type { DateString } from "@/common";
+import type { DateString } from "@/features/format";
 
 export type ContentAuthor = {
   id: string;

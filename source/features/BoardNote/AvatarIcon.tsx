@@ -1,4 +1,5 @@
-import { clsxString, type StyleProps } from "@/common";
+import { type StyleProps } from "@/lib/types";
+import { clsxString } from "@/lib/clsxString";
 import { Show, createRenderEffect, createSignal } from "solid-js";
 
 let img: HTMLImageElement;

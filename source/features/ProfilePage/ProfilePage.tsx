@@ -1,28 +1,26 @@
 import { keysFactory } from "@/api/api";
-import {
-  addPrefix,
-  clsxString,
-  getSelfUserId,
-  isEqualIds,
-  removePrefix,
-  scrollableElement,
-  type StyleProps,
-} from "@/common";
-import { ArrowPointUp } from "@/icons";
-import { A, useParams } from "@solidjs/router";
-import { createInfiniteQuery, createQuery } from "@tanstack/solid-query";
-import { Match, Show, Switch, createMemo, type ParentProps } from "solid-js";
-
 import type { NoteWithComment } from "@/api/model";
+import { type StyleProps } from "@/lib/types";
 import { AvatarIcon } from "@/features/BoardNote/AvatarIcon";
 import { BoardNote } from "@/features/BoardNote/BoardNote";
 import { PostCreator } from "@/features/ContentCreator/PostCreator";
 import { LoadingSvg } from "@/features/LoadingSvg";
-import { setVirtualizerHandle } from "@/features/pageTransitions";
+import {
+  addPrefix,
+  getSelfUserId,
+  isEqualIds,
+  removePrefix,
+} from "@/features/idUtils";
+import { ArrowPointUp } from "@/icons";
+import { clsxString } from "@/lib/clsxString";
 import { queryClient } from "@/queryClient";
+import { A, useParams } from "@solidjs/router";
+import { createInfiniteQuery, createQuery } from "@tanstack/solid-query";
+import { Match, Show, Switch, createMemo, type ParentProps } from "solid-js";
 import { Virtualizer } from "virtua/solid";
 import { createCommentsPageUrl } from "../CommentsPage/utils";
 import { useInfiniteScroll } from "../infiniteScroll";
+import { scrollableElement, setVirtualizerHandle } from "../scroll";
 import { CommentNoteFooterLayout } from "./CommantNoteFooterLayour";
 
 const UserStatus = (props: ParentProps<StyleProps>) => (

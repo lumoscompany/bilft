@@ -1,15 +1,16 @@
 import { COMMENTS_PAGE_SIZE, keysFactory } from "@/api/api";
 import type { Comment } from "@/api/model";
+import { formatPostDate, formatPostTime } from "@/features/format";
 import {
-  PxString,
-  clsxString,
-  formatPostDate,
-  formatPostTime,
-  platform,
+  getVirtualizerHandle,
   scrollableElement,
-} from "@/common";
+  setVirtualizerHandle,
+} from "@/features/scroll";
+import { platform } from "@/features/telegramIntegration";
 import { AnonymousAvatarIcon, ArrowDownIcon } from "@/icons";
 import { assertOk } from "@/lib/assert";
+import { clsxString } from "@/lib/clsxString";
+import { PxStringFromNumber, type PxString } from "@/lib/pxString";
 import { createInnerHeight, createTransitionPresence } from "@/lib/solid";
 import { A, useParams } from "@solidjs/router";
 import { createQuery } from "@tanstack/solid-query";
@@ -30,7 +31,6 @@ import { CommentCreator } from "../ContentCreator/CommentCreator";
 import { createInputFocusPreventer } from "../ContentCreator/PostInput";
 import { LoadingSvg } from "../LoadingSvg";
 import { useKeyboardStatus } from "../keyboardStatus";
-import { getVirtualizerHandle, setVirtualizerHandle } from "../pageTransitions";
 import { useScreenSize } from "../screenSize";
 import { createReversingCommentsQuery } from "./createReversingCommentsQuery";
 import {
@@ -109,7 +109,7 @@ export const CommentsPage = () => {
       keyboard,
       initialHeightDiff,
     );
-    commentInputTranslateTopPx = () => PxString.fromNumber(commentInputSize());
+    commentInputTranslateTopPx = () => PxStringFromNumber(commentInputSize());
     createSafariScrollAdjuster(keyboard, commentInputSize);
   } else {
     createScrollAdjuster(innerHeight);

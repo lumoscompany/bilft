@@ -1,6 +1,6 @@
-import { clamp } from "@/common";
 import { ArrayHelper, type IsEqual } from "@/lib/array";
 import { assertOk } from "@/lib/assert";
+import { clamp } from "@/lib/clamp";
 import { useSearchParams } from "@solidjs/router";
 import { batch, createEffect, createSignal, on, onCleanup } from "solid-js";
 import { createMutable } from "solid-js/store";

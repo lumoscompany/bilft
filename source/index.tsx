@@ -2,13 +2,6 @@ import "@fontsource-variable/inter";
 import { render } from "solid-js/web";
 import "./index.css";
 
-import {
-  getSelfUserId,
-  getStartParam,
-  platform,
-  removePrefix,
-  themeParams,
-} from "@/common";
 import { ProfilePage } from "@/features/ProfilePage/ProfilePage";
 import { SetupTonWallet } from "@/features/SetupTonWallet";
 import { TonConnectProvider } from "@/lib/ton-connect-solid";
@@ -27,10 +20,17 @@ import {
   createCommentPagePathname,
   createCommentPageSearchEntries,
 } from "./features/CommentsPage/utils";
+import { getSelfUserId, removePrefix } from "./features/idUtils";
 import { KeyboardStatusProvider } from "./features/keyboardStatus";
 import { createRouterWithPageTransition } from "./features/pageTransitions";
+import { parseStartParam } from "./features/parseStartParam";
 import { useFixSafariScroll } from "./features/safariScrollFix";
 import { ScreenSizeProvider } from "./features/screenSize";
+import {
+  launchParams,
+  platform,
+  themeParams,
+} from "./features/telegramIntegration";
 import { AppQueryClientProvider } from "./queryClient";
 
 const getTonconnectManifestUrl = () => {
@@ -73,7 +73,7 @@ const createTgScreenSize = () => {
 };
 
 const createNavigatorFromStartParam = (
-  startParam: ReturnType<typeof getStartParam>,
+  startParam: ReturnType<typeof parseStartParam>,
 ) => {
   const targetEntry: BrowserNavigatorAnyHistoryItem<unknown> = (() => {
     if (startParam?.type === "note") {
@@ -109,7 +109,9 @@ const createNavigatorFromStartParam = (
 };
 
 const App = () => {
-  const navigator = createNavigatorFromStartParam(getStartParam());
+  const navigator = createNavigatorFromStartParam(
+    launchParams.startParam ? parseStartParam(launchParams.startParam) : null,
+  );
   navigator.attach();
   onCleanup(() => {
     void navigator.detach();

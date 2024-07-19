@@ -10,7 +10,7 @@ import type {
   NoteArray,
   NoteWithComment,
 } from "@/api/model";
-import { type StyleProps } from "@/common";
+import { type StyleProps } from "@/lib/types";
 import { BottomDialog } from "@/features/BottomDialog";
 import { assertOk } from "@/lib/assert";
 import { SignalHelper, type Ref } from "@/lib/solid";

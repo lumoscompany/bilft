@@ -1,7 +1,7 @@
 import axios from "axios";
 import type * as model from "./model";
 
-import { authData } from "@/common";
+import { authData } from "@/features/telegramIntegration";
 import { infiniteQueryOptions, queryOptions } from "@tanstack/solid-query";
 import type { Comment, CreateCommentRequest } from "./model";
 

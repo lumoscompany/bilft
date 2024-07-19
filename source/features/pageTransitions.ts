@@ -1,15 +1,17 @@
-import { scrollableElement } from "@/common";
 import {
   createBeforeLeave,
   createRouter as createSolidRouter,
   type BaseRouterProps,
 } from "@solidjs/router";
+import { getVirtualizerHandle, scrollableElement } from "./scroll";
 
-import type { BrowserNavigator, BrowserNavigatorEvents } from "@telegram-apps/sdk";
+import type {
+  BrowserNavigator,
+  BrowserNavigatorEvents,
+} from "@telegram-apps/sdk";
 import { getHash, urlToPath } from "@telegram-apps/sdk";
 import type { Component } from "solid-js";
 import { onCleanup } from "solid-js";
-import type { VirtualizerHandle } from "virtua/solid";
 
 /**
  * Guard against selector being an invalid CSS selector.
@@ -22,15 +24,6 @@ function querySelector<T extends Element>(selector: string) {
     return null;
   }
 }
-
-let virtualizerHandle: VirtualizerHandle | null = null;
-export const setVirtualizerHandle = (
-  newVirtualizedHandle: VirtualizerHandle | null | undefined,
-) => {
-  virtualizerHandle = newVirtualizedHandle ?? null;
-};
-export const getVirtualizerHandle = () => virtualizerHandle;
-// export const getVirtualizerHandle = () => virtualizerHandle
 
 /**
  * Scrolls to specified hash.
@@ -191,6 +184,7 @@ export const createRouterWithPageTransition = ({
 
         // waiting for layout to scroll work properly
         queueMicrotask(() => {
+          const virtualizerHandle = getVirtualizerHandle();
           if (virtualizerHandle) {
             virtualizerHandle.scrollTo(idToScrollPosition.get(e.to.id) ?? 0);
             return;

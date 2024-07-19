@@ -15,7 +15,8 @@ import {
   type JSX,
 } from "solid-js";
 import { Portal } from "solid-js/web";
-import { scrollableElement, type StyleProps } from "../common";
+import { type StyleProps } from "@/lib/types";
+import { scrollableElement } from "./scroll";
 
 const useModalNavigation = ({
   onClose,
@@ -135,7 +136,7 @@ export const BottomDialog = <T,>(
                   }
             }
             ref={setDialogRef}
-            class="fixed contain-strict inset-0 z-50 flex flex-col"
+            class="fixed inset-0 z-50 flex flex-col contain-strict"
           >
             <button
               class="absolute inset-0 bg-black/60 opacity-[var(--opacity,0)] transition-opacity duration-300"
