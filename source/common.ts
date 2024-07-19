@@ -65,7 +65,10 @@ type StartParam =
     }
   | {
       type: "note";
-      data: string;
+      data: {
+        noteId: string;
+        reversed: boolean;
+      };
     };
 function unescapeBase64Url(str: string) {
   return (str + "===".slice((str.length + 3) % 4))
@@ -95,6 +98,7 @@ export const getStartParam = (): StartParam | null => {
         ).toString(),
       ) as {
         noteId?: string;
+        reversed?: boolean;
       };
     } catch (err) {
       console.error("failed to parse json", err);
@@ -104,6 +108,7 @@ export const getStartParam = (): StartParam | null => {
   if (!content) {
     return null;
   }
+  console.log({ content });
   if (!content.noteId || typeof content.noteId !== "string") {
     console.error("unknown content", content);
     return null;
@@ -111,7 +116,10 @@ export const getStartParam = (): StartParam | null => {
 
   return {
     type: "note",
-    data: content.noteId,
+    data: {
+      noteId: content.noteId,
+      reversed: !!content.reversed,
+    },
   };
 };
 

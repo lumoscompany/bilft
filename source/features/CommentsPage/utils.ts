@@ -1,4 +1,3 @@
-import type { Note } from "@/api/model";
 import { clamp } from "@/common";
 import { ArrayHelper, type IsEqual } from "@/lib/array";
 import { assertOk } from "@/lib/assert";
@@ -32,14 +31,25 @@ export function useReversed() {
     },
   ] as const;
 }
-export const createCommentsPageUrl = (note: Note, reversed: boolean) => {
-  const baseUrl = `/comments/${note.id}`;
+
+export const createCommentPagePathname = (noteId: string) =>
+  `/comments/${noteId}`;
+
+export const createCommentPageSearchEntries = (reversed: boolean) =>
+  [[REVERSED_KEY, String(reversed)]] satisfies [string, string][];
+
+export const createCommentsPageUrl = (
+  note: { id: string },
+  reversed: boolean,
+) => {
+  const pathname = createCommentPagePathname(note.id);
   if (!reversed) {
-    return baseUrl;
+    return pathname;
   }
 
-  const params = new URLSearchParams([[REVERSED_KEY, String(reversed)]]);
-  return `${baseUrl}?${params.toString()}`;
+  return `${pathname}?${new URLSearchParams(
+    createCommentPageSearchEntries(reversed),
+  ).toString()}`;
 };
 
 export const createOneSideArraySync = <T>(

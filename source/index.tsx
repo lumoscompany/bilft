@@ -23,6 +23,10 @@ import {
 import { createEffect, createSignal, onCleanup, onMount } from "solid-js";
 import { Toaster } from "solid-sonner";
 import { CommentsPage } from "./features/CommentsPage/CommentsPage";
+import {
+  createCommentPagePathname,
+  createCommentPageSearchEntries,
+} from "./features/CommentsPage/utils";
 import { KeyboardStatusProvider } from "./features/keyboardStatus";
 import { createRouterWithPageTransition } from "./features/pageTransitions";
 import { useFixSafariScroll } from "./features/safariScrollFix";
@@ -73,7 +77,10 @@ const App = () => {
     const startParam = getStartParam();
     if (startParam?.type === "note") {
       return {
-        pathname: `/comments/${startParam.data}`,
+        pathname: createCommentPagePathname(startParam.data.noteId),
+        search: new URLSearchParams(
+          createCommentPageSearchEntries(startParam.data.reversed),
+        ).toString(),
       };
     }
 
