@@ -79,6 +79,8 @@ function getInitialPagesList(noteId: string, isReversed: () => boolean) {
 
     oneSidePages =
       gapIndex === null ? sortedPages : sortedPages.slice(gapIndex + 1);
+  } else if (sortedPages.at(0) !== 1) {
+    oneSidePages = [];
   } else {
     const gapIndex = ArrayHelper.findGapAsc(sortedPages);
 

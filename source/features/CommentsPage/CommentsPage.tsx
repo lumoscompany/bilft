@@ -71,7 +71,6 @@ export const CommentsPage = () => {
     (comment) => {
       waitAddition(() => {
         requestAnimationFrame(() => {
-          console.log("scroll");
           const commentIndex =
             comment && commentItems().findIndex((it) => it.id === comment.id);
           const scrollIndex =
@@ -86,9 +85,12 @@ export const CommentsPage = () => {
       });
     },
     () =>
-      waitAddition(() => {
-        getVirtualizerHandle()?.scrollToIndex(commentItems().length - 1);
-      }),
+      // waiting until pr is created from one side items
+      queueMicrotask(() =>
+        waitAddition(() => {
+          getVirtualizerHandle()?.scrollToIndex(commentItems().length - 1);
+        }),
+      ),
   );
 
   const { height: tgHeight } = useScreenSize();
@@ -160,25 +162,6 @@ export const CommentsPage = () => {
     ),
   );
 
-  // createRenderEffect(
-  //   on(
-  //     () => reversingComments.comments().length,
-  //     (length) => {
-  //       console.log(
-  //         "length change",
-  //         unwrapSignals({
-  //           length,
-  //           // shift,
-  //           isReversing: reversingComments.isReversing(),
-  //           isReversed,
-  //           pages: reversingComments.commentPages(),
-  //           now: performance.now(),
-  //         }),
-  //       );
-  //     },
-  //   ),
-  // );
-
   // createEffect(() => {
   //   console.log(
   //     unwrapSignals({
@@ -230,6 +213,9 @@ export const CommentsPage = () => {
   });
 
   const _commentsWithLoaders = createMemo(() => {
+    if (reversingComments.isLoading()) {
+      return [];
+    }
     const copy: CommentItem[] = [];
     if (reversingComments.hasPrevPage()) {
       copy.push(PREV_LOADING_ITEM);
@@ -243,11 +229,34 @@ export const CommentsPage = () => {
   const [commentItems, shift, addedElements] = createOneSideArraySync(
     () => _commentsWithLoaders(),
     () => {
-      const min = _commentsWithLoaders().length > 1 ? 1 : 0;
+      const min = Math.max(
+        _commentsWithLoaders().findIndex((it) => it.type !== "loader"),
+        0,
+      );
       return Math.max(min, IntAvg(...range()));
     },
     (a, b) => a === b || a.id === b.id,
   );
+
+  // createRenderEffect(
+  //   on(
+  //     () => reversingComments.comments().length,
+  //     (length) => {
+  //       console.log(
+  //         "length change",
+  //         unwrapSignals({
+  //           length,
+  //           shift,
+  //           range,
+  //           isReversing: reversingComments.isReversing(),
+  //           isReversed,
+  //           pages: reversingComments.commentPages(),
+  //           now: performance.now(),
+  //         }),
+  //       );
+  //     },
+  //   ),
+  // );
   // createEffect(() => {
   //   console.log(
   //     unwrapSignals({
@@ -256,7 +265,7 @@ export const CommentsPage = () => {
   //     }),
   //   );
   // });
-  //
+  // //
   // createComputed(
   //   on(
   //     () => commentItems().length,
@@ -315,27 +324,11 @@ export const CommentsPage = () => {
       </BoardNote>
 
       <Switch>
-        <Match when={reversingComments.isLoading()}>
-          <div class="flex w-full flex-1 items-center justify-center">
-            <LoadingSvg class="w-8 fill-accent text-transparent" />
-          </div>
-        </Match>
-        <Match when={reversingComments.comments().length === 0}>
-          <div class="flex flex-col items-center p-8">
-            <img
-              src="/assets/empty-notes.webp"
-              class="aspect-square w-32"
-              alt="Questioning banana"
-            />
-            <strong class="mt-6 text-center font-inter text-[20px] font-medium leading-[25px]">
-              It's still empty
-            </strong>
-            <p class="text-center font-inter text-[17px] leading-[22px] text-subtitle">
-              Be the first to comment here!
-            </p>
-          </div>
-        </Match>
-        <Match when={reversingComments.comments().length > 0}>
+        <Match
+          when={
+            reversingComments.comments().length > 0 && commentItems().length > 0
+          }
+        >
           <Virtualizer
             itemSize={110}
             onScrollEnd={() => {
@@ -455,6 +448,32 @@ export const CommentsPage = () => {
             )}
           </Virtualizer>
         </Match>
+        <Match
+          when={
+            !reversingComments.isLoading() &&
+            reversingComments.comments().length === 0
+          }
+        >
+          <div class="flex flex-col items-center p-8">
+            <img
+              src="/assets/empty-notes.webp"
+              class="aspect-square w-32"
+              alt="Questioning banana"
+            />
+            <strong class="mt-6 text-center font-inter text-[20px] font-medium leading-[25px]">
+              It's still empty
+            </strong>
+            <p class="text-center font-inter text-[17px] leading-[22px] text-subtitle">
+              Be the first to comment here!
+            </p>
+          </div>
+        </Match>
+        {/* fallback when reversing and one side out of sync */}
+        <Match when={reversingComments.isLoading() || true}>
+          <div class="flex w-full flex-1 items-center justify-center">
+            <LoadingSvg class="w-8 fill-accent text-transparent" />
+          </div>
+        </Match>
       </Switch>
 
       <Show
@@ -492,9 +511,7 @@ export const CommentsPage = () => {
           ref={bottomScroller}
           class={clsxString(
             "absolute bottom-[calc(100%+12px)] right-0 -z-10 flex aspect-square w-10 items-center justify-center rounded-full bg-section-bg transition-transform contain-strict after:absolute after:-inset-3 after:content-[''] active:scale-90",
-            showBottomScroller()
-              ? "ease-out"
-              : "translate-y-[calc(100%+12px)]",
+            showBottomScroller() ? "ease-out" : "translate-y-[calc(100%+12px)]",
             shouldShowBottomScroller.present() ? "visible" : "invisible",
           )}
           aria-label="Scroll to the bottom"
