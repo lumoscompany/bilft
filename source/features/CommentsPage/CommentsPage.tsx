@@ -491,7 +491,7 @@ export const CommentsPage = () => {
           inert={!showBottomScroller()}
           ref={bottomScroller}
           class={clsxString(
-            "absolute bottom-[calc(100%+12px)] right-0 -z-10 flex aspect-square w-9 items-center justify-center rounded-full bg-section-bg transition-[background,transform] duration-[150ms,300ms] contain-strict after:absolute after:-inset-3 after:content-[''] active:opacity-65",
+            "absolute bottom-[calc(100%+12px)] right-0 -z-10 flex aspect-square w-10 items-center justify-center rounded-full bg-section-bg transition-transform duration-[250ms] contain-strict after:absolute after:-inset-3 after:content-[''] active:scale-90",
             showBottomScroller() ? "" : "translate-y-[calc(100%+12px)]",
             shouldShowBottomScroller.present() ? "visible" : "invisible",
           )}
