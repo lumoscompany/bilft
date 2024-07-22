@@ -70,6 +70,9 @@ export const ArrayHelper = {
     nextArray: T[],
     isEqual: (a: T, b: T) => boolean = Object.is,
   ) => {
+    if (prevArray === nextArray) {
+      return true;
+    }
     if (prevArray.length !== nextArray.length) {
       return false;
     }
