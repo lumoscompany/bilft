@@ -53,11 +53,11 @@ export const createCommentsPageUrl = (
 };
 
 export const createOneSideArraySync = <T>(
-  arr: () => T[],
+  input: () => T[],
   anchorElement: () => number,
   isEqual: IsEqual<T>,
 ) => {
-  const [sig, setArr] = createSignal(arr());
+  const [output, setOutput] = createSignal(input());
   const [isInsertingBefore, setIsInsertingBefore] = createSignal(false);
 
   const [hasTimer, setHasTimer] = createSignal(false);
@@ -66,7 +66,8 @@ export const createOneSideArraySync = <T>(
     if (hasTimer()) {
       return;
     }
-    const equal = ArrayHelper.isEqual(sig(), arr(), isEqual);
+
+    const equal = ArrayHelper.isEqual(output(), input(), isEqual);
     // console.log(
     //   unwrapUntrackSignals({
     //     sig,
@@ -89,15 +90,15 @@ export const createOneSideArraySync = <T>(
       setTimeout(() => {
         try {
           const res = ArrayHelper.oneSideChange(
-            sig(),
-            arr(),
+            output(),
+            input(),
             isEqual,
-            clamp(anchorElement(), 0, sig().length - 1),
+            clamp(anchorElement(), 0, output().length - 1),
           );
 
           batch(() => {
-            setArr(res.data);
             setIsInsertingBefore(res.front);
+            setOutput(res.data);
           });
         } finally {
           pr.resolve();
@@ -109,7 +110,7 @@ export const createOneSideArraySync = <T>(
     });
   });
 
-  return [sig, isInsertingBefore, () => animationEndPromise] as const;
+  return [output, isInsertingBefore, () => animationEndPromise] as const;
 };
 
 export const IntAvg = (a: number, b: number) => ((a + b) / 2) | 0;
