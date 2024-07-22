@@ -6,6 +6,9 @@
   --tg-screen-size: 100vh;
   --tgvh: calc(var(--tg-screen-size, 100vh) / 100);
 }
+a {
+  -webkit-user-drag: none;
+}
 
 html,
 body {
