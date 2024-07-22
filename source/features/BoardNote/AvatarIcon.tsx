@@ -34,7 +34,7 @@ export const AvatarIcon = (
   return (
     <div
       class={clsxString(
-        "relative aspect-square select-none overflow-hidden rounded-full",
+        "pointer-events-none relative aspect-square select-none overflow-hidden rounded-full",
         props.class ?? "",
       )}
     >

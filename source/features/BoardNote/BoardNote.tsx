@@ -3,12 +3,13 @@ import {
   formatPostTime,
   type DateString,
 } from "@/features/format";
-import { themeParams } from "@/features/telegramIntegration";
+import { platform, themeParams } from "@/features/telegramIntegration";
 import { AnonymousAvatarIcon } from "@/icons";
 import { clsxString } from "@/lib/clsxString";
 import { type StyleProps } from "@/lib/types";
 import { A } from "@solidjs/router";
-import type { ComponentProps, ParentProps } from "solid-js";
+import { Show, type ComponentProps, type ParentProps } from "solid-js";
+import { Ripples } from "../Ripple";
 import { AvatarIcon } from "./AvatarIcon";
 
 const BoardNotePublicHeader = (props: {
@@ -22,8 +23,11 @@ const BoardNotePublicHeader = (props: {
   <A
     href={`/board/${props.authorId}`}
     onClick={props.onClick}
-    class="flex items-center gap-[10px]"
+    class="group relative isolate flex items-center gap-[10px] px-[14px] pb-[10px] pt-[14px]"
   >
+    <Show when={platform === "ios"} fallback={<Ripples />}>
+      <div class="pointer-events-none absolute inset-0 -z-10 bg-text opacity-0 transition-opacity ease-out group-active:opacity-10" />
+    </Show>
     <AvatarIcon lazy isLoading={false} url={props.avatarUrl} class="w-10" />
     <div class="flex flex-col">
       <div class="font-inter text-[17px] font-medium leading-[22px]">
@@ -37,7 +41,7 @@ const BoardNotePublicHeader = (props: {
   </A>
 );
 const BoardNoteAnonymousHeader = (props: { createdAt: DateString }) => (
-  <div class="flex items-center gap-[10px]">
+  <div class="flex items-center gap-[10px] px-[14px] pb-[10px] pt-[14px]">
     <AnonymousAvatarIcon
       class={clsxString(
         themeParams.isDark
@@ -58,17 +62,14 @@ const BoardNoteAnonymousHeader = (props: { createdAt: DateString }) => (
 );
 const BoardNoteDivider = (props: StyleProps) => (
   <div
-    class={clsxString(
-      "mx-[2px] my-[10px] h-separator bg-separator",
-      props.class ?? "",
-    )}
+    class={clsxString("mx-[14px] h-separator bg-separator", props.class ?? "")}
   />
 );
 
 const BoardNoteContent = (props: ParentProps<StyleProps>) => (
   <div
     class={clsxString(
-      "overflow-hidden whitespace-pre-wrap font-inter text-[16px] leading-[21px]",
+      "overflow-hidden whitespace-pre-wrap px-[14px] pb-4 pt-[10px] font-inter text-[16px] leading-[21px]",
       props.class ?? "",
     )}
   >
@@ -76,11 +77,29 @@ const BoardNoteContent = (props: ParentProps<StyleProps>) => (
   </div>
 );
 
+const BoardNoteContentLink = (
+  props: ParentProps<StyleProps & { href: string } & { onClick?(): void }>,
+) => (
+  <A
+    class={clsxString(
+      "group relative isolate -mt-[1px] overflow-hidden whitespace-pre-wrap px-[14px] pb-4 pt-[11px] font-inter text-[16px] leading-[21px]",
+      props.class ?? "",
+    )}
+    href={props.href}
+    onClick={props.onClick}
+  >
+    <Show when={platform === "ios"} fallback={<Ripples />}>
+      <div class="pointer-events-none absolute inset-0 -z-10 bg-text opacity-0 transition-opacity ease-out group-active:opacity-10" />
+    </Show>
+    {props.children}
+  </A>
+);
+
 function BoardNoteCard(props: ParentProps<StyleProps>) {
   return (
     <section
       class={clsxString(
-        "flex flex-col rounded-3xl bg-section-bg px-[14px] pb-4 pt-[14px] transition-transform has-[a:active]:scale-[0.98]",
+        "flex flex-col overflow-hidden rounded-3xl bg-section-bg",
         props.class ?? "",
       )}
     >
@@ -111,4 +130,5 @@ export const BoardNote = Object.assign(BoardNoteRoot, {
   PrivateHeader: BoardNoteAnonymousHeader,
   Divider: BoardNoteDivider,
   Content: BoardNoteContent,
+  ContentLink: BoardNoteContentLink,
 });

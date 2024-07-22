@@ -33,10 +33,20 @@ export default {
             opacity: "0",
           },
         },
+        ripple: {
+          "0%": {
+            transform: "scale(0)",
+          },
+          "100%": {
+            transform: "scale(1)",
+          },
+        },
       },
       animation: {
         "fade-out":
           "fade-out var(--tw-animate-duration, 1s) var(--tw-animate-easing, ease) var(--tw-animate-delay, 0s) var(--tw-animate-iteration, 1) var(--tw-animate-fill, both)",
+        ripple:
+          "ripple var(--tw-animate-duration, 0.3s) var(--tw-animate-easing, ease-out) var(--tw-animate-delay, 0s) var(--tw-animate-iteration, 1) var(--tw-animate-fill, both)",
       },
     },
   },

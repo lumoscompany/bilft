@@ -150,17 +150,7 @@ const UserProfilePage = (props: {
             >
               {(note) => (
                 <BoardNote class="mx-4 mb-4 contain-content">
-                  <BoardNote.Card class="relative isolate">
-                    <A
-                      href={createCommentsPageUrl(note, false)}
-                      onClick={() => {
-                        beforeNavigateToComment(note);
-                      }}
-                      type="button"
-                      class="absolute inset-0 -z-10 select-none"
-                    />
-
-                    {/* extends to match based on type */}
+                  <BoardNote.Card>
                     <Switch
                       fallback={
                         <BoardNote.PrivateHeader createdAt={note.createdAt} />
@@ -187,9 +177,14 @@ const UserProfilePage = (props: {
                       </Match>
                     </Switch>
                     <BoardNote.Divider class="pointer-events-none" />
-                    <BoardNote.Content class="pointer-events-none">
+                    <BoardNote.ContentLink
+                      href={createCommentsPageUrl(note, false)}
+                      onClick={() => {
+                        beforeNavigateToComment(note);
+                      }}
+                    >
                       {note.content}
-                    </BoardNote.Content>
+                    </BoardNote.ContentLink>
                   </BoardNote.Card>
                   <Show when={boardQuery.data?.id}>
                     {(boardId) => (
