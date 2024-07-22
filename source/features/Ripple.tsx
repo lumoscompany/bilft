@@ -73,7 +73,7 @@ export const Ripples = (props: { rippleClass?: string }) => {
           return (
             <div
               class={clsxString(
-                "animate-ripple pointer-events-none absolute aspect-square origin-center rounded-full transition-opacity duration-[600ms] ease-out",
+                "pointer-events-none absolute aspect-square origin-center animate-ripple rounded-full transition-opacity duration-[600ms] ease-out",
                 props.rippleClass ?? "bg-text opacity-[2.7%] blur-sm",
                 isCancelling() ? "!opacity-0" : "",
               )}
