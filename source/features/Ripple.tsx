@@ -73,8 +73,8 @@ export const Ripples = (props: { rippleClass?: string }) => {
           return (
             <div
               class={clsxString(
-                "animate-ripple pointer-events-none absolute origin-center rounded-full transition-opacity duration-[600ms]",
-                props.rippleClass ?? "bg-text opacity-15",
+                "animate-ripple pointer-events-none absolute aspect-square origin-center rounded-full transition-opacity duration-[600ms] ease-out",
+                props.rippleClass ?? "bg-text opacity-[2.7%] blur-sm",
                 isCancelling() ? "!opacity-0" : "",
               )}
               onTransitionEnd={() => {
@@ -84,7 +84,6 @@ export const Ripples = (props: { rippleClass?: string }) => {
                 left: PxStringFromNumber(x - radius),
                 top: PxStringFromNumber(y - radius),
                 width: PxStringFromNumber(radius * 2),
-                height: PxStringFromNumber(radius * 2),
               }}
             />
           );

@@ -163,15 +163,6 @@ const UserProfilePage = (props: {
                             avatarUrl={author().photo}
                             authorId={author().id}
                             createdAt={note.createdAt}
-                            onClick={(e) => {
-                              if (author().id === props.idWithoutPrefix) {
-                                e.preventDefault();
-                                scrollableElement.scrollTo({
-                                  top: 0,
-                                  behavior: "smooth",
-                                });
-                              }
-                            }}
                           />
                         )}
                       </Match>
