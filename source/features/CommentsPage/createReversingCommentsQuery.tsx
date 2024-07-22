@@ -32,20 +32,18 @@ const noteCommentsKey = (noteId: string) =>
     })
     .queryKey.slice(0, -1);
 
+type CommentQueries = Array<Query<GetCommentResponse>>;
 const getAllNoteCommentsQueries = (noteId: string) => {
   const defaultKey = noteCommentsKey(noteId);
   const pages = queryClient.getQueryCache().findAll({
     queryKey: defaultKey,
-  });
+  }) as Array<Query<GetCommentResponse>>;
 
   return pages;
 };
 
-function commentsCountFromCache(noteId: string) {
+function commentsCountFromQueries(queries: CommentQueries) {
   let lastCount = -1;
-  const queries = queryClient.getQueryCache().findAll({
-    queryKey: noteCommentsKey(noteId),
-  }) as Array<Query<GetCommentResponse>>;
   for (const query of queries) {
     if (query.state.data?.count !== undefined) {
       lastCount = Math.max(query.state.data.count, lastCount);
@@ -55,21 +53,21 @@ function commentsCountFromCache(noteId: string) {
   return lastCount === -1 ? null : lastCount;
 }
 
-const isLoaded = (items: Query) => {
+const isLoaded = <T,>(items: Query<T>) => {
   return items.state.status === "success";
 };
 
 const getPagesNumbers = (queries: { readonly queryKey: QueryKey }[]) =>
   queries.map((it) => it.queryKey.at(-1) as number);
 function getInitialPagesList(noteId: string, isReversed: () => boolean) {
-  const pages = getPagesNumbers(
-    getAllNoteCommentsQueries(noteId).filter(isLoaded),
-  );
+  const commentQueries = getAllNoteCommentsQueries(noteId);
+  const pages = getPagesNumbers(commentQueries.filter(isLoaded));
   if (import.meta.env.DEV) {
     assertOk(pages.every((it) => typeof it === "number"));
   }
-  if (pages.length === 0) {
-    return isReversed() ? [-1] : [1];
+  const fallback = isReversed() ? [-1] : [1];
+  if (pages.length === 0 || pages.includes(-1)) {
+    return fallback;
   }
 
   const sortedPages = ArrayHelper.sortNumbersAsc(pages);
@@ -79,20 +77,26 @@ function getInitialPagesList(noteId: string, isReversed: () => boolean) {
 
     oneSidePages =
       gapIndex === null ? sortedPages : sortedPages.slice(gapIndex + 1);
-  } else if (sortedPages.at(0) !== 1) {
-    oneSidePages = [];
   } else {
     const gapIndex = ArrayHelper.findGapAsc(sortedPages);
 
     oneSidePages =
       gapIndex === null ? sortedPages : sortedPages.slice(0, gapIndex);
   }
+  const commentsCount = commentsCountFromQueries(commentQueries);
+  const lastLoadedPageNumber = pages.at(-1);
 
-  if (oneSidePages.length === 0) {
-    return isReversed() ? [-1] : [1];
+  switch (true) {
+    case oneSidePages.length === 0:
+    case !isReversed() && oneSidePages.at(0) !== 0: // handling cases when there is no
+    case isReversed() && !lastLoadedPageNumber:
+    case isReversed() &&
+      commentsCount !== null &&
+      pagesCountOfCommentsCount(commentsCount) > (lastLoadedPageNumber ?? 0):
+      return fallback;
+    default:
+      return oneSidePages;
   }
-
-  return oneSidePages;
 }
 
 export const createReversingCommentsQuery = (
@@ -231,7 +235,7 @@ export const createReversingCommentsQuery = (
     commentsQueries.length;
     commentsMemo();
 
-    return commentsCountFromCache(noteId());
+    return commentsCountFromQueries(getAllNoteCommentsQueries(noteId()));
   });
 
   const fetchNext = (fromStart: boolean, fromEnd: boolean) => {
