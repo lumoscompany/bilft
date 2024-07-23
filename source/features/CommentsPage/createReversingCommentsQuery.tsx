@@ -86,17 +86,24 @@ function getInitialPagesList(noteId: string, isReversed: () => boolean) {
   const commentsCount = commentsCountFromQueries(commentQueries);
   const lastLoadedPageNumber = pages.at(-1);
 
-  switch (true) {
-    case oneSidePages.length === 0:
-    case !isReversed() && oneSidePages.at(0) !== 0: // handling cases when there is no
-    case isReversed() && !lastLoadedPageNumber:
-    case isReversed() &&
-      commentsCount !== null &&
-      pagesCountOfCommentsCount(commentsCount) > (lastLoadedPageNumber ?? 0):
-      return fallback;
-    default:
-      return oneSidePages;
-  }
+  const shouldUseFallback = (() => {
+    if (oneSidePages.length === 0) return true;
+
+    // cases when there is no gap, but edge is not reached
+    if (!isReversed()) {
+      return oneSidePages.at(0) !== 1;
+    }
+    if (isReversed()) {
+      return (
+        !lastLoadedPageNumber ||
+        commentsCount === null ||
+        pagesCountOfCommentsCount(commentsCount) > lastLoadedPageNumber
+      );
+    }
+    return false;
+  })();
+
+  return shouldUseFallback ? fallback : oneSidePages;
 }
 
 export const createReversingCommentsQuery = (
