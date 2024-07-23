@@ -12,6 +12,7 @@ import type {
 } from "@/api/model";
 import { BottomDialog } from "@/features/BottomDialog";
 import { assertOk } from "@/lib/assert";
+import { clsxString } from "@/lib/clsxString";
 import { SignalHelper, type Ref } from "@/lib/solid";
 import { type StyleProps } from "@/lib/types";
 import {
@@ -20,7 +21,8 @@ import {
   useQueryClient,
 } from "@tanstack/solid-query";
 import { AxiosError } from "axios";
-import { batch, createEffect, createMemo, createSignal } from "solid-js";
+import { For, batch, createEffect, createMemo, createSignal } from "solid-js";
+import { createMutable } from "solid-js/store";
 import { PostInput, type PostInputProps } from "./PostInput";
 import { WalletModalContent } from "./WalletModal";
 import { ErrorHelper, type ModalStatus } from "./common";
@@ -178,7 +180,7 @@ export const CommentCreator = (
     const curWalletError = walletError();
     const tokensBalance = meQuery.data?.wallet?.tokens.yo;
     if (!curWalletError || !tokensBalance) {
-      return;
+      return false;
     }
     return (
       BigInt(curWalletError.error.payload.requiredBalance) <=
@@ -207,8 +209,61 @@ export const CommentCreator = (
       type: anonymous ? "anonymous" : "public",
     });
 
+  const variants = ["public", "anonymous", "other"];
+  type Variant = (typeof variants)[number];
+  const [variantState, setVariantState] = createSignal<Variant>(variants[0]);
+  const variantStateIndex = () => variants.indexOf(variantState());
+  const [isNearbySelectorChoosed, setIsNearbySelectorChoosed] =
+    createSignal(true);
+  const isPointerOver = createMutable(
+    Object.fromEntries(variants.map((it) => [it, false])),
+  );
   return (
     <>
+      <section class="relative isolate -mx-1 mb-2 grid min-h-11 touch-none select-none grid-cols-[repeat(auto-fit,minmax(0,1fr))] grid-rows-1 self-stretch overflow-hidden rounded-full before:absolute before:inset-0 before:-z-10 before:bg-section-bg before:opacity-70 before:backdrop-blur-3xl before:content-['']">
+        <div
+          style={{
+            width: `calc(100%/${variants.length})`,
+            transform: `translateX(calc(100%*${variantStateIndex()}))`,
+          }}
+          class={clsxString(
+            "absolute inset-y-0 top-0 -z-10 rounded-full bg-accent transition-transform ease-out contain-strict",
+            isNearbySelectorChoosed() ? "duration-150" : "duration-[225ms]",
+          )}
+        />
+        <For each={variants}>
+          {(variant) => (
+            <button
+              class={clsxString(
+                "flex items-center justify-center transition-opacity contain-strict",
+                "text-text",
+                isPointerOver[variant] ? "opacity-30" : "",
+                // variantState() === variant ? "text-secondary-bg" : "text-text",
+              )}
+              // onPointerOut={() => {
+              //   isPointerOver[variant] = false;
+              // }}
+              onTouchMove={() => {
+                isPointerOver[variant] = false;
+              }}
+              onTouchCancel={(e) => {
+                isPointerOver[variant] = true;
+              }}
+              onClick={() => {
+                const diff = Math.abs(
+                  variants.indexOf(variantState()) - variants.indexOf(variant),
+                );
+
+                setIsNearbySelectorChoosed(diff === 1);
+                setVariantState(variant);
+              }}
+              disabled={variantState() === variant}
+            >
+              {variant.slice(0, 1).toUpperCase() + variant.slice(1)}
+            </button>
+          )}
+        </For>
+      </section>
       <PostInput
         preventScrollTouches
         onBlur={props.onBlur}
