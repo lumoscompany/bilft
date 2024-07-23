@@ -1,4 +1,5 @@
 import {
+  initMiniApp,
   initThemeParams,
   initUtils,
   on,
@@ -9,9 +10,18 @@ import { createSignal, onCleanup } from "solid-js";
 
 export const launchParams = retrieveLaunchParams();
 export const authData = launchParams.initDataRaw;
-export const [themeParams] = initThemeParams();
+const [themeParams, cleanUpThemeParams] = initThemeParams();
+export { miniApp, themeParams };
 export const utils = initUtils();
+const [miniApp, cleanupMiniApp] = initMiniApp();
 export const platform = launchParams.platform;
+
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => {
+    cleanupMiniApp();
+    cleanUpThemeParams();
+  });
+}
 
 export const createTgScreenSize = () => {
   const [width, setWidth] = createSignal(window.innerWidth);

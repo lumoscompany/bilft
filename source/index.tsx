@@ -22,12 +22,18 @@ import { ScreenSizeProvider } from "./features/screenSize";
 import {
   createTgScreenSize,
   launchParams,
+  miniApp,
   platform,
   themeParams,
 } from "./features/telegramIntegration";
 import { AppQueryClientProvider } from "./queryClient";
 
-bindThemeParamsCSSVars(themeParams);
+const cleanup = bindThemeParamsCSSVars(themeParams);
+if (import.meta.hot) {
+  import.meta.hot.dispose(cleanup);
+}
+
+miniApp.setHeaderColor("secondary_bg_color");
 
 const App = () => {
   const navigator = createNavigatorFromStartParam(
@@ -41,7 +47,7 @@ const App = () => {
   const Router = createRouterWithPageTransition(navigator);
 
   onMount(() => {
-    postEvent("web_app_ready");
+    miniApp.ready();
     postEvent("web_app_expand");
   });
 
