@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv, type Plugin } from "vite";
 
 import { rm } from "node:fs/promises";
+import Fonts from "unplugin-fonts/vite";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
 import terminal from "vite-plugin-terminal";
 import tsconfigPaths from "vite-tsconfig-paths";
@@ -94,6 +95,9 @@ export default defineConfig(async ({ mode, command }) => {
       tonConnectPlugin(env.VITE_SELF_WEBAPP_URL),
       solid(),
       tsconfigPaths(),
+      Fonts({
+        fontsource: { families: ["Inter Variable"] },
+      }),
       nodePolyfills({
         globals: {
           Buffer: true,

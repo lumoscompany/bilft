@@ -1,5 +1,5 @@
-import "@fontsource-variable/inter";
 import { render } from "solid-js/web";
+import "unfonts.css";
 import "./index.css";
 
 import { ProfilePage } from "@/features/ProfilePage/ProfilePage";
