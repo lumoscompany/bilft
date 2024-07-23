@@ -84,7 +84,7 @@ const App = () => {
                 toast: "rounded-xl",
               },
             }}
-            theme={themeParams.isDark ? "dark" : "light"}
+            theme={miniApp.isDark ? "dark" : "light"}
           />
         </KeyboardStatusProvider>
       </ScreenSizeProvider>

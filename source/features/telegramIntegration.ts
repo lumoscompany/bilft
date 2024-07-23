@@ -11,9 +11,10 @@ import { createSignal, onCleanup } from "solid-js";
 export const launchParams = retrieveLaunchParams();
 export const authData = launchParams.initDataRaw;
 const [themeParams, cleanUpThemeParams] = initThemeParams();
-export { miniApp, themeParams };
 export const utils = initUtils();
 const [miniApp, cleanupMiniApp] = initMiniApp();
+
+export { miniApp, themeParams };
 export const platform = launchParams.platform;
 
 if (import.meta.hot) {
