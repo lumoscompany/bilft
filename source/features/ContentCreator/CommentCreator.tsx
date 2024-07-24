@@ -22,10 +22,15 @@ import {
 } from "@tanstack/solid-query";
 import { AxiosError } from "axios";
 import { For, batch, createEffect, createMemo, createSignal } from "solid-js";
-import { createMutable } from "solid-js/store";
-import { PostInput, type PostInputProps } from "./PostInput";
+import { platform } from "../telegramIntegration";
+import {
+  PostInput,
+  createInputFocusPreventer,
+  type PostInputProps,
+} from "./PostInput";
 import { WalletModalContent } from "./WalletModal";
 import { ErrorHelper, type ModalStatus } from "./common";
+import { pointIsInsideBox } from "./point";
 
 // hard to generalize
 export const CommentCreator = (
@@ -209,55 +214,195 @@ export const CommentCreator = (
       type: anonymous ? "anonymous" : "public",
     });
 
-  const variants = ["public", "anonymous", "other"];
+  const variants = ["public", "anonymous", "other"] as const;
   type Variant = (typeof variants)[number];
   const [variantState, setVariantState] = createSignal<Variant>(variants[0]);
   const variantStateIndex = () => variants.indexOf(variantState());
-  const [isNearbySelectorChoosed, setIsNearbySelectorChoosed] =
+  const [isNearbySelectorChoose, setIsNearbySelectorChoose] =
     createSignal(true);
-  const isPointerOver = createMutable(
-    Object.fromEntries(variants.map((it) => [it, false])),
-  );
+  const [touchOver, setTouchOver] = createSignal<null | Variant>(null);
+  let touchId: number | null = null;
+  const [touchMoveSelection, setTouchMoveSelection] = createSignal(false);
+
+  const visibleSelectionIndex = () => {
+    let curTouchOver: Variant | null;
+    let index: number;
+    if (
+      touchMoveSelection() &&
+      (curTouchOver = touchOver()) &&
+      (index = variants.indexOf(curTouchOver)) !== -1
+    ) {
+      return index;
+    }
+
+    return variantStateIndex();
+  };
+  const onTouchMove = (
+    currentTarget: HTMLElement,
+    firstTouch: Touch,
+    prevVariant: Variant | null,
+    detectTouchesIndependentOfY: boolean,
+  ): Variant | null => {
+    for (const child of currentTarget.children) {
+      assertOk(child instanceof HTMLElement);
+      const variant = child.dataset.variant as Variant | undefined;
+      if (variant === undefined) {
+        continue;
+      }
+      const increaseHitSlop = variant === prevVariant || prevVariant === null;
+      const baseHitSlopXY = increaseHitSlop ? 30 : 0;
+      const rect = child.getBoundingClientRect();
+      if (
+        pointIsInsideBox(
+          firstTouch.clientX,
+          firstTouch.clientY,
+          rect.x,
+          rect.y,
+          rect.width,
+          rect.height,
+          baseHitSlopXY,
+          detectTouchesIndependentOfY ? 10_000 : baseHitSlopXY,
+        )
+      ) {
+        return variant;
+      }
+    }
+
+    const rect = currentTarget.getBoundingClientRect();
+    if (
+      !pointIsInsideBox(
+        firstTouch.clientX,
+        firstTouch.clientY,
+
+        rect.x,
+        rect.y,
+        rect.width,
+        rect.height,
+        30,
+        40,
+      )
+    ) {
+      return null;
+    }
+    return prevVariant;
+  };
+  const moveSelectorWithPhysics = (newSelection: Variant) => {
+    const diff = Math.abs(
+      variants.indexOf(variantState()) - variants.indexOf(newSelection),
+    );
+
+    setIsNearbySelectorChoose(diff <= 1);
+    setVariantState(newSelection);
+  };
+
   return (
     <>
-      <section class="relative isolate -mx-1 mb-2 grid min-h-11 touch-none select-none grid-cols-[repeat(auto-fit,minmax(0,1fr))] grid-rows-1 self-stretch overflow-hidden rounded-full before:absolute before:inset-0 before:-z-10 before:bg-section-bg before:opacity-70 before:backdrop-blur-3xl before:content-['']">
+      <section
+        onTouchStart={(e) => {
+          if (touchId !== null) return;
+
+          const firstTouch = e.changedTouches.item(0);
+          if (!firstTouch) return;
+          touchId = firstTouch.identifier;
+          const targetVariant = onTouchMove(
+            e.currentTarget,
+            firstTouch,
+            touchOver(),
+            touchMoveSelection(),
+          );
+          batch(() => {
+            // resetting animation state
+            setIsNearbySelectorChoose(false);
+            setTouchOver(targetVariant);
+            setTouchMoveSelection(targetVariant === variantState());
+          });
+        }}
+        onTouchMove={(e) => {
+          if (touchId === null) return;
+          const curPointerOver = touchOver();
+
+          for (const touch of e.changedTouches) {
+            if (touch.identifier !== touchId) {
+              continue;
+            }
+
+            setTouchOver(
+              onTouchMove(
+                e.currentTarget,
+                touch,
+                curPointerOver,
+                touchMoveSelection(),
+              ),
+            );
+            return;
+          }
+        }}
+        onTouchCancel={(e) => {
+          if (touchId === null) return;
+          for (const touch of e.changedTouches) {
+            if (touch.identifier !== touchId) {
+              continue;
+            }
+            touchId = null;
+            batch(() => {
+              setTouchOver(null);
+              setTouchMoveSelection(false);
+            });
+            return;
+          }
+        }}
+        onTouchEnd={(e) => {
+          if (touchId === null) return;
+
+          for (const touch of e.changedTouches) {
+            if (touch.identifier !== touchId) {
+              continue;
+            }
+            touchId = null;
+            batch(() => {
+              const curPointerOver = touchOver();
+              curPointerOver && moveSelectorWithPhysics(curPointerOver);
+              setTouchMoveSelection(false);
+              setTouchOver(null);
+            });
+            return;
+          }
+        }}
+        class="relative isolate -mx-1 mb-2 grid min-h-11 touch-pan-x select-none grid-cols-[repeat(auto-fit,minmax(0,1fr))] grid-rows-1 self-stretch overflow-hidden rounded-full before:absolute before:inset-0 before:-z-10 before:bg-section-bg before:opacity-70 before:backdrop-blur-3xl before:content-['']"
+      >
         <div
           style={{
             width: `calc(100%/${variants.length})`,
-            transform: `translateX(calc(100%*${variantStateIndex()}))`,
+            transform: `translateX(calc(100%*${visibleSelectionIndex()}))`,
           }}
           class={clsxString(
-            "absolute inset-y-0 top-0 -z-10 rounded-full bg-accent transition-transform ease-out contain-strict",
-            isNearbySelectorChoosed() ? "duration-150" : "duration-[225ms]",
+            "pointer-events-none absolute inset-y-0 top-0 -z-10 rounded-full bg-accent transition-transform ease-out contain-strict",
+            isNearbySelectorChoose() ? "duration-150" : "duration-[225ms]",
           )}
         />
         <For each={variants}>
           {(variant) => (
             <button
+              {...createInputFocusPreventer.FRIENDLY}
+              data-variant={variant}
               class={clsxString(
-                "flex items-center justify-center transition-opacity contain-strict",
+                "flex items-center justify-center transition-opacity duration-300 contain-strict",
                 "text-text",
-                isPointerOver[variant] ? "opacity-30" : "",
-                // variantState() === variant ? "text-secondary-bg" : "text-text",
+                // on safari active style will be applied until touchend even if active class removed
+                platform !== "ios" && touchOver() !== variant
+                  ? "active:opacity-30"
+                  : "",
+                touchOver() === variant &&
+                  touchOver() !== variantState() &&
+                  !touchMoveSelection()
+                  ? "opacity-30"
+                  : "",
               )}
-              // onPointerOut={() => {
-              //   isPointerOver[variant] = false;
-              // }}
-              onTouchMove={() => {
-                isPointerOver[variant] = false;
-              }}
-              onTouchCancel={(e) => {
-                isPointerOver[variant] = true;
-              }}
               onClick={() => {
-                const diff = Math.abs(
-                  variants.indexOf(variantState()) - variants.indexOf(variant),
-                );
-
-                setIsNearbySelectorChoosed(diff === 1);
-                setVariantState(variant);
+                moveSelectorWithPhysics(variant);
               }}
-              disabled={variantState() === variant}
+              // we cannot disable input because it will redirect focus to nothing, only option is to delay disabled update
+              // disabled={variantState() === variant}
             >
               {variant.slice(0, 1).toUpperCase() + variant.slice(1)}
             </button>

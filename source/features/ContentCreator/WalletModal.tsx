@@ -162,7 +162,6 @@ export const WalletModalContent = (props: {
 }) => {
   const status = () => props.status;
   const meQuery = createQuery(() => keysFactory.me);
-
   const [tonConnectUI] = useTonConnectUI();
 
   const renderRequiredBalance = (requiredBalance: string) => (

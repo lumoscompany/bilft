@@ -1,24 +1,7 @@
 import { useCleanup } from "@/lib/solid";
 import { createEffect, type Accessor } from "solid-js";
+import { Point } from "./point";
 
-export type Point = { x: number; y: number };
-export const Point = {
-  isInsideElement: (point: Point, element: HTMLElement) => {
-    const elementRect = element.getBoundingClientRect();
-    if (point.x < elementRect.left || point.x > elementRect.right) {
-      return false;
-    }
-
-    if (point.y > elementRect.bottom || point.y < elementRect.top) {
-      return false;
-    }
-    return true;
-  },
-  fromTouch: (item: Touch): Point => ({
-    x: item.clientX,
-    y: item.clientY,
-  }),
-};
 export function createSafariKeyboardHider(
   isFocused: Accessor<boolean>,
   position: Accessor<"top" | "bottom">,

@@ -223,3 +223,25 @@ export const unwrapSignals = <T extends Record<string, unknown>>(
 export const unwrapUntrackSignals = <T extends Record<string, unknown>>(
   obj: T,
 ): UnwrapSignals<T> => untrack(() => unwrapSignals(obj));
+
+// export const createDelayed = <
+//   T extends number | string | null | undefined | boolean,
+// >(
+//   source: Accessor<T>,
+// ) => {
+//   const [shouldDelay, setShouldDelay] = createSignal(false);
+//   const output = createMemo<T>(
+//     (prev) => (shouldDelay() ? prev : source()),
+//     source(),
+//   );
+//   let waitPr: Promise<void>;
+//   const delay = (time: number) => {
+//     setShouldDelay(true);
+    
+//     setTimeout(() => {
+//       setShouldDelay(false);
+//     }, time);
+//   };
+
+//   return [output, delay];
+// };
