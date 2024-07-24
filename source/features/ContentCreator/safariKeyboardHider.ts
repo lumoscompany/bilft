@@ -1,6 +1,6 @@
 import { useCleanup } from "@/lib/solid";
 import { createEffect, type Accessor } from "solid-js";
-import { Point } from "./point";
+import { Point, pointIsInsideBox } from "./point";
 
 export function createSafariKeyboardHider(
   isFocused: Accessor<boolean>,
@@ -51,10 +51,25 @@ export function createSafariKeyboardHider(
               continue;
             }
 
+            const formRefBox = formRef().getBoundingClientRect();
             if (
               nextPoint.y > prevPoint.y &&
-              !Point.isInsideElement(prevPoint, formRef()) &&
-              Point.isInsideElement(nextPoint, formRef())
+              !pointIsInsideBox(
+                prevPoint.x,
+                prevPoint.y,
+                formRefBox.x,
+                formRefBox.y,
+                formRefBox.width,
+                formRefBox.height,
+              ) &&
+              pointIsInsideBox(
+                nextPoint.x,
+                nextPoint.y,
+                formRefBox.x,
+                formRefBox.y,
+                formRefBox.width,
+                formRefBox.height,
+              )
             ) {
               someInside = true;
               continue;

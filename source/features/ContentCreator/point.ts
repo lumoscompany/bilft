@@ -2,25 +2,11 @@ import { assertOk } from "@/lib/assert";
 
 export type Point = { x: number; y: number };
 export const Point = {
-  isInsideElement: (point: Point, element: HTMLElement) => {
-    const elementRect = element.getBoundingClientRect();
-    if (point.x < elementRect.left || point.x > elementRect.right) {
-      return false;
-    }
-
-    if (point.y > elementRect.bottom || point.y < elementRect.top) {
-      return false;
-    }
-    return true;
-  },
   make: (x: number, y: number) => ({
     x,
     y,
   }),
   fromTouch: (item: Touch): Point => Point.make(item.clientX, item.clientY),
-  fromElement: (item: HTMLElement) => {
-    return Point.make(item.clientTop, item.clientLeft);
-  },
 };
 
 export const pointIsInsideBox = (
