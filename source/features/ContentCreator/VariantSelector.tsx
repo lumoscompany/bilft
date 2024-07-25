@@ -183,8 +183,11 @@ export const VariantSelector = <T extends string>(props: {
             class={clsxString(
               "flex items-center justify-center transition-opacity duration-300 contain-strict",
               "text-text",
-              // on safari active style will be applied until touchend even if active class removed
-              platform !== "ios" && touchOver() !== variant
+              // workaround because we cannot use disable
+              props.value !== variant &&
+                // on safari active style will be applied until touchend even if active class removed
+                platform !== "ios" &&
+                touchOver() !== variant
                 ? "active:opacity-30"
                 : "",
               touchOver() === variant &&
