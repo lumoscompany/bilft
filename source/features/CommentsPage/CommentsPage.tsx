@@ -10,7 +10,7 @@ import { platform } from "@/features/telegramIntegration";
 import { AnonymousAvatarIcon, ArrowDownIcon } from "@/icons";
 import { assertOk } from "@/lib/assert";
 import { clsxString } from "@/lib/clsxString";
-import { PxStringFromNumber, type PxString } from "@/lib/pxString";
+import { PxStringFromNumber } from "@/lib/pxString";
 import { createInnerHeight, createTransitionPresence } from "@/lib/solid";
 import { A, useParams } from "@solidjs/router";
 import { createQuery } from "@tanstack/solid-query";
@@ -23,8 +23,6 @@ import {
   createMemo,
   createSignal,
   on,
-  onMount,
-  type Accessor,
 } from "solid-js";
 import { Virtualizer } from "virtua/solid";
 import { AvatarIcon } from "../BoardNote/AvatarIcon";
@@ -106,39 +104,30 @@ export const CommentsPage = () => {
       ),
   );
 
+  //#region scroll
   const { height: tgHeight } = useScreenSize();
   const keyboard = useKeyboardStatus();
-
   const [scrollMarginTop, setBeforeListElement] = createListMarginTop(128);
 
   // long story short: Webview Safari + IOS Telegram = dog shit
-  let commentInputTranslateTopPx: null | Accessor<PxString> = null;
-
   const innerHeight = createInnerHeight();
+  const commentInputBottomOffset =
+    platform === "ios"
+      ? createCommentInputBottomOffset(innerHeight, tgHeight, keyboard)
+      : null;
+
+  const commentInputBottomOffsetPx = commentInputBottomOffset
+    ? () => PxStringFromNumber(commentInputBottomOffset())
+    : null;
   if (platform === "ios") {
-    const [initialHeightDiff, setInitialHeightDiff] = createSignal(
-      window.innerHeight - tgHeight(),
-    );
-    onMount(() => {
-      // if it's first render - tgHeight - is not initialized and we need to wait some time to get it
-      requestAnimationFrame(() => {
-        setInitialHeightDiff(window.innerHeight - tgHeight());
-      });
-    });
-    const commentInputSize = createCommentInputBottomOffset(
-      innerHeight,
-      tgHeight,
-      keyboard,
-      initialHeightDiff,
-    );
-    commentInputTranslateTopPx = () => PxStringFromNumber(commentInputSize());
-    createSafariScrollAdjuster(keyboard, commentInputSize);
+    assertOk(commentInputBottomOffset);
+    createSafariScrollAdjuster(keyboard, commentInputBottomOffset);
   } else {
     createScrollAdjuster(innerHeight);
   }
-
   let commentCreatorContainerRef!: HTMLDivElement;
   createOnResizeScrollAdjuster(() => commentCreatorContainerRef);
+  //#endregion scroll
 
   const [range, setRange] = createSignal<[number, number]>([0, 0], {
     equals: (a, b) => a === b || (!!a && !!b && a[0] === b[0] && a[1] === b[1]),
@@ -357,6 +346,7 @@ export const CommentsPage = () => {
     element: () => variantSelectorRef,
     animateInitial: false,
   });
+
   return (
     <main class="flex min-h-screen flex-col bg-secondary-bg px-4">
       <BoardNote ref={setBeforeListElement("note")} class="my-4">
@@ -553,8 +543,8 @@ export const CommentsPage = () => {
       <Show
         when={
           platform === "ios" &&
-          commentInputTranslateTopPx &&
-          commentInputTranslateTopPx()
+          commentInputBottomOffsetPx &&
+          commentInputBottomOffsetPx()
         }
       >
         {(height) => (
@@ -570,9 +560,9 @@ export const CommentsPage = () => {
       <section
         ref={commentCreatorContainerRef}
         style={
-          platform === "ios" && commentInputTranslateTopPx
+          platform === "ios" && commentInputBottomOffsetPx
             ? {
-                transform: `translateY(-${commentInputTranslateTopPx()})`,
+                transform: `translateY(-${commentInputBottomOffsetPx()})`,
               }
             : undefined
         }
