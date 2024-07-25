@@ -11,10 +11,15 @@ import type {
   NoteWithComment,
   WalletError,
 } from "@/api/model";
-import { createMutation, useQueryClient } from "@tanstack/solid-query";
+import { SignalHelper } from "@/lib/solid";
+import {
+  createMutation,
+  createQuery,
+  useQueryClient,
+} from "@tanstack/solid-query";
 import { AxiosError } from "axios";
-import { createSignal } from "solid-js";
-import { ErrorHelper } from "./common";
+import { createMemo, createSignal } from "solid-js";
+import { ErrorHelper, type ModalStatus } from "./common";
 
 export const createInputState = <TVariant extends string>(
   initial: TVariant,
@@ -165,4 +170,56 @@ export const createUnlinkMutation = (
       onFallbackError(ctx?.curWalletError ?? null);
     },
   }));
+};
+
+export const createOptimisticModalStatus = (
+  walletError: () => null | WalletError,
+) => {
+  const meQuery = createQuery(() => keysFactory.me);
+
+  const hasEnoughMoney = createMemo(() => {
+    const curWalletError = walletError();
+    const tokensBalance = meQuery.data?.wallet?.tokens.yo;
+    if (!curWalletError || !tokensBalance) {
+      return false;
+    }
+    return (
+      BigInt(curWalletError.error.payload.requiredBalance) <=
+      BigInt(tokensBalance)
+    );
+  });
+
+  const modalStatus = (): ModalStatus | null =>
+    SignalHelper.map(walletError, (error): ModalStatus | null => {
+      if (!error) {
+        return null;
+      }
+      if (hasEnoughMoney()) {
+        return {
+          type: "success",
+          data: null,
+        };
+      }
+
+      if (
+        error.error.reason === "no_connected_wallet" &&
+        meQuery.data?.wallet
+      ) {
+        return {
+          type: "error",
+          data: {
+            error: {
+              reason: "insufficient_balance",
+              payload: { ...error.error.payload },
+            },
+          },
+        };
+      }
+      return {
+        type: "error",
+        data: error,
+      };
+    });
+
+  return modalStatus;
 };

@@ -11,11 +11,7 @@ import { AnonymousAvatarIcon, ArrowDownIcon } from "@/icons";
 import { assertOk } from "@/lib/assert";
 import { clsxString } from "@/lib/clsxString";
 import { PxStringFromNumber, type PxString } from "@/lib/pxString";
-import {
-  SignalHelper,
-  createInnerHeight,
-  createTransitionPresence,
-} from "@/lib/solid";
+import { createInnerHeight, createTransitionPresence } from "@/lib/solid";
 import { A, useParams } from "@solidjs/router";
 import { createQuery } from "@tanstack/solid-query";
 import {
@@ -37,6 +33,7 @@ import { BottomDialog } from "../BottomDialog";
 import {
   createCommentMutation,
   createInputState,
+  createOptimisticModalStatus,
   createUnlinkMutation,
 } from "../ContentCreator/CommentCreator";
 import {
@@ -45,7 +42,6 @@ import {
 } from "../ContentCreator/PostInput";
 import { VariantSelector } from "../ContentCreator/VariantSelector";
 import { WalletModalContent } from "../ContentCreator/WalletModal";
-import type { ModalStatus } from "../ContentCreator/common";
 import { LoadingSvg } from "../LoadingSvg";
 import { useKeyboardStatus } from "../keyboardStatus";
 import { useScreenSize } from "../screenSize";
@@ -339,34 +335,7 @@ export const CommentsPage = () => {
     setWalletError,
   );
 
-  const meQuery = createQuery(() => keysFactory.me);
-
-  const hasEnoughMoney = createMemo(() => {
-    const curWalletError = walletError();
-    const tokensBalance = meQuery.data?.wallet?.tokens.yo;
-    if (!curWalletError || !tokensBalance) {
-      return false;
-    }
-    return (
-      BigInt(curWalletError.error.payload.requiredBalance) <=
-      BigInt(tokensBalance)
-    );
-  });
-
-  const modalStatus = (): ModalStatus | null =>
-    SignalHelper.map(walletError, (error) =>
-      !error
-        ? null
-        : hasEnoughMoney()
-          ? {
-              type: "success",
-              data: null,
-            }
-          : {
-              type: "error",
-              data: error,
-            },
-    );
+  const optimisticModalStatus = createOptimisticModalStatus(walletError);
 
   const sendComment = (type: Variant) => {
     const _boardId = boardId();
@@ -678,7 +647,7 @@ export const CommentsPage = () => {
           onClose={() => {
             setWalletError(null);
           }}
-          when={modalStatus()}
+          when={optimisticModalStatus()}
         >
           {(status) => (
             <WalletModalContent
