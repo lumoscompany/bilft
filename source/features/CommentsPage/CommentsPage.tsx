@@ -379,6 +379,15 @@ export const CommentsPage = () => {
       boardId: _boardId,
     });
   };
+  let variantSelectorRef!: HTMLDivElement;
+  const shouldShowVariantSelector = createTransitionPresence({
+    when: () =>
+      (platform !== "android" && platform !== "ios") ||
+      inputValue().length > 0 ||
+      keyboard.isKeyboardOpen(),
+    element: () => variantSelectorRef,
+    animateInitial: false,
+  });
   return (
     <main class="flex min-h-screen flex-col bg-secondary-bg px-4">
       <BoardNote ref={setBeforeListElement("note")} class="my-4">
@@ -607,18 +616,33 @@ export const CommentsPage = () => {
           onClick={() => onScrollDown(null)}
           inert={!showBottomScroller()}
           ref={bottomScroller}
+          style={{
+            "--variant-offset":
+              // offsetting when variant selector is shown
+              shouldShowVariantSelector.status() === "present" ? "0px" : "60px",
+          }}
           class={clsxString(
-            "absolute bottom-[calc(100%+12px)] right-2 -z-10 flex aspect-square w-10 items-center justify-center rounded-full bg-section-bg transition-transform contain-strict after:absolute after:-inset-3 after:content-[''] active:scale-90",
-            showBottomScroller() ? "ease-out" : "translate-y-[calc(100%+12px)]",
+            "absolute bottom-[calc(100%+12px)] right-3 -z-10 flex aspect-square w-10 items-center justify-center rounded-full bg-section-bg transition-[transform,opacity] duration-200 contain-strict after:absolute after:-inset-3 after:content-[''] active:scale-90",
             shouldShowBottomScroller.present() ? "visible" : "invisible",
+            shouldShowBottomScroller.status() === "present"
+              ? "translate-y-[--variant-offset]"
+              : "translate-y-[calc(var(--variant-offset)+100%+12px)] opacity-0",
           )}
           aria-label="Scroll to the bottom"
         >
           <ArrowDownIcon class="scale-[85%] text-hint" />
         </button>
-        <div class="absolute inset-0 -z-10 bg-secondary-bg opacity-50" />
 
-        <div class="absolute inset-x-[10px] bottom-[calc(100%+0.5rem)]">
+        <div
+          ref={variantSelectorRef}
+          class={clsxString(
+            "mx-[10px] mb-2 rounded-full backdrop-blur-lg transition-[transform,opacity] duration-200 will-change-[transform,opacity] contain-layout contain-style",
+            shouldShowVariantSelector.present() ? "visible" : "invisible",
+            shouldShowVariantSelector.status() === "present"
+              ? ""
+              : "translate-y-full opacity-0",
+          )}
+        >
           <VariantSelector
             setValue={setVariant}
             value={variant()}
@@ -628,12 +652,13 @@ export const CommentsPage = () => {
 
         <div
           class={clsxString(
-            "transform-gpu px-4 pt-2 backdrop-blur-xl contain-layout",
+            "transform-gpu px-4 pt-2 backdrop-blur-xl contain-layout contain-style",
             keyboard.isKeyboardOpen()
               ? "pb-2"
               : "pb-[max(var(--safe-area-inset-bottom,0px),0.5rem)]",
           )}
         >
+          <div class="absolute inset-0 -z-10 bg-secondary-bg opacity-50" />
           <PostInput
             preventScrollTouches
             isLoading={addCommentMutation.isPending}

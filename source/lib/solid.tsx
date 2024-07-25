@@ -3,7 +3,6 @@ import {
   createRenderEffect,
   createSignal,
   onCleanup,
-  onMount,
   untrack,
   type Accessor,
 } from "solid-js";
@@ -64,27 +63,20 @@ export const createTransitionPresence = <T,>(params: {
   when: Accessor<T | undefined | null | false>;
   element: Accessor<undefined | HTMLElement>;
   timeout?: number;
+  animateInitial?: boolean;
 }): {
   present: Accessor<T | undefined | null | false>;
   status: Accessor<TransitionPresenceStatus>;
 } => {
   const timeout = params.timeout ?? 2000;
   const show = createMemo(() => !!params.when());
-  const whenAndNoElement = params.when() && !params.element();
   const [status, setStatus] = createSignal<TransitionPresenceStatus>(
-    params.when() ? (params.element() ? "present" : "presenting") : "hidden",
+    params.when()
+      ? params.animateInitial
+        ? "presenting"
+        : "present"
+      : "hidden",
   );
-  if (whenAndNoElement) {
-    onMount(() => {
-      setStatus(
-        params.when()
-          ? params.element()
-            ? "present"
-            : "presenting"
-          : "hidden",
-      );
-    });
-  }
 
   const whenOrPrev = createMemo<T | undefined | null | false>((prev) =>
     status() === "hidden"
@@ -95,17 +87,20 @@ export const createTransitionPresence = <T,>(params: {
   );
 
   // we need to execute effect before render
-  createRenderEffect(() => {
+  createRenderEffect((shouldPresentWithAnimation: boolean): boolean => {
     if (!show() || untrack(() => status() === "hiding")) {
       status();
-      return;
+      return true;
     }
+    if (shouldPresentWithAnimation) {
+      setStatus("presenting");
 
-    setStatus("presenting");
-
-    requestAnimationFrame(() => {
-      setStatus((cur) => (cur === "presenting" ? "present" : cur));
-    });
+      requestAnimationFrame(() => {
+        setStatus((cur) => (cur === "presenting" ? "present" : cur));
+      });
+    } else {
+      setStatus("present");
+    }
 
     onCleanup(() => {
       const dismiss = () => {
@@ -156,7 +151,9 @@ export const createTransitionPresence = <T,>(params: {
         ]).finally(dismiss);
       });
     });
-  });
+
+    return true;
+  }, !!params.animateInitial);
 
   return {
     present: whenOrPrev,

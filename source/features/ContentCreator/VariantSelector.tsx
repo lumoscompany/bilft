@@ -168,7 +168,6 @@ export const VariantSelector = <T extends string>(props: {
       <div
         style={{
           "--variants": props.variants.length,
-          // '--width': `calc(100%/${props.variants.length}-4px*${props.variants.length})`,
           transform: `translateX(calc(100%*${visibleSelectionIndex()}))`,
         }}
         class={clsxString(
