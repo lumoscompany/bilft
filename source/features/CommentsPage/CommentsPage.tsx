@@ -11,13 +11,18 @@ import { AnonymousAvatarIcon, ArrowDownIcon } from "@/icons";
 import { assertOk } from "@/lib/assert";
 import { clsxString } from "@/lib/clsxString";
 import { PxStringFromNumber, type PxString } from "@/lib/pxString";
-import { createInnerHeight, createTransitionPresence } from "@/lib/solid";
+import {
+  SignalHelper,
+  createInnerHeight,
+  createTransitionPresence,
+} from "@/lib/solid";
 import { A, useParams } from "@solidjs/router";
 import { createQuery } from "@tanstack/solid-query";
 import {
   Match,
   Show,
   Switch,
+  batch,
   createEffect,
   createMemo,
   createSignal,
@@ -28,8 +33,19 @@ import {
 import { Virtualizer } from "virtua/solid";
 import { AvatarIcon } from "../BoardNote/AvatarIcon";
 import { BoardNote } from "../BoardNote/BoardNote";
-import { CommentCreator } from "../ContentCreator/CommentCreator";
-import { createInputFocusPreventer } from "../ContentCreator/PostInput";
+import { BottomDialog } from "../BottomDialog";
+import {
+  createCommentMutation,
+  createInputState,
+  createUnlinkMutation,
+} from "../ContentCreator/CommentCreator";
+import {
+  PostInput,
+  createInputFocusPreventer,
+} from "../ContentCreator/PostInput";
+import { VariantSelector } from "../ContentCreator/VariantSelector";
+import { WalletModalContent } from "../ContentCreator/WalletModal";
+import type { ModalStatus } from "../ContentCreator/common";
 import { LoadingSvg } from "../LoadingSvg";
 import { useKeyboardStatus } from "../keyboardStatus";
 import { useScreenSize } from "../screenSize";
@@ -290,7 +306,79 @@ export const CommentsPage = () => {
   //     },
   //   ),
   // );
+  //
 
+  const variants = ["public", "anonymous"] as const;
+  type Variant = (typeof variants)[number];
+  const [
+    [inputValue, setInputValue],
+    [walletError, setWalletError],
+    [variant, setVariant],
+  ] = createInputState<Variant>(variants[0]);
+
+  const addCommentMutation = createCommentMutation(
+    async (comment) => {
+      await onScrollDown(comment);
+
+      batch(() => {
+        setWalletError(null);
+        setInputValue("");
+      });
+    },
+    () => {
+      setWalletError(null);
+    },
+    (error) => {
+      setWalletError(error);
+    },
+  );
+
+  const unlinkMutation = createUnlinkMutation(
+    walletError,
+    setWalletError,
+    setWalletError,
+  );
+
+  const meQuery = createQuery(() => keysFactory.me);
+
+  const hasEnoughMoney = createMemo(() => {
+    const curWalletError = walletError();
+    const tokensBalance = meQuery.data?.wallet?.tokens.yo;
+    if (!curWalletError || !tokensBalance) {
+      return false;
+    }
+    return (
+      BigInt(curWalletError.error.payload.requiredBalance) <=
+      BigInt(tokensBalance)
+    );
+  });
+
+  const modalStatus = (): ModalStatus | null =>
+    SignalHelper.map(walletError, (error) =>
+      !error
+        ? null
+        : hasEnoughMoney()
+          ? {
+              type: "success",
+              data: null,
+            }
+          : {
+              type: "error",
+              data: error,
+            },
+    );
+
+  const sendComment = (type: Variant) => {
+    const _boardId = boardId();
+    assertOk(_boardId);
+
+    addCommentMutation.mutate({
+      noteID: noteId(),
+      content: inputValue(),
+      type,
+      boardId: _boardId,
+    });
+  };
   return (
     <main class="flex min-h-screen flex-col bg-secondary-bg px-4">
       <BoardNote ref={setBeforeListElement("note")} class="my-4">
@@ -511,12 +599,7 @@ export const CommentsPage = () => {
             : undefined
         }
         class={clsxString(
-          "sticky bottom-0 isolate -mx-4 mt-auto transform-gpu px-4 pt-2 backdrop-blur-xl contain-layout [&_*]:overscroll-y-contain",
-          // "pb-[calc(var(--safe-area-inset-bottom,0px)+0.5rem)]",
-          keyboard.isKeyboardOpen()
-            ? "pb-2"
-            : "pb-[max(var(--safe-area-inset-bottom,0px),0.5rem)]",
-          // keyboard.isKeyboardOpen() ? "pb-2" : "pb-5",
+          "sticky bottom-0 isolate -mx-4 mt-auto [&_*]:overscroll-y-contain",
         )}
       >
         <button
@@ -535,12 +618,62 @@ export const CommentsPage = () => {
         </button>
         <div class="absolute inset-0 -z-10 bg-secondary-bg opacity-50" />
 
-        <CommentCreator
-          disabled={!note.isSuccess}
-          boardId={boardId() ?? null}
-          noteId={noteId()}
-          onCreated={onScrollDown}
-        />
+        <div class="absolute inset-x-[10px] bottom-[calc(100%+0.5rem)]">
+          <VariantSelector
+            setValue={setVariant}
+            value={variant()}
+            variants={variants}
+          />
+        </div>
+
+        <div
+          class={clsxString(
+            "transform-gpu px-4 pt-2 backdrop-blur-xl contain-layout",
+            keyboard.isKeyboardOpen()
+              ? "pb-2"
+              : "pb-[max(var(--safe-area-inset-bottom,0px),0.5rem)]",
+          )}
+        >
+          <PostInput
+            preventScrollTouches
+            isLoading={addCommentMutation.isPending}
+            onSubmit={() => {
+              if (!inputValue) {
+                return;
+              }
+
+              sendComment(variant());
+            }}
+            value={inputValue()}
+            onChange={setInputValue}
+          />
+        </div>
+
+        <BottomDialog
+          onClose={() => {
+            setWalletError(null);
+          }}
+          when={modalStatus()}
+        >
+          {(status) => (
+            <WalletModalContent
+              onSend={() => {
+                sendComment(variant());
+                setWalletError(null);
+              }}
+              status={status()}
+              onClose={() => {
+                setWalletError(null);
+              }}
+              onUnlinkWallet={() => {
+                unlinkMutation.mutate();
+              }}
+              onSendPublic={() => {
+                sendComment("public");
+              }}
+            />
+          )}
+        </BottomDialog>
       </section>
     </main>
   );
