@@ -171,9 +171,15 @@ export const SignalHelper = {
 export const createWindowScrollTop = () => {
   const [windowScrollTop, setWindowScrollTop] = createSignal(window.screenTop);
 
-  window.addEventListener("scroll", () => {
-    setWindowScrollTop(window.scrollY);
-  });
+  useCleanup((signal) =>
+    window.addEventListener(
+      "scroll",
+      () => {
+        setWindowScrollTop(window.scrollY);
+      },
+      { signal },
+    ),
+  );
 
   return windowScrollTop;
 };
@@ -237,7 +243,7 @@ export const unwrapUntrackSignals = <T extends Record<string, unknown>>(
 //   let waitPr: Promise<void>;
 //   const delay = (time: number) => {
 //     setShouldDelay(true);
-    
+
 //     setTimeout(() => {
 //       setShouldDelay(false);
 //     }, time);

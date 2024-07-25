@@ -15,7 +15,6 @@ import {
 } from "solid-js";
 import { LoadingSvg } from "../LoadingSvg";
 import { useKeyboardStatus } from "../keyboardStatus";
-import { CheckboxUI } from "./common";
 import { createSafariKeyboardHider } from "./safariKeyboardHider";
 
 export type PostInputProps = StyleProps & {
@@ -25,10 +24,7 @@ export type PostInputProps = StyleProps & {
   onChange: (s: string) => void;
   onSubmit: () => void;
   isLoading: boolean;
-  isAnonymous: boolean;
-  setIsAnonymous: (status: boolean) => void;
   ref?: Ref<HTMLFormElement>;
-  position: "top" | "bottom";
   preventScrollTouches: boolean;
   disabled?: boolean;
 };
@@ -82,7 +78,6 @@ export function PostInput(props: PostInputProps) {
   if (platform === "ios") {
     createSafariKeyboardHider(
       isFocused,
-      () => props.position,
       () => formRef,
       () => inputRef,
     );
@@ -131,14 +126,14 @@ export function PostInput(props: PostInputProps) {
       }}
       ref={mergeRefs((e) => (formRef = e), props.ref)}
       class={clsxString(
-        "flex flex-col items-stretch justify-between gap-[10px] overflow-hidden rounded-[20px] border border-[#AAA] border-opacity-15 bg-section-bg p-4",
+        "flex flex-row items-center overflow-hidden rounded-3xl border border-[#AAA] border-opacity-15 bg-section-bg py-2 pl-4 pr-2",
         shouldPreventScrollTouches() ? "touch-none [&_*]:touch-none" : "",
         props.class ?? "",
       )}
     >
       <div
         ref={inputWrapperRef}
-        class='-mr-4 grid max-h-[calc(var(--tgvh)*40)] flex-1 grid-cols-1 overflow-y-auto pr-3 font-inter text-[16px] leading-[21px] [scrollbar-gutter:stable] after:invisible after:select-none after:whitespace-pre-wrap after:break-words after:font-[inherit] after:content-[attr(data-value)_"_"] after:[grid-area:1/1/2/2] [&>textarea]:[grid-area:1/1/2/2]'
+        class='grid max-h-[calc(var(--tgvh)*40)] flex-1 grid-cols-1 overflow-y-auto pr-1 font-inter text-[16px] leading-[21px] [scrollbar-gutter:stable] after:invisible after:select-none after:whitespace-pre-wrap after:break-words after:font-[inherit] after:content-[attr(data-value)_"_"] after:[grid-area:1/1/2/2] [&>textarea]:[grid-area:1/1/2/2]'
         data-value={props.value}
       >
         <textarea
@@ -167,34 +162,29 @@ export function PostInput(props: PostInputProps) {
           class="w-full max-w-full resize-none overflow-hidden break-words border-none bg-transparent placeholder:select-none focus:border-none focus:outline-none"
           classList={{
             // outsmarting safari repositioning for inputs outside of top of page
-            "mt-[-50vh] pt-[50vh]":
-              platform === "ios" && props.position === "bottom",
+            "mt-[-50vh] pt-[50vh]": platform === "ios",
           }}
         />
       </div>
-      <div class="h-separator w-full bg-separator" />
-      <div class="flex flex-row items-center p-[2px]">
-        <label
-          class="group mr-auto flex cursor-pointer select-none flex-row items-center"
-          data-checked={props.isAnonymous ? "" : undefined}
-        >
-          <input
-            {...createInputFocusPreventer.FRIENDLY}
-            onChange={(e) => {
-              props.setIsAnonymous(e.target.checked);
-            }}
-            checked={props.isAnonymous}
-            type="checkbox"
-            class="invisible h-0 w-0"
-          />
-          <CheckboxUI />
 
-          <div class="ml-2 font-inter text-[16px] leading-[22px] text-subtitle">
-            Send anonymously
+      <button
+        disabled={
+          !!props.disabled ||
+          isEmpty() ||
+          props.isLoading ||
+          symbolsRemaining() <= 0
+        }
+        class="relative mt-auto flex aspect-square w-7 items-center justify-center overflow-hidden rounded-full [&:disabled>svg>path]:fill-gray-400 [&>svg>path]:fill-accent"
+      >
+        <Show fallback={<ArrowUpIcon />} when={props.isLoading}>
+          <div role="status">
+            <LoadingSvg class="w-7 fill-gray-300 text-gray-600" />
+            <span class="sr-only">Loading...</span>
           </div>
-        </label>
-
-        <Show when={symbolsRemaining() < MAX_POST_LENGTH / 4}>
+        </Show>
+      </button>
+      {/* [TODO]: figure out where to place it */}
+      {/* <Show when={symbolsRemaining() < MAX_POST_LENGTH / 4}>
           <p
             class={clsxString(
               "ml-auto font-inter text-[16px] leading-[16px]",
@@ -203,24 +193,7 @@ export function PostInput(props: PostInputProps) {
           >
             {symbolsRemaining()}
           </p>
-        </Show>
-        <button
-          disabled={
-            !!props.disabled ||
-            isEmpty() ||
-            props.isLoading ||
-            symbolsRemaining() <= 0
-          }
-          class="relative ml-2 flex aspect-square w-7 items-center justify-center overflow-hidden rounded-full [&:disabled>svg>path]:fill-gray-400 [&>svg>path]:fill-accent"
-        >
-          <Show fallback={<ArrowUpIcon />} when={props.isLoading}>
-            <div role="status">
-              <LoadingSvg class="w-7 fill-gray-300 text-gray-600" />
-              <span class="sr-only">Loading...</span>
-            </div>
-          </Show>
-        </button>
-      </div>
+        </Show> */}
     </form>
   );
 }

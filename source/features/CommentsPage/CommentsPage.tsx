@@ -22,6 +22,7 @@ import {
   createMemo,
   createSignal,
   on,
+  onMount,
   type Accessor,
 } from "solid-js";
 import { Virtualizer } from "virtua/solid";
@@ -96,8 +97,6 @@ export const CommentsPage = () => {
   const { height: tgHeight } = useScreenSize();
   const keyboard = useKeyboardStatus();
 
-  const initialHeightDiff = window.innerHeight - tgHeight();
-
   const [scrollMarginTop, setBeforeListElement] = createListMarginTop(128);
 
   // long story short: Webview Safari + IOS Telegram = dog shit
@@ -105,6 +104,15 @@ export const CommentsPage = () => {
 
   const innerHeight = createInnerHeight();
   if (platform === "ios") {
+    const [initialHeightDiff, setInitialHeightDiff] = createSignal(
+      window.innerHeight - tgHeight(),
+    );
+    onMount(() => {
+      // if it's first render - tgHeight - is not initialized and we need to wait some time to get it
+      requestAnimationFrame(() => {
+        setInitialHeightDiff(window.innerHeight - tgHeight());
+      });
+    });
     const commentInputSize = createCommentInputBottomOffset(
       innerHeight,
       tgHeight,
@@ -175,7 +183,7 @@ export const CommentsPage = () => {
       return;
     }
     if (!comment && isReversed()) {
-      console.log("scrolling to last");
+      // console.log("scrolling to last");
       getVirtualizerHandle()?.scrollToIndex(commentItems().length - 1, {
         smooth: true,
       });
@@ -502,7 +510,14 @@ export const CommentsPage = () => {
               }
             : undefined
         }
-        class="sticky bottom-0 isolate -mx-2 mt-auto px-2 pb-6 pt-2 [&_*]:overscroll-y-contain"
+        class={clsxString(
+          "sticky bottom-0 isolate -mx-4 mt-auto transform-gpu px-4 pt-2 backdrop-blur-xl contain-layout [&_*]:overscroll-y-contain",
+          // "pb-[calc(var(--safe-area-inset-bottom,0px)+0.5rem)]",
+          keyboard.isKeyboardOpen()
+            ? "pb-2"
+            : "pb-[max(var(--safe-area-inset-bottom,0px),0.5rem)]",
+          // keyboard.isKeyboardOpen() ? "pb-2" : "pb-5",
+        )}
       >
         <button
           {...createInputFocusPreventer.FRIENDLY}
@@ -510,7 +525,7 @@ export const CommentsPage = () => {
           inert={!showBottomScroller()}
           ref={bottomScroller}
           class={clsxString(
-            "absolute bottom-[calc(100%+12px)] right-0 -z-10 flex aspect-square w-10 items-center justify-center rounded-full bg-section-bg transition-transform contain-strict after:absolute after:-inset-3 after:content-[''] active:scale-90",
+            "absolute bottom-[calc(100%+12px)] right-2 -z-10 flex aspect-square w-10 items-center justify-center rounded-full bg-section-bg transition-transform contain-strict after:absolute after:-inset-3 after:content-[''] active:scale-90",
             showBottomScroller() ? "ease-out" : "translate-y-[calc(100%+12px)]",
             shouldShowBottomScroller.present() ? "visible" : "invisible",
           )}
@@ -518,7 +533,7 @@ export const CommentsPage = () => {
         >
           <ArrowDownIcon class="scale-[85%] text-hint" />
         </button>
-        <div class="absolute inset-0 -z-10 bg-secondary-bg" />
+        <div class="absolute inset-0 -z-10 bg-secondary-bg opacity-50" />
 
         <CommentCreator
           disabled={!note.isSuccess}

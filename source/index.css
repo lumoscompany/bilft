@@ -3,7 +3,9 @@
 @tailwind utilities;
 
 :root {
+  /* will be reassigned from js side */
   --tg-screen-size: 100vh;
+  --safe-area-inset-bottom: calc(100vh - var(--tg-screen-size, 100vh));
   --tgvh: calc(var(--tg-screen-size, 100vh) / 100);
 }
 a {

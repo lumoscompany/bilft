@@ -4,7 +4,6 @@ import { Point, pointIsInsideBox } from "./point";
 
 export function createSafariKeyboardHider(
   isFocused: Accessor<boolean>,
-  position: Accessor<"top" | "bottom">,
   formRef: () => HTMLFormElement,
   inputRef: () => HTMLTextAreaElement | undefined,
 ) {
@@ -113,9 +112,7 @@ export function createSafariKeyboardHider(
           if (
             input &&
             form &&
-            (position() === "top"
-              ? touchState === "outside-input" || touchState === "inside-input"
-              : touchState === "inside-input") &&
+            touchState === "inside-input" &&
             e.target &&
             (e.target instanceof Element || e.target instanceof Document) &&
             !form.contains(e.target)

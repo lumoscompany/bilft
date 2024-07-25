@@ -74,7 +74,7 @@ export function createCommentInputBottomOffset(
   innerHeight: Accessor<number>,
   tgHeight: Accessor<number>,
   keyboard: KeyboardStatus,
-  initialHeightDiff: number,
+  initialHeightDiff: Accessor<number>,
 ) {
   const windowScrollTop = createWindowScrollTop();
   const commentInputBottomOffset = () =>
@@ -82,9 +82,9 @@ export function createCommentInputBottomOffset(
     tgHeight() -
     windowScrollTop() -
     (!keyboard.isKeyboardOpen()
-      ? initialHeightDiff
+      ? initialHeightDiff()
       : keyboard.isPortrait()
         ? 0
-        : initialHeightDiff / 2);
+        : initialHeightDiff() / 2);
   return commentInputBottomOffset;
 }
