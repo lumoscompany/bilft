@@ -271,7 +271,7 @@ const UserProfilePage = (props: {
               startMargin={282}
             >
               {(note) => (
-                <BoardNote class="mx-4 mb-4 contain-content">
+                <BoardNote class="mx-4 pb-4 contain-content">
                   <BoardNote.Card>
                     <Switch
                       fallback={
