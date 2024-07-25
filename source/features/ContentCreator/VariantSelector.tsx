@@ -5,6 +5,11 @@ import { platform } from "../telegramIntegration";
 import { pointIsInsideBox } from "./point";
 import { createInputFocusPreventer } from "./PostInput";
 
+/**
+ * 
+ * @description backdrop blur must be applied to the parent element
+ * There are crazy stuff going on inside of chrome https://issues.chromium.org/issues/41475939
+ */
 export const VariantSelector = <T extends string>(props: {
   variants: readonly T[];
   value: T;
@@ -163,7 +168,7 @@ export const VariantSelector = <T extends string>(props: {
           return;
         }
       }}
-      class="relative isolate grid min-h-11 touch-pan-x select-none grid-cols-[repeat(auto-fit,minmax(0,1fr))] grid-rows-1 self-stretch overflow-hidden rounded-full p-[2px] backdrop-blur-3xl before:absolute before:inset-0 before:-z-10 before:bg-section-bg before:opacity-70 before:content-['']"
+      class="relative isolate grid min-h-11 touch-pan-x select-none grid-cols-[repeat(auto-fit,minmax(0,1fr))] grid-rows-1 self-stretch overflow-hidden rounded-full p-[2px] before:absolute before:inset-0 before:-z-10 before:bg-section-bg before:opacity-70 before:content-['']"
     >
       <div
         style={{

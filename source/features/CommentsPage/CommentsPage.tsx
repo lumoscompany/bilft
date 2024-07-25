@@ -595,7 +595,7 @@ export const CommentsPage = () => {
         <div
           ref={variantSelectorRef}
           class={clsxString(
-            "mx-[10px] mb-2 rounded-full backdrop-blur-lg transition-[transform,opacity] duration-200 will-change-[transform,opacity] contain-layout contain-style",
+            "mx-[10px] mb-2 rounded-full backdrop-blur-xl transition-[transform,opacity] duration-200 will-change-[transform,opacity] contain-layout contain-style",
             shouldShowVariantSelector.present() ? "visible" : "invisible",
             shouldShowVariantSelector.status() === "present"
               ? ""
