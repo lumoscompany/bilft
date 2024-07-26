@@ -42,7 +42,6 @@ import { VariantSelector } from "../ContentCreator/VariantSelector";
 import { WalletModalContent } from "../ContentCreator/WalletModal";
 import { LoadingSvg } from "../LoadingSvg";
 import { useKeyboardStatus } from "../keyboardStatus";
-import { useScreenSize } from "../screenSize";
 import { createReversingCommentsQuery } from "./createReversingCommentsQuery";
 import {
   createCommentInputBottomOffset,
@@ -105,7 +104,6 @@ export const CommentsPage = () => {
   );
 
   //#region scroll
-  const { height: tgHeight } = useScreenSize();
   const keyboard = useKeyboardStatus();
   const [scrollMarginTop, setBeforeListElement] = createListMarginTop(128);
 
@@ -113,7 +111,7 @@ export const CommentsPage = () => {
   const innerHeight = createInnerHeight();
   const commentInputBottomOffset =
     platform === "ios"
-      ? createCommentInputBottomOffset(innerHeight, tgHeight, keyboard)
+      ? createCommentInputBottomOffset(innerHeight, keyboard)
       : null;
 
   const commentInputBottomOffsetPx = commentInputBottomOffset

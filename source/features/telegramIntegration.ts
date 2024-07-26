@@ -6,7 +6,7 @@ import {
   postEvent,
   retrieveLaunchParams,
 } from "@telegram-apps/sdk";
-import { createSignal, onCleanup } from "solid-js";
+import { batch, createSignal, onCleanup } from "solid-js";
 
 export const launchParams = retrieveLaunchParams();
 export const authData = launchParams.initDataRaw;
@@ -30,12 +30,16 @@ export const createTgScreenSize = () => {
   const [heightTransition, setHeightTransition] = createSignal(
     window.innerHeight,
   );
+  const [isReady, setIsReady] = createSignal(false);
 
   onCleanup(
     on("viewport_changed", (e) => {
       if (e.is_state_stable) {
-        setHeight(e.height);
-        setWidth(e.width);
+        batch(() => {
+          setIsReady(true);
+          setHeight(e.height);
+          setWidth(e.width);
+        });
       }
 
       setHeightTransition(e.height);
@@ -46,6 +50,9 @@ export const createTgScreenSize = () => {
   return {
     width,
     height,
+    isReady,
     heightTransition,
   };
 };
+
+export type TelegramScreenSize = ReturnType<typeof createTgScreenSize>;

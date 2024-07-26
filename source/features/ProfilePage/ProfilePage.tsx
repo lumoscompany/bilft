@@ -46,7 +46,6 @@ import { VariantSelector } from "../ContentCreator/VariantSelector";
 import { WalletModalContent } from "../ContentCreator/WalletModal";
 import { useInfiniteScroll } from "../infiniteScroll";
 import { useKeyboardStatus } from "../keyboardStatus";
-import { useScreenSize } from "../screenSize";
 import { scrollableElement, setVirtualizerHandle } from "../scroll";
 import { platform, utils } from "../telegramIntegration";
 import { CommentNoteFooterLayout } from "./CommantNoteFooterLayour";
@@ -123,11 +122,7 @@ const UserProfilePage = (props: {
   const innerHeight = createInnerHeight();
   const commentInputBottomOffset =
     platform === "ios"
-      ? createCommentInputBottomOffset(
-          innerHeight,
-          useScreenSize().height,
-          keyboard,
-        )
+      ? createCommentInputBottomOffset(innerHeight, keyboard)
       : null;
 
   const commentInputBottomOffsetPx = commentInputBottomOffset
