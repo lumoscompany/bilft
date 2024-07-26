@@ -6,7 +6,7 @@ import { pointIsInsideBox } from "./point";
 import { createInputFocusPreventer } from "./PostInput";
 
 /**
- * 
+ *
  * @description backdrop blur must be applied to the parent element
  * There are crazy stuff going on inside of chrome https://issues.chromium.org/issues/41475939
  */
@@ -20,13 +20,13 @@ export const VariantSelector = <T extends string>(props: {
     createSignal(true);
   const [touchOver, _setTouchOver] = createSignal<null | T>(null);
   const setTouchOver: (value: null | T) => null | T = _setTouchOver;
-  const [touchMoveSelection, setTouchMoveSelection] = createSignal(false);
+  const [isGripping, setIsGripping] = createSignal(false);
 
   const visibleSelectionIndex = () => {
     let curTouchOver: T | null;
     let index: number;
     if (
-      touchMoveSelection() &&
+      isGripping() &&
       (curTouchOver = touchOver()) &&
       (index = props.variants.indexOf(curTouchOver)) !== -1
     ) {
@@ -108,13 +108,13 @@ export const VariantSelector = <T extends string>(props: {
           e.currentTarget,
           firstTouch,
           touchOver(),
-          touchMoveSelection(),
+          isGripping(),
         );
         batch(() => {
           // resetting animation state
           setIsNearbySelectorChoose(false);
           setTouchOver(targetVariant);
-          setTouchMoveSelection(targetVariant === props.value);
+          setIsGripping(targetVariant === props.value);
         });
       }}
       onTouchMove={(e) => {
@@ -127,12 +127,7 @@ export const VariantSelector = <T extends string>(props: {
           }
 
           setTouchOver(
-            onTouchMove(
-              e.currentTarget,
-              touch,
-              curPointerOver,
-              touchMoveSelection(),
-            ),
+            onTouchMove(e.currentTarget, touch, curPointerOver, isGripping()),
           );
           return;
         }
@@ -146,7 +141,7 @@ export const VariantSelector = <T extends string>(props: {
           touchId = null;
           batch(() => {
             setTouchOver(null);
-            setTouchMoveSelection(false);
+            setIsGripping(false);
           });
           return;
         }
@@ -162,7 +157,7 @@ export const VariantSelector = <T extends string>(props: {
           batch(() => {
             const curPointerOver = touchOver();
             curPointerOver && moveSelectorWithPhysics(curPointerOver);
-            setTouchMoveSelection(false);
+            setIsGripping(false);
             setTouchOver(null);
           });
           return;
@@ -173,20 +168,28 @@ export const VariantSelector = <T extends string>(props: {
       <div
         style={{
           "--variants": props.variants.length,
-          transform: `translateX(calc(100%*${visibleSelectionIndex()}))`,
+          "--selection-index": visibleSelectionIndex(),
         }}
         class={clsxString(
-          "pointer-events-none absolute inset-y-[2px] left-[2px] -z-10 w-[calc((100%-4px)/var(--variants))] rounded-full bg-accent font-inter text-[13px] font-[590] leading-[18px] transition-transform ease-out contain-strict",
+          "pointer-events-none absolute inset-y-0 top-0 -z-10 flex w-[calc(100%/var(--variants))] translate-x-[calc(100%*var(--selection-index))] items-stretch justify-stretch p-[2px] transition-transform ease-out contain-strict",
           isNearbySelectorChoose() ? "duration-150" : "duration-[225ms]",
         )}
-      />
+      >
+        <div
+          class={clsxString(
+            "flex-1 rounded-full bg-accent font-inter text-[13px] font-[590] leading-[18px]",
+            "origin-center transition-transform ease-out",
+            isGripping() ? "scale-95" : "",
+          )}
+        />
+      </div>
       <For each={props.variants}>
         {(variant) => (
           <button
             {...createInputFocusPreventer.FRIENDLY}
             data-variant={variant}
             class={clsxString(
-              "flex items-center justify-center transition-opacity duration-300 contain-strict",
+              "flex items-center justify-center transition-[transform,opacity] duration-[150ms,300ms] ease-out contain-strict",
               "text-text",
               // workaround because we cannot use disable
               props.value !== variant &&
@@ -195,9 +198,10 @@ export const VariantSelector = <T extends string>(props: {
                 touchOver() !== variant
                 ? "active:opacity-30"
                 : "",
-              touchOver() === variant &&
-                touchOver() !== props.value &&
-                !touchMoveSelection()
+              isGripping() && variant === touchOver() ? "scale-95" : "",
+              !isGripping() &&
+                touchOver() === variant &&
+                touchOver() !== props.value
                 ? "opacity-30"
                 : "",
             )}
