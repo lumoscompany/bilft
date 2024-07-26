@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
     />
 
     <meta name="theme-color" content="#000000" />
@@ -12,12 +12,19 @@
 
     <title>BILFT</title>
 
+    <!-- <script src="//cdn.jsdelivr.net/npm/eruda"></script>
+    <script>
+      eruda.init();
+    </script> -->
+
     <link rel="icon" href="/assets/favicon.ico" />
-    <link rel="apple-touch-icon" href="/assets/logo192.png" />
-    <link rel="manifest" href="/assets/manifest.json" />
+    <!-- <link rel="apple-touch-icon" href="/assets/logo192.png" />
+    <link rel="manifest" href="/assets/manifest.json" /> -->
   </head>
-  <body class="bg-secondary-bg text-text">
-    <div id="root"></div>
+  <body class="max-h-screen overflow-hidden bg-secondary-bg text-text">
+    <div class="max-h-screen overflow-auto" id="scroll-target">
+      <div id="root"></div>
+    </div>
     <noscript>You need to enable JavaScript to run this app</noscript>
     <script type="module" src="source/index.tsx"></script>
   </body>

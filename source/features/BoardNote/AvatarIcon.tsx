@@ -1,8 +1,12 @@
-import { clsxString, type StyleProps } from "@/common";
-import { Show, createComputed, createSignal } from "solid-js";
+import { clsxString } from "@/lib/clsxString";
+import { type StyleProps } from "@/lib/types";
+import { Show, createRenderEffect, createSignal } from "solid-js";
 
+let img: HTMLImageElement;
 const isImageAlreadyLoaded = (imageSrc: string) => {
-  const img = document.createElement("img");
+  if (!img) {
+    img = document.createElement("img");
+  }
   img.src = imageSrc;
 
   return img.complete;
@@ -15,11 +19,9 @@ export const AvatarIcon = (
     lazy?: boolean;
   },
 ) => {
-  const [isImageLoaded, setIsImageLoaded] = createSignal(
-    props.url ? isImageAlreadyLoaded(props.url) : false,
-  );
+  const [isImageLoaded, setIsImageLoaded] = createSignal(false);
 
-  createComputed((prev) => {
+  createRenderEffect((prev) => {
     if (props.url && props.url !== prev) {
       setIsImageLoaded(isImageAlreadyLoaded(props.url));
     }
@@ -32,7 +34,7 @@ export const AvatarIcon = (
   return (
     <div
       class={clsxString(
-        "relative aspect-square select-none overflow-hidden rounded-full",
+        "pointer-events-none relative aspect-square select-none overflow-hidden rounded-full",
         props.class ?? "",
       )}
     >

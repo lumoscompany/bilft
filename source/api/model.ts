@@ -1,6 +1,6 @@
-import type { DateString } from "@/common";
+import type { DateString } from "@/features/format";
 
-export type NoteAuthor = {
+export type ContentAuthor = {
   id: string;
   name: string;
   photo: string;
@@ -8,14 +8,18 @@ export type NoteAuthor = {
 
 export type Note = {
   id: string;
-  author?: NoteAuthor;
+  author?: ContentAuthor;
   createdAt: DateString;
   content: string;
+};
+export type NoteWithComment = Note & {
+  lastComment?: Omit<Comment, "createdAt">;
+  commentsCount: number;
 };
 
 export type NoteArray = {
   next?: string;
-  data: Note[];
+  data: NoteWithComment[];
 };
 
 export type BoardProfile = {
@@ -67,4 +71,18 @@ export type WalletError = {
       requiredBalance: string;
     };
   };
+};
+
+export type Comment = {
+  id: string;
+  content: string;
+  type: "public" | "anonymous";
+  createdAt: DateString;
+  author?: ContentAuthor;
+};
+
+export type CreateCommentRequest = {
+  noteID: string;
+  content: string;
+  type: Comment["type"];
 };

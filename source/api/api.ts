@@ -1,8 +1,9 @@
 import axios from "axios";
-import type { model } from ".";
+import type * as model from "./model";
 
-import { authData } from "@/common";
+import { authData } from "@/features/telegramIntegration";
 import { infiniteQueryOptions, queryOptions } from "@tanstack/solid-query";
+import type { Comment, CreateCommentRequest } from "./model";
 
 const instance = axios.create({
   baseURL: import.meta.env.VITE_BACKEND_URL,
@@ -20,12 +21,23 @@ export type CreateNoteRequest = {
   type: "private" | "public" | "public-anonymous";
 };
 
+export type GetCommentResponse = {
+  count: number;
+  items: Comment[];
+};
+
 type RequestResponseMappings = {
   "/board/resolve": RequestResponse<{ value: string }, model.Board>;
   "/board/createNote": RequestResponse<CreateNoteRequest, model.Note>;
   "/board/getNotes": RequestResponse<
     { board: string; next?: string },
     model.NoteArray
+  >;
+  "/note/resolve": RequestResponse<
+    { noteId: string },
+    model.Note & {
+      boardId: string;
+    }
   >;
   "/me": RequestResponse<
     void,
@@ -40,6 +52,18 @@ type RequestResponseMappings = {
     }
   >;
   "/me/unlinkWallet": RequestResponse<void, void>;
+  "/note/createComment": RequestResponse<CreateCommentRequest, Comment>;
+  "/note/getComments": RequestResponse<
+    {
+      noteID: string;
+      /**
+       * @description positive or -1
+       */
+      page: number;
+      pageSize: number;
+    },
+    GetCommentResponse
+  >;
 };
 type AvailableRequests = keyof RequestResponseMappings;
 
@@ -115,4 +139,25 @@ export const keysFactory = {
     queryFn: () => fetchMethod("/me", undefined),
     queryKey: ["me"],
   }),
+
+  note: (noteId: string) =>
+    queryOptions({
+      queryKey: ["note", noteId],
+      queryFn: () =>
+        fetchMethod("/note/resolve", {
+          noteId,
+        }),
+    }),
+
+  comments: ({ noteId, page }: { noteId: string; page: number }) =>
+    queryOptions({
+      queryKey: ["comments-new", noteId, page],
+      queryFn: () =>
+        fetchMethod("/note/getComments", {
+          noteID: noteId,
+          page,
+          pageSize: COMMENTS_PAGE_SIZE,
+        }),
+    }),
 };
+export const COMMENTS_PAGE_SIZE = 20;

@@ -6,6 +6,22 @@
   --tg-screen-size: 100vh;
   --tgvh: calc(var(--tg-screen-size, 100vh) / 100);
 }
+a {
+  -webkit-user-drag: none;
+}
+
+html,
+body {
+  height: 100vh;
+  max-height: 100vh;
+  /* height: 100%;
+  min-height: 100%;
+  max-height: 100%; */
+  /* 
+  --body-height: calc(100 * var(--tgvh));
+  min-height: var(--body-height, 100vh);
+  max-height: var(--body-height); */
+}
 
 @keyframes slide-right {
   0% {
