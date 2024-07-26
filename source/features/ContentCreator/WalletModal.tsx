@@ -1,5 +1,5 @@
 import { keysFactory } from "@/api/api";
-import { clsxString, utils, type StyleProps } from "@/common";
+import { utils } from "@/features/telegramIntegration";
 import {
   ArrowPointDownIcon,
   CloseIcon,
@@ -8,10 +8,12 @@ import {
   UnlinkIcon,
   YoCoinIcon,
 } from "@/icons";
+import { clsxString } from "@/lib/clsxString";
 import { createTransitionPresence, mergeRefs, useCleanup } from "@/lib/solid";
 import { useTonConnectUI } from "@/lib/ton-connect-solid";
+import { type StyleProps } from "@/lib/types";
 import { createQuery } from "@tanstack/solid-query";
-import { postEvent } from "@tma.js/sdk";
+import { postEvent } from "@telegram-apps/sdk";
 import {
   Match,
   Show,

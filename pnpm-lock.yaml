@@ -17,12 +17,9 @@ importers:
       '@tanstack/solid-query':
         specifier: 5.44.0
         version: 5.44.0(solid-js@1.8.17)
-      '@tma.js/sdk':
-        specifier: ^2.5.0
-        version: 2.5.0
-      '@tma.js/solid-router-integration':
-        specifier: ^5.0.2
-        version: 5.0.2(@solidjs/router@0.13.6(solid-js@1.8.17))(@tma.js/sdk@2.5.0)(solid-js@1.8.17)
+      '@telegram-apps/sdk':
+        specifier: ^1.1.3
+        version: 1.1.3
       '@tonconnect/ui':
         specifier: ^2.0.3
         version: 2.0.3
@@ -87,6 +84,9 @@ importers:
       typescript-eslint:
         specifier: ^7.13.0
         version: 7.13.0(eslint@9.2.0)(typescript@5.4.5)
+      unplugin-fonts:
+        specifier: ^1.1.1
+        version: 1.1.1(vite@5.2.11(@types/node@20.12.11))
       view-transitions-api-types:
         specifier: ^0.1.1
         version: 0.1.1
@@ -559,15 +559,8 @@ packages:
     peerDependencies:
       solid-js: ^1.6.0
 
-  '@tma.js/sdk@2.5.0':
-    resolution: {integrity: sha512-9cccHzNADaIwAJwK8yL4WeTdx9JO7kAHvjN9Q6T3CQMx07bw5M2RNCaZ1+UGrQz9IWNa+GrnXkN/eIZEW+oHUw==}
-
-  '@tma.js/solid-router-integration@5.0.2':
-    resolution: {integrity: sha512-I8TWphqQNQemSqJZdFhOu11NFDESQ0i8wNGvbtamZeqyDpyT5qfLw8cmHwH40vrHa97TG0wspqcDsb9ouhXAYA==}
-    peerDependencies:
-      '@solidjs/router': ^0.13.1
-      '@tma.js/sdk': 2.5.0
-      solid-js: ^1.8.16
+  '@telegram-apps/sdk@1.1.3':
+    resolution: {integrity: sha512-gvcXNttbCouDNTxjDUbO5FS/BdaHYO0ibSddQxiYitShPIDZDxGon0Eh3OSsgUIVPSQSNdXqkXaeqYgA+jeY0A==}
 
   '@tonconnect/isomorphic-eventsource@0.0.2':
     resolution: {integrity: sha512-B4UoIjPi0QkvIzZH5fV3BQLWrqSYABdrzZQSI9sJA9aA+iC0ohOzFwVVGXanlxeDAy1bcvPbb29f6sVUk0UnnQ==}
@@ -2139,6 +2132,19 @@ packages:
   undici-types@5.26.5:
     resolution: {integrity: sha512-JlCMO+ehdEIKqlFxk6IfVoAUVmgz7cU7zD/h9XZ0qzeosSHmUJVOzSQvvYSYWXkFXC+IfLKSIffhv0sVZup6pA==}
 
+  unplugin-fonts@1.1.1:
+    resolution: {integrity: sha512-/Aw/rL9D2aslGGM0vi+2R2aG508RSwawLnnBuo+JDSqYc4cHJO1R1phllhN6GysEhBp/6a4B6+vSFPVapWyAAw==}
+    peerDependencies:
+      '@nuxt/kit': ^3.0.0
+      vite: ^2.0.0 || ^3.0.0 || ^4.0.0 || ^5.0.0
+    peerDependenciesMeta:
+      '@nuxt/kit':
+        optional: true
+
+  unplugin@1.11.0:
+    resolution: {integrity: sha512-3r7VWZ/webh0SGgJScpWl2/MRCZK5d3ZYFcNaeci/GQ7Teop7zf0Nl2pUuz7G21BwPd9pcUPOC5KmJ2L3WgC5g==}
+    engines: {node: '>=14.0.0'}
+
   update-browserslist-db@1.0.15:
     resolution: {integrity: sha512-K9HWH62x3/EalU1U6sjSZiylm9C8tgq2mSvshZpqc7QE69RaA2qjhkW2HlNA0tFpEbtyFz7HTqbSdN4MSwUodA==}
     hasBin: true
@@ -2287,6 +2293,13 @@ packages:
   webidl-conversions@7.0.0:
     resolution: {integrity: sha512-VwddBukDzu71offAQR975unBIGqfKZpM+8ZX6ySk8nYhVoo5CYaZyzt3YBvYtRtO+aoGlqxPg/B87NGVZ/fu6g==}
     engines: {node: '>=12'}
+
+  webpack-sources@3.2.3:
+    resolution: {integrity: sha512-/DyMEOrDgLKKIG0fmvtz+4dUX/3Ghozwgm6iPp8KRhvn+eQf9+Q7GWxVNMk3+uCPWfdXYC4ExGBckIXdFEfH1w==}
+    engines: {node: '>=10.13.0'}
+
+  webpack-virtual-modules@0.6.2:
+    resolution: {integrity: sha512-66/V2i5hQanC51vBQKPH4aI8NMAcBW59FVBs+rC7eGHupMyfn34q7rZIE+ETlJ+XTevqfUhVVBgSUNSW2flEUQ==}
 
   whatwg-mimetype@3.0.0:
     resolution: {integrity: sha512-nt+N2dzIutVRxARx1nghPKGv1xHikU7HKdfafKkLNLindmPU/ch3U31NOCGGA/dmPcmb1VlofO0vnKAcsm0o/Q==}
@@ -2722,13 +2735,7 @@ snapshots:
       '@tanstack/query-core': 5.44.0
       solid-js: 1.8.17
 
-  '@tma.js/sdk@2.5.0': {}
-
-  '@tma.js/solid-router-integration@5.0.2(@solidjs/router@0.13.6(solid-js@1.8.17))(@tma.js/sdk@2.5.0)(solid-js@1.8.17)':
-    dependencies:
-      '@solidjs/router': 0.13.6(solid-js@1.8.17)
-      '@tma.js/sdk': 2.5.0
-      solid-js: 1.8.17
+  '@telegram-apps/sdk@1.1.3': {}
 
   '@tonconnect/isomorphic-eventsource@0.0.2':
     dependencies:
@@ -4389,6 +4396,19 @@ snapshots:
 
   undici-types@5.26.5: {}
 
+  unplugin-fonts@1.1.1(vite@5.2.11(@types/node@20.12.11)):
+    dependencies:
+      fast-glob: 3.3.2
+      unplugin: 1.11.0
+      vite: 5.2.11(@types/node@20.12.11)
+
+  unplugin@1.11.0:
+    dependencies:
+      acorn: 8.11.3
+      chokidar: 3.6.0
+      webpack-sources: 3.2.3
+      webpack-virtual-modules: 0.6.2
+
   update-browserslist-db@1.0.15(browserslist@4.23.0):
     dependencies:
       browserslist: 4.23.0
@@ -4534,6 +4554,10 @@ snapshots:
   webidl-conversions@3.0.1: {}
 
   webidl-conversions@7.0.0: {}
+
+  webpack-sources@3.2.3: {}
+
+  webpack-virtual-modules@0.6.2: {}
 
   whatwg-mimetype@3.0.0: {}
 

@@ -1,8 +1,5 @@
-import {
-  createDisposeEffect,
-  createTransitionPresence,
-  useCleanup,
-} from "@/lib/solid";
+import { createTransitionPresence, useCleanup } from "@/lib/solid";
+import { type StyleProps } from "@/lib/types";
 import { useNavigate, useSearchParams } from "@solidjs/router";
 import {
   Show,
@@ -15,7 +12,7 @@ import {
   type JSX,
 } from "solid-js";
 import { Portal } from "solid-js/web";
-import { scrollableElement, type StyleProps } from "../common";
+import { scrollableElement } from "./scroll";
 
 const useModalNavigation = ({
   onClose,
@@ -32,7 +29,7 @@ const useModalNavigation = ({
   const navigate = useNavigate();
 
   let isSet = false;
-  createDisposeEffect(() => {
+  createEffect(() => {
     if (!show()) {
       return;
     }
@@ -65,11 +62,11 @@ const useModalNavigation = ({
       isSet = false;
     });
 
-    return () => {
+    onCleanup(() => {
       if (isSet) {
         navigate(-1);
       }
-    };
+    });
   });
 };
 
@@ -135,7 +132,7 @@ export const BottomDialog = <T,>(
                   }
             }
             ref={setDialogRef}
-            class="fixed contain-strict inset-0 z-50 flex flex-col"
+            class="fixed inset-0 z-50 flex flex-col contain-strict"
           >
             <button
               class="absolute inset-0 bg-black/60 opacity-[var(--opacity,0)] transition-opacity duration-300"

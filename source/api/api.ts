@@ -1,7 +1,7 @@
 import axios from "axios";
-import type { model } from ".";
+import type * as model from "./model";
 
-import { authData } from "@/common";
+import { authData } from "@/features/telegramIntegration";
 import { infiniteQueryOptions, queryOptions } from "@tanstack/solid-query";
 import type { Comment, CreateCommentRequest } from "./model";
 
@@ -33,6 +33,12 @@ type RequestResponseMappings = {
     { board: string; next?: string },
     model.NoteArray
   >;
+  "/note/resolve": RequestResponse<
+    { noteId: string },
+    model.Note & {
+      boardId: string;
+    }
+  >;
   "/me": RequestResponse<
     void,
     {
@@ -50,6 +56,9 @@ type RequestResponseMappings = {
   "/note/getComments": RequestResponse<
     {
       noteID: string;
+      /**
+       * @description positive or -1
+       */
       page: number;
       pageSize: number;
     },
@@ -130,30 +139,17 @@ export const keysFactory = {
     queryFn: () => fetchMethod("/me", undefined),
     queryKey: ["me"],
   }),
-  comments: ({
-    noteId,
-    initialPage = 1,
-  }: {
-    noteId: string;
-    initialPage?: number;
-  }) =>
-    infiniteQueryOptions({
-      queryKey: ["comments", noteId],
-      initialPageParam: initialPage,
-      queryFn: ({ pageParam }) =>
-        fetchMethod("/note/getComments", {
-          noteID: noteId,
-          page: pageParam,
-          pageSize: COMMENTS_PAGE_SIZE,
+
+  note: (noteId: string) =>
+    queryOptions({
+      queryKey: ["note", noteId],
+      queryFn: () =>
+        fetchMethod("/note/resolve", {
+          noteId,
         }),
-      getPreviousPageParam: (_, __, firstPageParam) =>
-        firstPageParam > 1 ? firstPageParam - 1 : undefined,
-      getNextPageParam: ({ items }, _, lastPageParam) =>
-        items.length > 0 ? lastPageParam + 1 : undefined,
-      reconcile: "id",
     }),
 
-  commentsNew: ({ noteId, page }: { noteId: string; page: number }) =>
+  comments: ({ noteId, page }: { noteId: string; page: number }) =>
     queryOptions({
       queryKey: ["comments-new", noteId, page],
       queryFn: () =>
@@ -164,4 +160,4 @@ export const keysFactory = {
         }),
     }),
 };
-export const COMMENTS_PAGE_SIZE = 16;
+export const COMMENTS_PAGE_SIZE = 20;

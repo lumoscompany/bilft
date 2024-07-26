@@ -1,5 +1,5 @@
-import { scrollableElement } from "@/common";
 import { useCleanup } from "@/lib/solid";
+import { scrollableElement } from "./scroll";
 
 export const useFixSafariScroll = () =>
   useCleanup((signal) => {

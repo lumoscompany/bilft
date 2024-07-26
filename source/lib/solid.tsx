@@ -1,5 +1,4 @@
 import {
-  createEffect,
   createMemo,
   createRenderEffect,
   createSignal,
@@ -10,14 +9,6 @@ import {
 } from "solid-js";
 
 export type Dispose = () => void;
-export const createDisposeEffect = (effect: () => Dispose | void) =>
-  createEffect((prevDispose: void | Dispose) => {
-    if (prevDispose) {
-      untrack(prevDispose);
-    }
-
-    return effect();
-  });
 
 export const useCleanup = (callback: (signal: AbortSignal) => void) => {
   const abortController = new AbortController();
@@ -27,6 +18,9 @@ export const useCleanup = (callback: (signal: AbortSignal) => void) => {
   onCleanup(() => {
     abortController.abort();
   });
+};
+export const onOptionalCleanup = (callback: undefined | Dispose) => {
+  callback && onCleanup(callback);
 };
 
 export const useObserverCleanup = (
@@ -38,10 +32,17 @@ export const useObserverCleanup = (
   }
 };
 
-export const useCleanupTimeout = (callback: () => void, delay: number) => {
+export const createTimeout = (callback: () => void, delay: number) => {
   const timeoutId = setTimeout(callback, delay);
 
   onCleanup(() => clearTimeout(timeoutId));
+};
+
+export const createInterval = (func: () => void, interval: number) => {
+  const id = setInterval(func, interval);
+  onCleanup(() => {
+    clearInterval(id);
+  });
 };
 
 export type RefFunction<T> = (el: T) => void;
@@ -126,10 +127,10 @@ export const createTransitionPresence = <T,>(params: {
         const curAnimations = _element.getAnimations({
           subtree: true,
         });
-        console.log({
-          curAnimations,
-          prevAnimations,
-        });
+        // console.log({
+        //   curAnimations,
+        //   prevAnimations,
+        // });
 
         let newAnimationsPromise: Promise<unknown> | null = null;
 
@@ -179,23 +180,27 @@ export const createWindowScrollTop = () => {
 export const createInnerHeight = () => {
   const [innerHeight, setInnerHeight] = createSignal(window.innerHeight);
 
-  window.addEventListener("resize", () => {
-    setInnerHeight(window.innerHeight);
-  });
+  useCleanup((signal) =>
+    window.addEventListener(
+      "resize",
+      () => {
+        setInnerHeight(window.innerHeight);
+      },
+      { signal },
+    ),
+  );
 
   return innerHeight;
-};
-
-export const createInterval = (interval: number, func: () => void) => {
-  const id = setInterval(func, interval);
-  onCleanup(() => {
-    clearInterval(id);
-  });
 };
 
 type UnwrapSignals<T extends Record<string, unknown>> = {
   [TKey in keyof T]: T[TKey] extends Accessor<infer TValue> ? TValue : T[TKey];
 };
+/**
+ *
+ * @description useful for console logging bunch of signals
+ * @returns
+ */
 export const unwrapSignals = <T extends Record<string, unknown>>(
   obj: T,
 ): UnwrapSignals<T> => {

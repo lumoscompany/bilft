@@ -4,6 +4,13 @@ export type IsEqual<T> = (a: T, b: T) => boolean;
 
 const cmpAsc = (a: number, b: number) => a - b;
 
+export type CopyArray<T extends readonly unknown[]> =
+  T extends Pick<T, number | keyof ReadonlyArray<T[number]>> ? T : never;
+
+export const ArrayHelperCopy = <T extends readonly unknown[]>(
+  arr: T,
+): CopyArray<T> => arr.slice() as unknown as CopyArray<T>;
+
 export const ArrayHelper = {
   /**
    *
@@ -63,6 +70,9 @@ export const ArrayHelper = {
     nextArray: T[],
     isEqual: (a: T, b: T) => boolean = Object.is,
   ) => {
+    if (prevArray === nextArray) {
+      return true;
+    }
     if (prevArray.length !== nextArray.length) {
       return false;
     }

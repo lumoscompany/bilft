@@ -1,4 +1,5 @@
-import { clsxString, type StyleProps } from "@/common";
+import { clsxString } from "@/lib/clsxString";
+import { type StyleProps } from "@/lib/types";
 import { Show, createRenderEffect, createSignal } from "solid-js";
 
 let img: HTMLImageElement;
@@ -33,7 +34,7 @@ export const AvatarIcon = (
   return (
     <div
       class={clsxString(
-        "relative aspect-square select-none overflow-hidden rounded-full",
+        "pointer-events-none relative aspect-square select-none overflow-hidden rounded-full",
         props.class ?? "",
       )}
     >

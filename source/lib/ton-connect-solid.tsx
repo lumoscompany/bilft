@@ -1,4 +1,3 @@
-import { createDisposeEffect } from "@/lib/solid";
 import type {
   TonConnectUI,
   TonConnectUiOptions,
@@ -6,14 +5,17 @@ import type {
 } from "@tonconnect/ui";
 import {
   createContext,
+  createEffect,
   createMemo,
   createResource,
   createSignal,
+  onCleanup,
   useContext,
   type Accessor,
   type ParentProps,
   type Setter,
 } from "solid-js";
+import { onOptionalCleanup } from "./solid";
 
 const TonContext = createContext<null | (() => TonConnectUI | null)>(null);
 
@@ -34,10 +36,12 @@ export const useTonConnectModal = (): [
   const [tonConnectUI] = useTonConnectUI();
   const [state, setState] = createSignal(tonConnectUI()?.modal.state ?? null);
 
-  createDisposeEffect(() =>
-    tonConnectUI()?.onModalStateChange((ev) => {
-      setState(ev);
-    }),
+  createEffect(() =>
+    onOptionalCleanup(
+      tonConnectUI()?.onModalStateChange((ev) => {
+        setState(ev);
+      }),
+    ),
   );
 
   return [
@@ -54,16 +58,18 @@ export const useTonWallet = (): Accessor<TonConnectUI["wallet"]> => {
 
   const [wallet, setWallet] = createSignal(ctx()?.wallet ?? null);
 
-  createDisposeEffect(() => {
+  createEffect(() => {
     const tonConnectUI = ctx();
     if (!tonConnectUI) {
       return;
     }
     setWallet(tonConnectUI.wallet);
 
-    return tonConnectUI?.onStatusChange((newState) => {
-      setWallet(newState);
-    });
+    onCleanup(
+      tonConnectUI.onStatusChange((newState) => {
+        setWallet(newState);
+      }),
+    );
   });
 
   return wallet;

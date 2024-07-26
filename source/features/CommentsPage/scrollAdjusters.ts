@@ -1,9 +1,9 @@
-import { platform, scrollableElement } from "@/common";
+import { getVirtualizerHandle, scrollableElement } from "@/features/scroll";
+import { platform } from "@/features/telegramIntegration";
 import { assertOk } from "@/lib/assert";
 import { createWindowScrollTop, useCleanup } from "@/lib/solid";
 import { createEffect, on, type Accessor } from "solid-js";
 import type { KeyboardStatus } from "../keyboardStatus";
-import { getVirtualizerHandle } from "../pageTransitions";
 
 export function createOnResizeScrollAdjuster(
   commentCreatorContainer: () => HTMLDivElement,

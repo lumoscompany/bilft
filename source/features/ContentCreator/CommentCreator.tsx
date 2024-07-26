@@ -10,16 +10,17 @@ import type {
   NoteArray,
   NoteWithComment,
 } from "@/api/model";
-import { type StyleProps } from "@/common";
 import { BottomDialog } from "@/features/BottomDialog";
+import { assertOk } from "@/lib/assert";
 import { SignalHelper, type Ref } from "@/lib/solid";
+import { type StyleProps } from "@/lib/types";
 import {
   createMutation,
   createQuery,
   useQueryClient,
 } from "@tanstack/solid-query";
 import { AxiosError } from "axios";
-import { batch, createMemo, createSignal } from "solid-js";
+import { batch, createEffect, createMemo, createSignal } from "solid-js";
 import { PostInput, type PostInputProps } from "./PostInput";
 import { WalletModalContent } from "./WalletModal";
 import { ErrorHelper, type ModalStatus } from "./common";
@@ -29,12 +30,18 @@ export const CommentCreator = (
   props: {
     noteId: string;
     onCreated(comment: model.Comment): Promise<void>;
-    boardId: string;
+    boardId: string | null;
+    disabled: boolean;
   } & StyleProps & {
       ref?: Ref<HTMLFormElement>;
     } & Pick<PostInputProps, "onBlur" | "onFocus">,
 ) => {
   const queryClient = useQueryClient();
+  if (import.meta.env.DEV) {
+    createEffect(() => {
+      assertOk(props.boardId || props.disabled);
+    });
+  }
 
   const [inputValue, setInputValue] = createSignal("");
   const [isAnonymous, setIsAnonymous] = createSignal(false);
@@ -63,11 +70,7 @@ export const CommentCreator = (
       );
     },
     onSettled: () => {
-      queryClient.invalidateQueries({
-        queryKey: keysFactory.comments({
-          noteId: props.noteId,
-        }).queryKey,
-      });
+      assertOk(props.boardId);
       queryClient.invalidateQueries({
         queryKey: keysFactory.notes({
           board: props.boardId,
@@ -84,30 +87,7 @@ export const CommentCreator = (
         setWalletError(walletError);
         return;
       }
-      /* queryClient.setQueryData(
-        keysFactory.comments({
-          noteId: props.noteId,
-        }).queryKey,
-        (data) => {
-          if (!data || !data.pages || data.pages.length < 1) {
-            return data;
-          }
-          const lastPage = data.pages.at(-1);
-          assertOk(lastPage);
-
-          const pages = data.pages.slice(0, -1);
-
-          pages.push({
-            count: lastPage.count,
-            items: [...lastPage.items, comment],
-          });
-
-          return {
-            pageParams: data.pageParams,
-            pages,
-          };
-        },
-      ); */
+      assertOk(props.boardId);
       queryClient.setQueryData(
         keysFactory.notes({
           board: props.boardId,
@@ -150,11 +130,12 @@ export const CommentCreator = (
         },
       );
 
-      await batch(() => {
+      await props.onCreated(comment);
+
+      batch(() => {
         setInputValue("");
         setIsAnonymous(false);
         setWalletError(null);
-        return props.onCreated(comment);
       });
     },
   }));

@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv, type Plugin } from "vite";
 
 import { rm } from "node:fs/promises";
+import Fonts from "unplugin-fonts/vite";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
 import terminal from "vite-plugin-terminal";
 import tsconfigPaths from "vite-tsconfig-paths";
@@ -63,6 +64,7 @@ const tonConnectPlugin = async (webAppUrl: string): Promise<Plugin[]> => {
 const envSchema = z.object({
   VITE_BACKEND_URL: z.string().min(1).url(),
   VITE_SELF_WEBAPP_URL: z.string().min(1).url(),
+  VITE_SELF_BOT_WEBAPP_URL: z.string().min(1).url(),
 });
 
 export default defineConfig(async ({ mode, command }) => {
@@ -94,6 +96,9 @@ export default defineConfig(async ({ mode, command }) => {
       tonConnectPlugin(env.VITE_SELF_WEBAPP_URL),
       solid(),
       tsconfigPaths(),
+      Fonts({
+        fontsource: { families: ["Inter Variable"] },
+      }),
       nodePolyfills({
         globals: {
           Buffer: true,
