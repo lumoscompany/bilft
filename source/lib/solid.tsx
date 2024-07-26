@@ -127,18 +127,11 @@ export const createTransitionPresence = <T,>(params: {
         //   prevAnimations,
         // });
 
-        let newAnimationsPromise: Promise<unknown> | null = null;
+        const filteredAnimations = curAnimations.filter(
+          (it) => !prevAnimations.includes(it),
+        );
 
-        for (const anim of curAnimations) {
-          if (prevAnimations.includes(anim)) {
-            continue;
-          }
-          newAnimationsPromise = newAnimationsPromise
-            ? newAnimationsPromise.finally(() => anim.finished)
-            : anim.finished;
-        }
-
-        if (!newAnimationsPromise) {
+        if (filteredAnimations.length === 0) {
           dismiss();
           return;
         }
@@ -147,7 +140,7 @@ export const createTransitionPresence = <T,>(params: {
           new Promise<void>((resolve) => {
             setTimeout(resolve, timeout);
           }),
-          newAnimationsPromise,
+          Promise.allSettled(filteredAnimations.map((it) => it.finished)),
         ]).finally(dismiss);
       });
     });

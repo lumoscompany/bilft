@@ -581,7 +581,7 @@ export const CommentsPage = () => {
               shouldShowVariantSelector.status() === "present" ? "0px" : "60px",
           }}
           class={clsxString(
-            "absolute bottom-[calc(100%+12px)] right-3 -z-10 flex aspect-square w-10 items-center justify-center rounded-full bg-section-bg transition-[transform,opacity] duration-200 contain-strict after:absolute after:-inset-3 after:content-[''] active:scale-90",
+            "absolute bottom-[calc(100%+12px)] right-3 -z-10 flex aspect-square w-10 items-center justify-center rounded-full bg-section-bg transition-[transform,opacity] duration-200 will-change-[transform,opacity] contain-strict after:absolute after:-inset-3 after:content-[''] active:scale-90",
             shouldShowBottomScroller.present() ? "visible" : "invisible",
             shouldShowBottomScroller.status() === "present"
               ? "translate-y-[--variant-offset]"
