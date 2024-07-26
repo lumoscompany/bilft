@@ -10,7 +10,7 @@ import {
   isEqualIds,
   removePrefix,
 } from "@/features/idUtils";
-import { ArrowPointUp } from "@/icons";
+import { ArrowPointUp, ShareProfileIcon } from "@/icons";
 import { clsxString } from "@/lib/clsxString";
 import { type StyleProps } from "@/lib/types";
 import { queryClient } from "@/queryClient";
@@ -21,6 +21,7 @@ import { Virtualizer } from "virtua/solid";
 import { createCommentsPageUrl } from "../CommentsPage/utils";
 import { useInfiniteScroll } from "../infiniteScroll";
 import { scrollableElement, setVirtualizerHandle } from "../scroll";
+import { utils } from "../telegramIntegration";
 import { CommentNoteFooterLayout } from "./CommantNoteFooterLayour";
 
 const UserStatus = (props: ParentProps<StyleProps>) => (
@@ -92,21 +93,39 @@ const UserProfilePage = (props: {
 
   return (
     <main class="flex min-h-screen flex-col pb-6 pt-4 text-text">
-      <section class="sticky top-0 z-10 mx-2 flex flex-row items-center gap-3 bg-secondary-bg px-4 py-2">
+      <section class="sticky top-0 z-10 mx-2 flex flex-row items-center gap-3 bg-secondary-bg px-2 py-2">
         <AvatarIcon
           class="w-12"
           isLoading={boardQuery.isLoading}
           url={boardQuery.data?.profile?.photo ?? null}
         />
-        <div class="flex flex-1 flex-col">
-          <p class="relative font-inter text-[20px] font-bold leading-6">
-            {boardQuery.data?.profile?.title ?? boardQuery.data?.name ?? " "}
-            <Show when={boardQuery.isLoading}>
-              <div class="absolute inset-y-1 left-0 right-[50%] animate-pulse rounded-xl bg-gray-600" />
-            </Show>
-          </p>
-          {/* TODO: add date */}
-          {/* <p class="text-[15px] font-inter leading-[22px]">Member since Jan 2021</p> */}
+        <div class="flex flex-1 flex-row justify-between">
+          <div class="flex flex-1 flex-col">
+            <p class="relative font-inter text-[20px] font-bold leading-6">
+              {boardQuery.data?.profile?.title ?? boardQuery.data?.name ?? " "}
+              <Show when={boardQuery.isLoading}>
+                <div class="absolute inset-y-1 left-0 right-[50%] animate-pulse rounded-xl bg-gray-600" />
+              </Show>
+            </p>
+            {/* TODO: add date */}
+            {/* <p class="text-[15px] font-inter leading-[22px]">Member since Jan 2021</p> */}
+          </div>
+
+          <button
+            class="transition-opacity active:opacity-50"
+            onClick={() => {
+              const url = new URL(import.meta.env.VITE_SELF_BOT_WEBAPP_URL);
+              url.searchParams.set("startapp", `id${props.idWithoutPrefix}`);
+
+              const shareText =
+                boardQuery.data?.profile?.title ?? boardQuery.data?.name ?? "";
+              const shareUrl = url.toString();
+              utils.shareURL(shareUrl, shareText);
+            }}
+          >
+            <span class="sr-only">Share profile</span>
+            <ShareProfileIcon class="text-accent" />
+          </button>
         </div>
       </section>
 

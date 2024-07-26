@@ -64,6 +64,7 @@ const tonConnectPlugin = async (webAppUrl: string): Promise<Plugin[]> => {
 const envSchema = z.object({
   VITE_BACKEND_URL: z.string().min(1).url(),
   VITE_SELF_WEBAPP_URL: z.string().min(1).url(),
+  VITE_SELF_BOT_WEBAPP_URL: z.string().min(1).url(),
 });
 
 export default defineConfig(async ({ mode, command }) => {
