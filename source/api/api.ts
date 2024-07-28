@@ -1,6 +1,7 @@
 import axios from "axios";
 import type * as model from "./model";
 
+import type { ProfileId, ProfileIdWithoutPrefix } from "@/features/idUtils";
 import { authData } from "@/features/telegramIntegration";
 import { infiniteQueryOptions, queryOptions } from "@tanstack/solid-query";
 import type { Comment, CreateCommentRequest } from "./model";
@@ -16,7 +17,7 @@ type RequestResponse<Request, Response> = {
 };
 
 export type CreateNoteRequest = {
-  board: string;
+  board: ProfileIdWithoutPrefix;
   content: string;
   type: "private" | "public" | "public-anonymous";
 };
@@ -27,16 +28,16 @@ export type GetCommentResponse = {
 };
 
 type RequestResponseMappings = {
-  "/board/resolve": RequestResponse<{ value: string }, model.Board>;
+  "/board/resolve": RequestResponse<{ value: ProfileId }, model.Board>;
   "/board/createNote": RequestResponse<CreateNoteRequest, model.Note>;
   "/board/getNotes": RequestResponse<
-    { board: string; next?: string },
+    { board: ProfileIdWithoutPrefix; next?: string },
     model.NoteArray
   >;
   "/note/resolve": RequestResponse<
     { noteId: string },
     model.Note & {
-      boardId: string;
+      boardId: ProfileIdWithoutPrefix;
     }
   >;
   "/me": RequestResponse<

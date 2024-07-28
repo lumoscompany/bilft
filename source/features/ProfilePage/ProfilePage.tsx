@@ -1,13 +1,14 @@
-import { keysFactory } from "@/api/api";
+import { keysFactory, type CreateNoteRequest } from "@/api/api";
 import type { NoteWithComment } from "@/api/model";
 import { AvatarIcon } from "@/features/BoardNote/AvatarIcon";
 import { BoardNote } from "@/features/BoardNote/BoardNote";
 import { LoadingSvg } from "@/features/LoadingSvg";
 import {
-  addPrefix,
+  ProfileIdAddPrefix,
+  ProfileIdWithoutPrefixCheck,
   getSelfUserId,
   isEqualIds,
-  removePrefix,
+  type ProfileIdWithoutPrefix,
 } from "@/features/idUtils";
 import { ArrowPointUp, ShareProfileIcon } from "@/icons";
 import { assertOk } from "@/lib/assert";
@@ -40,10 +41,10 @@ import {
   createOptimisticModalStatus,
   createUnlinkMutation,
 } from "../ContentCreator/CommentCreator";
-import { createNoteMutation } from "../ContentCreator/PostCreator";
 import { PostInput } from "../ContentCreator/PostInput";
 import { VariantSelector } from "../ContentCreator/VariantSelector";
 import { WalletModalContent } from "../ContentCreator/WalletModal";
+import { createNoteMutation } from "../ContentCreator/post";
 import { useInfiniteScroll } from "../infiniteScroll";
 import { useKeyboardStatus } from "../keyboardStatus";
 import { scrollableElement, setVirtualizerHandle } from "../scroll";
@@ -73,15 +74,15 @@ const UserStatus = (props: ParentProps<StyleProps>) => (
 
 const UserProfilePage = (props: {
   isSelf: boolean;
-  idWithoutPrefix: string;
+  id: ProfileIdWithoutPrefix;
 }) => {
   const boardQuery = createQuery(() =>
     keysFactory.board({
-      value: addPrefix(props.idWithoutPrefix),
+      value: ProfileIdAddPrefix(props.id),
     }),
   );
 
-  const getBoardId = () => removePrefix(props.idWithoutPrefix);
+  const getBoardId = () => props.id;
 
   const notesQuery = createInfiniteQuery(() => ({
     ...keysFactory.notes({
@@ -174,11 +175,17 @@ const UserProfilePage = (props: {
 
   const optimisticModalStatus = createOptimisticModalStatus(walletError);
 
+  const variantMap = {
+    public: "public",
+    anonymous: "public-anonymous",
+    private: "private",
+  } satisfies Record<Variant, CreateNoteRequest["type"]>;
+
   const sendNote = (type: Variant) => {
     addNoteMutation.mutate({
       content: inputValue(),
-      // @ts-expect-error [TODO]: update backend and types
-      type,
+      board: props.id,
+      type: variantMap[type],
     });
   };
   let variantSelectorRef!: HTMLDivElement;
@@ -215,7 +222,7 @@ const UserProfilePage = (props: {
             class="transition-opacity active:opacity-50"
             onClick={() => {
               const url = new URL(import.meta.env.VITE_SELF_BOT_WEBAPP_URL);
-              url.searchParams.set("startapp", `id${props.idWithoutPrefix}`);
+              url.searchParams.set("startapp", `id${props.id}`);
 
               const shareText =
                 boardQuery.data?.profile?.title ?? boardQuery.data?.name ?? "";
@@ -438,11 +445,14 @@ const UserProfilePage = (props: {
 export const ProfilePage = () => {
   const selfUserId = getSelfUserId().toString();
   const params = useParams();
-  const idWithoutPrefix = () => params.idWithoutPrefix;
+  const idWithoutPrefix = () => {
+    assertOk(ProfileIdWithoutPrefixCheck(params.idWithoutPrefix));
+    return params.idWithoutPrefix;
+  };
 
   return (
     <UserProfilePage
-      idWithoutPrefix={idWithoutPrefix()}
+      id={idWithoutPrefix()}
       isSelf={isEqualIds(selfUserId, idWithoutPrefix())}
     />
   );

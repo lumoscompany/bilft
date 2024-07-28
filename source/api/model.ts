@@ -1,4 +1,5 @@
 import type { DateString } from "@/features/format";
+import type { ProfileIdWithoutPrefix } from "@/features/idUtils";
 
 export type ContentAuthor = {
   id: string;
@@ -29,7 +30,7 @@ export type BoardProfile = {
 };
 
 export type Board = {
-  id: string;
+  id: ProfileIdWithoutPrefix;
   isme: boolean;
   name?: string;
   profile?: BoardProfile;

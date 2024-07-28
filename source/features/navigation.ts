@@ -6,7 +6,7 @@ import {
   createCommentPagePathname,
   createCommentPageSearchEntries,
 } from "./CommentsPage/utils";
-import { getSelfUserId, removePrefix } from "./idUtils";
+import { ProfileIdRemovePrefix, getSelfUserId } from "./idUtils";
 import type { StartParam } from "./parseStartParam";
 
 export const createNavigatorFromStartParam = (
@@ -23,11 +23,11 @@ export const createNavigatorFromStartParam = (
     }
 
     return {
-      pathname: `/board/${removePrefix(startParam?.data ?? getSelfUserId())}`,
+      pathname: `/board/${ProfileIdRemovePrefix(startParam?.data ?? getSelfUserId())}`,
     };
   })();
   const selfEntry: BrowserNavigatorAnyHistoryItem<unknown> = {
-    pathname: `/board/${removePrefix(getSelfUserId())}`,
+    pathname: `/board/${ProfileIdRemovePrefix(getSelfUserId())}`,
   };
   const historySessionStorageKey = "app-navigator-state";
   const hasPreviousHistory = !!sessionStorage.getItem(historySessionStorageKey);

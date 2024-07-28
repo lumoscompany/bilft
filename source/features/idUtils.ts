@@ -1,30 +1,19 @@
+import type { CreateUnit } from "@/lib/types";
 import { launchParams } from "./telegramIntegration";
 
-export const addPrefix = (id: string) => (id.startsWith("id") ? id : `id${id}`);
-export const removePrefix = (id: string) =>
-  id.startsWith("id") ? id.slice(2) : id;
+export type ProfileId = CreateUnit<string, "profile-id">;
+export type ProfileIdWithoutPrefix = CreateUnit<
+  string,
+  "profile-id-without-prefix"
+>;
 
-export function getProfileId() {
-  const searchParams = new URLSearchParams(window.location.search);
-  const searchParamsID = searchParams.get("id");
-  if (searchParamsID) {
-    return addPrefix(searchParamsID);
-  }
-
-  {
-    const startParamId = launchParams.initData?.startParam;
-    if (startParamId) {
-      return startParamId;
-    }
-  }
-
-  return addPrefix(getSelfUserId());
-}
-/**
- *
- * @returns Profile id without prefix aka board id
- */
-export const getProfileIdWithoutPrefix = () => removePrefix(getProfileId());
+export const ProfileIdWithoutPrefixCheck = (
+  id: string,
+): id is ProfileIdWithoutPrefix => !id.startsWith("id");
+export const ProfileIdAddPrefix = (id: string): ProfileId =>
+  (id.startsWith("id") ? id : `id${id}`) as ProfileId;
+export const ProfileIdRemovePrefix = (id: string): ProfileIdWithoutPrefix =>
+  (id.startsWith("id") ? id.slice(2) : id) as ProfileIdWithoutPrefix;
 
 export const isEqualIds = (a: string, b: string) => {
   const aStrip = a.slice(a.startsWith("id") ? 2 : 0);
@@ -38,5 +27,5 @@ export const getSelfUserId = () => {
   if (!id) {
     throw new Error("Invalid user");
   }
-  return id.toString();
+  return id.toString() as ProfileId;
 };

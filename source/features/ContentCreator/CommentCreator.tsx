@@ -19,6 +19,7 @@ import {
 } from "@tanstack/solid-query";
 import { AxiosError } from "axios";
 import { createMemo, createSignal } from "solid-js";
+import type { ProfileIdWithoutPrefix } from "../idUtils";
 import { ErrorHelper, type ModalStatus } from "./common";
 
 export const createInputState = <TVariant extends string>(
@@ -40,7 +41,7 @@ export const createInputState = <TVariant extends string>(
 export function createCommentMutation(
   onCreated: (
     comment: model.Comment,
-    boardId: string,
+    boardId: ProfileIdWithoutPrefix,
     noteId: string,
   ) => Promise<void>,
   onResetError: () => void,
@@ -48,7 +49,9 @@ export function createCommentMutation(
 ) {
   const queryClient = useQueryClient();
   return createMutation(() => ({
-    mutationFn: (request: CreateCommentRequest & { boardId: string }) => {
+    mutationFn: (
+      request: CreateCommentRequest & { boardId: ProfileIdWithoutPrefix },
+    ) => {
       return ErrorHelper.tryCatchAsyncMap(
         () => fetchMethod("/note/createComment", request),
         (error) => {
