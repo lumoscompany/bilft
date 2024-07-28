@@ -9,6 +9,7 @@ export type ContentAuthor = {
 
 export type Note = {
   id: string;
+  type: "private" | "public" | "public-anonymous";
   author?: ContentAuthor;
   createdAt: DateString;
   content: string;

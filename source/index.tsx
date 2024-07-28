@@ -32,6 +32,28 @@ const cleanup = bindThemeParamsCSSVars(themeParams);
 if (import.meta.hot) {
   import.meta.hot.dispose(cleanup);
 }
+const dispose = (() => {
+  let textOpposite: string;
+  const updateTextOpposite = () => {
+    textOpposite = themeParams.isDark ? "#000" : "#FFF";
+    document.documentElement.style.setProperty(
+      "--theme-text-opposite-color",
+      textOpposite,
+    );
+  };
+
+  themeParams.on("change", () => {
+    updateTextOpposite();
+  });
+  updateTextOpposite();
+  return () => {
+    themeParams.off("change", updateTextOpposite);
+  };
+})();
+
+if (import.meta.hot) {
+  import.meta.hot.dispose(dispose);
+}
 
 miniApp.setHeaderColor("secondary_bg_color");
 

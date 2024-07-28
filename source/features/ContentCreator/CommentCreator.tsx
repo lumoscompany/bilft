@@ -102,6 +102,7 @@ export function createCommentMutation(
               const note = notesPage.data[j];
               if (note.id === noteID) {
                 const newNote: NoteWithComment = {
+                  type: note.type,
                   commentsCount: note.commentsCount + 1,
                   content: note.content,
                   createdAt: note.createdAt,

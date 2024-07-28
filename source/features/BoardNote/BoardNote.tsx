@@ -4,7 +4,7 @@ import {
   type DateString,
 } from "@/features/format";
 import { platform, themeParams } from "@/features/telegramIntegration";
-import { AnonymousAvatarIcon } from "@/icons";
+import { AnonymousAvatarIcon, LockIcon } from "@/icons";
 import { clsxString } from "@/lib/clsxString";
 import { type StyleProps } from "@/lib/types";
 import { A } from "@solidjs/router";
@@ -12,17 +12,15 @@ import { Show, type ComponentProps, type ParentProps } from "solid-js";
 import { Ripples } from "../Ripple";
 import { AvatarIcon } from "./AvatarIcon";
 
-const BoardNotePublicHeader = (props: {
+const BoardNoteAuthorHeader = (props: {
+  private: boolean;
   name: string;
   avatarUrl: string | null;
   authorId: string | null;
   createdAt: DateString;
-
-  onClick?: (e: MouseEvent) => void;
 }) => (
   <A
     href={`/board/${props.authorId}`}
-    onClick={props.onClick}
     class="group relative isolate flex items-center gap-[10px] px-[14px] pb-[10px] pt-[14px]"
   >
     <Show when={platform === "ios"} fallback={<Ripples />}>
@@ -38,8 +36,19 @@ const BoardNotePublicHeader = (props: {
         {formatPostTime(props.createdAt)}
       </div>
     </div>
+
+    <Show when={props.private}>
+      <div class="text-text-opposite ml-auto flex flex-row items-center justify-center gap-[2px] rounded-full bg-accent py-[6px] pl-2 pr-[10px]">
+        <LockIcon />
+
+        <span class="font-inter text-[13px] font-[590] leading-[18px]">
+          private
+        </span>
+      </div>
+    </Show>
   </A>
 );
+
 const BoardNoteAnonymousHeader = (props: { createdAt: DateString }) => (
   <div class="flex items-center gap-[10px] px-[14px] pb-[10px] pt-[14px]">
     <AnonymousAvatarIcon
@@ -62,10 +71,7 @@ const BoardNoteAnonymousHeader = (props: { createdAt: DateString }) => (
 );
 const BoardNoteDivider = (props: StyleProps) => (
   <div
-    class={clsxString(
-      "mx-[14px] h-separator bg-hint opacity-50",
-      props.class ?? "",
-    )}
+    class={clsxString("h-separator bg-hint opacity-50", props.class ?? "")}
   />
 );
 
@@ -129,8 +135,8 @@ const BoardNoteRoot = (props: ComponentProps<"article">) => (
  */
 export const BoardNote = Object.assign(BoardNoteRoot, {
   Card: BoardNoteCard,
-  PublicHeader: BoardNotePublicHeader,
-  PrivateHeader: BoardNoteAnonymousHeader,
+  AuthorHeader: BoardNoteAuthorHeader,
+  AnonymousHeader: BoardNoteAnonymousHeader,
   Divider: BoardNoteDivider,
   Content: BoardNoteContent,
   ContentLink: BoardNoteContentLink,

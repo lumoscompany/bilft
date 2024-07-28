@@ -361,12 +361,13 @@ export const CommentsPage = () => {
               <>
                 <Switch
                   fallback={
-                    <BoardNote.PrivateHeader createdAt={note().createdAt} />
+                    <BoardNote.AnonymousHeader createdAt={note().createdAt} />
                   }
                 >
                   <Match when={note().author}>
                     {(author) => (
-                      <BoardNote.PublicHeader
+                      <BoardNote.AuthorHeader
+                        private={note().type === "private"}
                         name={author().name}
                         avatarUrl={author().photo}
                         authorId={author().id}
