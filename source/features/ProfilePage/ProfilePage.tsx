@@ -10,7 +10,13 @@ import {
   isEqualIds,
   type ProfileIdWithoutPrefix,
 } from "@/features/idUtils";
-import { ArrowPointUp, ShareProfileIcon } from "@/icons";
+import {
+  AnonymousHintIcon,
+  ArrowPointUp,
+  PrivateHintIcon,
+  PublicHintIcon,
+  ShareProfileIcon,
+} from "@/icons";
 import { assertOk } from "@/lib/assert";
 import { clsxString } from "@/lib/clsxString";
 import { PxStringFromNumber } from "@/lib/pxString";
@@ -42,7 +48,16 @@ import {
   createUnlinkMutation,
 } from "../ContentCreator/CommentCreator";
 import { PostInput } from "../ContentCreator/PostInput";
-import { VariantSelector } from "../ContentCreator/VariantSelector";
+import {
+  SEND_ANONYMOUS_DESCRIPTION,
+  SEND_ANONYMOUS_TITLE,
+  SEND_PRIVATE_DESCRIPTION,
+  SEND_PRIVATE_TITLE,
+  SEND_PUBLIC_DESCRIPTION,
+  SEND_PUBLIC_TITLE,
+  VariantEntryMake,
+  VariantSelector,
+} from "../ContentCreator/VariantSelector";
 import { WalletModalContent } from "../ContentCreator/WalletModal";
 import { createNoteMutation } from "../ContentCreator/post";
 import { useInfiniteScroll } from "../infiniteScroll";
@@ -139,13 +154,32 @@ const UserProfilePage = (props: {
   createOnResizeScrollAdjuster(() => commentCreatorContainerRef);
   //#endregion scroll
 
-  const variants = ["public", "anonymous", "private"] as const;
-  type Variant = (typeof variants)[number];
+  const variants = [
+    VariantEntryMake(
+      "public",
+      SEND_PUBLIC_TITLE,
+      SEND_PUBLIC_DESCRIPTION,
+      () => <PublicHintIcon />,
+    ),
+    VariantEntryMake(
+      "anonymous",
+      SEND_ANONYMOUS_TITLE,
+      SEND_ANONYMOUS_DESCRIPTION,
+      () => <AnonymousHintIcon />,
+    ),
+    VariantEntryMake(
+      "private",
+      SEND_PRIVATE_TITLE,
+      SEND_PRIVATE_DESCRIPTION,
+      () => <PrivateHintIcon />,
+    ),
+  ] as const;
+  type Variant = (typeof variants)[number]["value"];
   const [
     [inputValue, setInputValue],
     [walletError, setWalletError],
     [variant, setVariant],
-  ] = createInputState<Variant>(variants[0]);
+  ] = createInputState<Variant>(variants[0].value);
 
   const addNoteMutation = createNoteMutation(
     () => {

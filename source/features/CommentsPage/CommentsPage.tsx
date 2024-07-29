@@ -7,7 +7,12 @@ import {
   setVirtualizerHandle,
 } from "@/features/scroll";
 import { platform } from "@/features/telegramIntegration";
-import { AnonymousAvatarIcon, ArrowDownIcon } from "@/icons";
+import {
+  AnonymousAvatarIcon,
+  AnonymousHintIcon,
+  ArrowDownIcon,
+  PublicHintIcon,
+} from "@/icons";
 import { assertOk } from "@/lib/assert";
 import { clsxString } from "@/lib/clsxString";
 import { PxStringFromNumber, type PxString } from "@/lib/pxString";
@@ -43,7 +48,15 @@ import {
   PostInput,
   createInputFocusPreventer,
 } from "../ContentCreator/PostInput";
-import { VariantSelector } from "../ContentCreator/VariantSelector";
+import {
+  SEND_ANONYMOUS_DESCRIPTION,
+  SEND_ANONYMOUS_TITLE,
+  SEND_PUBLIC_DESCRIPTION,
+  SEND_PUBLIC_TITLE,
+  VariantEntryMake,
+  VariantSelector,
+  type VariantEntry,
+} from "../ContentCreator/VariantSelector";
 import { WalletModalContent } from "../ContentCreator/WalletModal";
 import { LoadingSvg } from "../LoadingSvg";
 import type { ProfileIdWithoutPrefix } from "../idUtils";
@@ -525,13 +538,26 @@ export const CommentsFooter = (props: {
 
   ref: Ref<HTMLElement>;
 }) => {
-  const variants = ["public", "anonymous"] as const;
-  type Variant = (typeof variants)[number];
+  const variants = [
+    VariantEntryMake(
+      "public",
+      SEND_PUBLIC_TITLE,
+      SEND_PUBLIC_DESCRIPTION,
+      () => <PublicHintIcon />,
+    ),
+    VariantEntryMake(
+      "anonymous",
+      SEND_ANONYMOUS_TITLE,
+      SEND_ANONYMOUS_DESCRIPTION,
+      () => <AnonymousHintIcon />,
+    ),
+  ] satisfies VariantEntry<string>[];
+  type Variant = (typeof variants)[number]["value"];
   const [
     [inputValue, setInputValue],
     [walletError, setWalletError],
     [variant, setVariant],
-  ] = createInputState<Variant>(variants[0]);
+  ] = createInputState<Variant>(variants[0].value);
 
   const addCommentMutation = createCommentMutation(
     async (comment) => {
