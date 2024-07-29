@@ -159,19 +159,19 @@ const UserProfilePage = (props: {
       "public",
       SEND_PUBLIC_TITLE,
       SEND_PUBLIC_DESCRIPTION,
-      () => <PublicHintIcon />,
+      PublicHintIcon,
     ),
     VariantEntryMake(
       "anonymous",
       SEND_ANONYMOUS_TITLE,
       SEND_ANONYMOUS_DESCRIPTION,
-      () => <AnonymousHintIcon />,
+      AnonymousHintIcon,
     ),
     VariantEntryMake(
       "private",
       SEND_PRIVATE_TITLE,
       SEND_PRIVATE_DESCRIPTION,
-      () => <PrivateHintIcon />,
+      PrivateHintIcon,
     ),
   ] as const;
   type Variant = (typeof variants)[number]["value"];

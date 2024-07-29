@@ -278,8 +278,6 @@ export const LockIcon = (props: ComponentProps<"svg">) => (
 
 export const AnonymousHintIcon = (props: ComponentProps<"svg">) => (
   <svg
-    width="28"
-    height="28"
     viewBox="0 0 28 28"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
@@ -306,8 +304,6 @@ export const AnonymousHintIcon = (props: ComponentProps<"svg">) => (
 
 export const PublicHintIcon = (props: ComponentProps<"svg">) => (
   <svg
-    width="28"
-    height="28"
     viewBox="0 0 28 28"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
@@ -324,8 +320,6 @@ export const PublicHintIcon = (props: ComponentProps<"svg">) => (
 
 export const PrivateHintIcon = (props: ComponentProps<"svg">) => (
   <svg
-    width="28"
-    height="28"
     viewBox="0 0 28 28"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"

@@ -543,13 +543,13 @@ export const CommentsFooter = (props: {
       "public",
       SEND_PUBLIC_TITLE,
       SEND_PUBLIC_DESCRIPTION,
-      () => <PublicHintIcon />,
+      PublicHintIcon,
     ),
     VariantEntryMake(
       "anonymous",
       SEND_ANONYMOUS_TITLE,
       SEND_ANONYMOUS_DESCRIPTION,
-      () => <AnonymousHintIcon />,
+      AnonymousHintIcon,
     ),
   ] satisfies VariantEntry<string>[];
   type Variant = (typeof variants)[number]["value"];

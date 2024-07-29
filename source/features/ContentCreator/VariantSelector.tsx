@@ -1,6 +1,8 @@
+import { CloseIcon } from "@/icons";
 import { assertOk } from "@/lib/assert";
 import { clsxString } from "@/lib/clsxString";
 import { createTransitionPresence } from "@/lib/solid";
+import type { StyleProps } from "@/lib/types";
 import {
   For,
   Show,
@@ -10,6 +12,8 @@ import {
   type JSXElement,
 } from "solid-js";
 import { Dynamic } from "solid-js/web";
+import { BottomDialog } from "../BottomDialog";
+import { Ripples } from "../Ripple";
 import { platform } from "../telegramIntegration";
 import { createInputFocusPreventer } from "./PostInput";
 import { pointIsInsideBox } from "./point";
@@ -29,13 +33,13 @@ export type VariantEntry<T extends string> = {
   value: T;
   title: string;
   description: string;
-  icon: () => JSXElement;
+  icon: (props: StyleProps) => JSXElement;
 };
 export const VariantEntryMake = <T extends string>(
   value: T,
   title: string,
   description: string,
-  icon: () => JSXElement,
+  icon: (props: StyleProps) => JSXElement,
 ): VariantEntry<T> => ({
   value,
   title,
@@ -140,6 +144,11 @@ export const VariantSelector = <T extends string>(props: {
     element: popoverRef,
     when: () => isGripping() && touchOver(),
   });
+
+  const [bottomSheet, setBottomSheet] = createSignal<T | null>(null);
+  const bottomSheetInfo = createMemo(
+    () => props.variants.find((it) => it.value === bottomSheet()) ?? null,
+  );
   // createComputed((prev: T | null) => {
   //   const present = presentPopover.present();
   //   if (!present) {
@@ -261,7 +270,14 @@ export const VariantSelector = <T extends string>(props: {
                   ? "opacity-30"
                   : "",
               )}
-              onClick={() => {
+              onClick={(e) => {
+                if ((e as unknown as PointerEvent).pointerType === "touch") {
+                  return;
+                }
+                if (variant === props.value) {
+                  setBottomSheet(() => variant);
+                  return;
+                }
                 moveSelectorWithPhysics(variant);
               }}
               // we cannot disable input because it will redirect focus to nothing, only option is to delay disabled update
@@ -294,7 +310,10 @@ export const VariantSelector = <T extends string>(props: {
                     class="flex -translate-x-[calc(100%*var(--index))] flex-row items-center px-4 opacity-[--opacity] drop-shadow-md transition-[transform,opacity] duration-200"
                   >
                     <div class={"flex flex-row gap-2 rounded-3xl bg-bg p-4"}>
-                      <Dynamic component={variant.icon} />
+                      <Dynamic
+                        component={variant.icon}
+                        class="aspect-square w-7"
+                      />
                       <div class="flex flex-1 flex-col gap-[2px]">
                         <strong class="font-inter text-base leading-[22px] text-text">
                           {variant.title}
@@ -311,6 +330,49 @@ export const VariantSelector = <T extends string>(props: {
           </Show>
         </div>
       </div>
+      <BottomDialog
+        onClose={() => setBottomSheet(null)}
+        when={bottomSheetInfo()}
+      >
+        {(variant) => (
+          <div class="flex flex-col items-center pb-3">
+            <section class="relative flex justify-end self-stretch pb-3 pr-1 pt-5">
+              <button
+                onClick={() => {
+                  setBottomSheet(null);
+                }}
+                type="button"
+              >
+                <span class="sr-only">Close</span>
+                <CloseIcon class="text-accent" />
+              </button>
+            </section>
+            <Dynamic
+              component={variant().icon}
+              class="aspect-square w-[82px]"
+            />
+
+            <strong class="mt-6 text-center font-inter text-xl font-semibold leading-6 text-text">
+              {variant().title}
+            </strong>
+            <p class="mt-2 text-center font-inter text-[17px] leading-[22px] text-text">
+              {variant().description}
+            </p>
+
+            <button
+              onClick={() => {
+                setBottomSheet(null);
+              }}
+              class="relative mt-[76px] flex w-full items-center justify-center overflow-hidden rounded-xl bg-accent p-[14px] font-inter text-text"
+            >
+              <Show when={platform === "ios"} fallback={<Ripples />}>
+                <div class="pointer-events-none absolute inset-0 -z-10 bg-text opacity-0 transition-opacity ease-out group-active:opacity-10" />
+              </Show>
+              Fine
+            </button>
+          </div>
+        )}
+      </BottomDialog>
     </article>
   );
 };
