@@ -1,22 +1,22 @@
 import { CloseIcon } from "@/icons";
 import { assertOk } from "@/lib/assert";
 import { clsxString } from "@/lib/clsxString";
-import { createTransitionPresence } from "@/lib/solid";
+import { createTransitionPresence, SignalHelper } from "@/lib/solid";
 import type { StyleProps } from "@/lib/types";
 import {
-  For,
-  Show,
   batch,
   createMemo,
   createSignal,
+  For,
+  Show,
   type JSXElement,
 } from "solid-js";
 import { Dynamic } from "solid-js/web";
 import { BottomDialog } from "../BottomDialog";
 import { Ripples } from "../Ripple";
 import { platform } from "../telegramIntegration";
-import { createInputFocusPreventer } from "./PostInput";
 import { pointIsInsideBox } from "./point";
+import { createInputFocusPreventer } from "./PostInput";
 
 export const SEND_PUBLIC_TITLE = "Send public";
 export const SEND_PRIVATE_TITLE = "Send private";
@@ -142,7 +142,7 @@ export const VariantSelector = <T extends string>(props: {
   const [popoverRef, setPopoverRef] = createSignal<HTMLElement>();
   const presentPopover = createTransitionPresence({
     element: popoverRef,
-    when: () => isGripping() && touchOver(),
+    when: () => (isGripping() && touchOver()) || null,
   });
 
   const [bottomSheet, setBottomSheet] = createSignal<T | null>(null);
@@ -295,39 +295,42 @@ export const VariantSelector = <T extends string>(props: {
           class={clsxString(
             "grid grid-cols-1 content-center transition-opacity duration-300 [&>*]:[grid-area:1/1/2/2]",
             presentPopover.status() === "present" ? "" : "opacity-0",
+            presentPopover.present() ? "" : "invisible",
           )}
         >
-          <Show when={presentPopover.present()}>
-            {(status) => (
-              <For each={props.variants}>
-                {(variant, index) => (
-                  <div
-                    style={{
-                      "--index": index() - variantValues().indexOf(status()),
-                      "--opacity":
-                        index() === variantValues().indexOf(status()) ? 1 : 0.5,
-                    }}
-                    class="flex -translate-x-[calc(100%*var(--index))] flex-row items-center px-4 opacity-[--opacity] drop-shadow-md transition-[transform,opacity] duration-200"
-                  >
-                    <div class={"flex flex-row gap-2 rounded-3xl bg-bg p-4"}>
-                      <Dynamic
-                        component={variant.icon}
-                        class="aspect-square w-7"
-                      />
-                      <div class="flex flex-1 flex-col gap-[2px]">
-                        <strong class="font-inter text-base leading-[22px] text-text">
-                          {variant.title}
-                        </strong>
-                        <p class="font-inter text-sm leading-[18px] text-subtitle">
-                          {variant.description}
-                        </p>
-                      </div>
+          <For each={props.variants}>
+            {(variant, index) => {
+              const relativeToActiveIndex = () =>
+                SignalHelper.map(presentPopover.present, (value) =>
+                  value === null ? 0 : index() - variantValues().indexOf(value),
+                );
+
+              return (
+                <div
+                  style={{
+                    "--index": relativeToActiveIndex(),
+                    "--opacity": relativeToActiveIndex() === 0 ? 1 : 0.5,
+                  }}
+                  class="flex -translate-x-[calc(100%*var(--index))] flex-row items-center px-4 opacity-[--opacity] drop-shadow-md transition-[transform,opacity] duration-200"
+                >
+                  <div class={"flex flex-row gap-2 rounded-3xl bg-bg p-4"}>
+                    <Dynamic
+                      component={variant.icon}
+                      class="aspect-square w-7"
+                    />
+                    <div class="flex flex-1 flex-col gap-[2px]">
+                      <strong class="font-inter text-base leading-[22px] text-text">
+                        {variant.title}
+                      </strong>
+                      <p class="font-inter text-sm leading-[18px] text-subtitle">
+                        {variant.description}
+                      </p>
                     </div>
                   </div>
-                )}
-              </For>
-            )}
-          </Show>
+                </div>
+              );
+            }}
+          </For>
         </div>
       </div>
       <BottomDialog
