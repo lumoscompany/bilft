@@ -203,14 +203,6 @@ export const AnonymousAvatarIcon = (props: ComponentProps<"svg">) => (
   >
     <g clip-path="url(#clip0_1407_15170)">
       <rect width="40" height="40" rx="20" fill="currentFill" />
-      {/* <circle
-        cx="20"
-        cy="20"
-        r="20.25"
-        stroke="black"
-        stroke-opacity="0.05"
-        stroke-width="0.5"
-      /> */}
       <path
         fill-rule="evenodd"
         clip-rule="evenodd"
