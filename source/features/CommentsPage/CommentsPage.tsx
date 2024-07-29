@@ -1,4 +1,4 @@
-import { COMMENTS_PAGE_SIZE, keysFactory } from "@/api/api";
+import { keysFactory } from "@/api/api";
 import type { Comment, Note } from "@/api/model";
 import { formatPostDate, formatPostTime } from "@/features/format";
 import {
@@ -27,6 +27,7 @@ import {
   createMemo,
   createSignal,
   on,
+  onMount,
 } from "solid-js";
 import { Virtualizer } from "virtua/solid";
 import { AvatarIcon } from "../BoardNote/AvatarIcon";
@@ -270,7 +271,13 @@ export const CommentsPage = () => {
   // );
   //
 
+  const [scrollTop, setScrollTop] = createSignal(0);
+  const [isRendered, setIsRendered] = createSignal(false);
+  onMount(() => setIsRendered(true));
   const showBottomScroller = createMemo(() => {
+    if (!isRendered()) {
+      return false;
+    }
     // for some reason on IOS scroll is not working when keyboard open
     // [TODO]: figure out why
     if (platform === "ios" && keyboard.isKeyboardOpen()) {
@@ -281,14 +288,17 @@ export const CommentsPage = () => {
     if (!count) {
       return false;
     }
+    if (reversingComments.hasNextPage()) {
+      return true;
+    }
 
-    return (
-      count -
-        COMMENTS_PAGE_SIZE *
-          ((reversingComments.firstLoadedPageNumber() ?? 1) - 1) -
-        (range()?.[1] ?? 0) >
-      10
-    );
+    const scrollSize = getVirtualizerHandle()?.scrollSize;
+    const viewportHeight = getVirtualizerHandle()?.viewportSize;
+    if (scrollSize === undefined || viewportHeight === undefined) {
+      return false;
+    }
+
+    return scrollSize - viewportHeight - scrollTop() > 500;
   });
 
   return (
@@ -344,6 +354,8 @@ export const CommentsPage = () => {
               reversingComments.checkIsReversed(range());
             }}
             onScroll={(e) => {
+              setScrollTop(e);
+
               if (platform !== "ios" || e > 0) {
                 return;
               }
