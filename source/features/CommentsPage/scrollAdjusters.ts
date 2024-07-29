@@ -1,6 +1,5 @@
 import { getVirtualizerHandle, scrollableElement } from "@/features/scroll";
 import { platform } from "@/features/telegramIntegration";
-import { assertOk } from "@/lib/assert";
 import { createWindowScrollTop, useCleanup } from "@/lib/solid";
 import {
   createEffect,
@@ -14,11 +13,12 @@ import type { KeyboardStatus } from "../keyboardStatus";
 import { useScreenSize } from "../screenSize";
 
 export function createOnResizeScrollAdjuster(
-  commentCreatorContainer: () => HTMLDivElement,
+  commentCreatorContainer: Accessor<HTMLElement | undefined>,
 ) {
   createEffect(() => {
     const commentCreatorContainerRef = commentCreatorContainer();
-    assertOk(commentCreatorContainerRef);
+    if (!commentCreatorContainerRef) return;
+
     useCleanup((signal) => {
       let prevHeight = commentCreatorContainerRef.clientHeight;
       const resizeObserver = new ResizeObserver(() => {

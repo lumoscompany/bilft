@@ -1,5 +1,5 @@
 import { COMMENTS_PAGE_SIZE, keysFactory } from "@/api/api";
-import type { Comment } from "@/api/model";
+import type { Comment, Note } from "@/api/model";
 import { formatPostDate, formatPostTime } from "@/features/format";
 import {
   getVirtualizerHandle,
@@ -10,8 +10,12 @@ import { platform } from "@/features/telegramIntegration";
 import { AnonymousAvatarIcon, ArrowDownIcon } from "@/icons";
 import { assertOk } from "@/lib/assert";
 import { clsxString } from "@/lib/clsxString";
-import { PxStringFromNumber } from "@/lib/pxString";
-import { createInnerHeight, createTransitionPresence } from "@/lib/solid";
+import { PxStringFromNumber, type PxString } from "@/lib/pxString";
+import {
+  createInnerHeight,
+  createTransitionPresence,
+  type Ref,
+} from "@/lib/solid";
 import { A, useParams } from "@solidjs/router";
 import { createQuery } from "@tanstack/solid-query";
 import {
@@ -41,6 +45,7 @@ import {
 import { VariantSelector } from "../ContentCreator/VariantSelector";
 import { WalletModalContent } from "../ContentCreator/WalletModal";
 import { LoadingSvg } from "../LoadingSvg";
+import type { ProfileIdWithoutPrefix } from "../idUtils";
 import { useKeyboardStatus } from "../keyboardStatus";
 import { createReversingCommentsQuery } from "./createReversingCommentsQuery";
 import {
@@ -71,7 +76,6 @@ export const CommentsPage = () => {
   const noteId = () => params.noteId;
 
   const note = createQuery(() => keysFactory.note(params.noteId));
-  const boardId = () => note.data?.boardId;
 
   const [isReversed, setIsReversed] = useReversed();
   const reversingComments = createReversingCommentsQuery(
@@ -114,17 +118,19 @@ export const CommentsPage = () => {
       ? createCommentInputBottomOffset(innerHeight, keyboard)
       : null;
 
-  const commentInputBottomOffsetPx = commentInputBottomOffset
-    ? () => PxStringFromNumber(commentInputBottomOffset())
-    : null;
   if (platform === "ios") {
     assertOk(commentInputBottomOffset);
     createSafariScrollAdjuster(keyboard, commentInputBottomOffset);
   } else {
     createScrollAdjuster(innerHeight);
   }
-  let commentCreatorContainerRef!: HTMLDivElement;
-  createOnResizeScrollAdjuster(() => commentCreatorContainerRef);
+
+  const commentInputBottomOffsetPx = commentInputBottomOffset
+    ? () => PxStringFromNumber(commentInputBottomOffset())
+    : null;
+  const [commentCreatorContainerRef, setCommentCreatorContainerRef] =
+    createSignal<HTMLElement>();
+  createOnResizeScrollAdjuster(commentCreatorContainerRef);
   //#endregion scroll
 
   const [range, setRange] = createSignal<[number, number]>([0, 0], {
@@ -191,33 +197,6 @@ export const CommentsPage = () => {
 
     await reversingComments.reverse(comment);
   };
-
-  const showBottomScroller = createMemo(() => {
-    // for some reason on IOS scroll is not working when keyboard open
-    // [TODO]: figure out why
-    if (platform === "ios" && keyboard.isKeyboardOpen()) {
-      return false;
-    }
-    const count = reversingComments.commentsCount();
-
-    if (!count) {
-      return false;
-    }
-
-    return (
-      count -
-        COMMENTS_PAGE_SIZE *
-          ((reversingComments.firstLoadedPageNumber() ?? 1) - 1) -
-        (range()?.[1] ?? 0) >
-      10
-    );
-  });
-
-  let bottomScroller!: HTMLButtonElement;
-  const shouldShowBottomScroller = createTransitionPresence({
-    when: showBottomScroller,
-    element: () => bottomScroller,
-  });
 
   const _commentsWithLoaders = createMemo(() => {
     if (reversingComments.isLoading()) {
@@ -291,58 +270,25 @@ export const CommentsPage = () => {
   // );
   //
 
-  const variants = ["public", "anonymous"] as const;
-  type Variant = (typeof variants)[number];
-  const [
-    [inputValue, setInputValue],
-    [walletError, setWalletError],
-    [variant, setVariant],
-  ] = createInputState<Variant>(variants[0]);
+  const showBottomScroller = createMemo(() => {
+    // for some reason on IOS scroll is not working when keyboard open
+    // [TODO]: figure out why
+    if (platform === "ios" && keyboard.isKeyboardOpen()) {
+      return false;
+    }
+    const count = reversingComments.commentsCount();
 
-  const addCommentMutation = createCommentMutation(
-    async (comment) => {
-      await onScrollDown(comment);
+    if (!count) {
+      return false;
+    }
 
-      batch(() => {
-        setWalletError(null);
-        setInputValue("");
-      });
-    },
-    () => {
-      setWalletError(null);
-    },
-    (error) => {
-      setWalletError(error);
-    },
-  );
-
-  const unlinkMutation = createUnlinkMutation(
-    walletError,
-    setWalletError,
-    setWalletError,
-  );
-
-  const optimisticModalStatus = createOptimisticModalStatus(walletError);
-
-  const sendComment = (type: Variant) => {
-    const _boardId = boardId();
-    assertOk(_boardId);
-
-    addCommentMutation.mutate({
-      noteID: noteId(),
-      content: inputValue(),
-      type,
-      boardId: _boardId,
-    });
-  };
-  let variantSelectorRef!: HTMLDivElement;
-  const shouldShowVariantSelector = createTransitionPresence({
-    when: () =>
-      (platform !== "android" && platform !== "ios") ||
-      inputValue().length > 0 ||
-      keyboard.isKeyboardOpen(),
-    element: () => variantSelectorRef,
-    animateInitial: false,
+    return (
+      count -
+        COMMENTS_PAGE_SIZE *
+          ((reversingComments.firstLoadedPageNumber() ?? 1) - 1) -
+        (range()?.[1] ?? 0) >
+      10
+    );
   });
 
   return (
@@ -539,11 +485,103 @@ export const CommentsPage = () => {
         </Match>
       </Switch>
 
+      <Show when={note.data}>
+        {(note) => (
+          <CommentsFooter
+            inputBottomOffset={commentInputBottomOffsetPx?.() ?? null}
+            showBottomScroller={showBottomScroller()}
+            ref={setCommentCreatorContainerRef}
+            boardId={note().boardId}
+            noteId={note().id}
+            noteType={note().type}
+            onScrollDown={onScrollDown}
+          />
+        )}
+      </Show>
+    </main>
+  );
+};
+
+export const CommentsFooter = (props: {
+  boardId: ProfileIdWithoutPrefix;
+  noteId: string;
+  noteType: Note["type"];
+  inputBottomOffset: PxString | null;
+  showBottomScroller: boolean;
+
+  onScrollDown(comment: Comment | null): Promise<void>;
+
+  ref: Ref<HTMLElement>;
+}) => {
+  const variants = ["public", "anonymous"] as const;
+  type Variant = (typeof variants)[number];
+  const [
+    [inputValue, setInputValue],
+    [walletError, setWalletError],
+    [variant, setVariant],
+  ] = createInputState<Variant>(variants[0]);
+
+  const addCommentMutation = createCommentMutation(
+    async (comment) => {
+      await props.onScrollDown(comment);
+
+      batch(() => {
+        setWalletError(null);
+        setInputValue("");
+      });
+    },
+    () => {
+      setWalletError(null);
+    },
+    (error) => {
+      setWalletError(error);
+    },
+  );
+
+  const unlinkMutation = createUnlinkMutation(
+    walletError,
+    setWalletError,
+    setWalletError,
+  );
+
+  const optimisticModalStatus = createOptimisticModalStatus(walletError);
+
+  const sendComment = (type: Variant) => {
+    const _boardId = props.boardId;
+    assertOk(_boardId);
+
+    addCommentMutation.mutate({
+      noteID: props.noteId,
+      content: inputValue(),
+      type,
+      boardId: props.boardId,
+    });
+  };
+  const [variantSelectorRef, setVariantSelectorRef] =
+    createSignal<HTMLDivElement>();
+  const keyboard = useKeyboardStatus();
+  const shouldShowVariantSelector = createTransitionPresence({
+    when: () =>
+      (platform !== "android" && platform !== "ios") ||
+      inputValue().length > 0 ||
+      keyboard.isKeyboardOpen(),
+    element: variantSelectorRef,
+    animateInitial: false,
+  });
+
+  let bottomScroller!: HTMLButtonElement;
+  const shouldShowBottomScroller = createTransitionPresence({
+    when: () => props.showBottomScroller,
+    element: () => bottomScroller,
+  });
+
+  return (
+    <>
       <Show
         when={
           platform === "ios" &&
-          commentInputBottomOffsetPx &&
-          commentInputBottomOffsetPx()
+          props.inputBottomOffset !== null &&
+          props.inputBottomOffset
         }
       >
         {(height) => (
@@ -557,11 +595,11 @@ export const CommentsPage = () => {
       </Show>
 
       <section
-        ref={commentCreatorContainerRef}
+        ref={props.ref}
         style={
-          platform === "ios" && commentInputBottomOffsetPx
+          platform === "ios" && props.inputBottomOffset !== null
             ? {
-                transform: `translateY(-${commentInputBottomOffsetPx()})`,
+                transform: `translateY(-${props.inputBottomOffset})`,
               }
             : undefined
         }
@@ -571,8 +609,8 @@ export const CommentsPage = () => {
       >
         <button
           {...createInputFocusPreventer.FRIENDLY}
-          onClick={() => onScrollDown(null)}
-          inert={!showBottomScroller()}
+          onClick={() => props.onScrollDown(null)}
+          inert={!props.showBottomScroller}
           ref={bottomScroller}
           style={{
             "--variant-offset":
@@ -591,22 +629,24 @@ export const CommentsPage = () => {
           <ArrowDownIcon class="scale-[85%] text-hint" />
         </button>
 
-        <div
-          ref={variantSelectorRef}
-          class={clsxString(
-            "mx-[10px] mb-2 rounded-full backdrop-blur-xl transition-[transform,opacity] duration-200 will-change-[transform,opacity] contain-layout contain-style",
-            shouldShowVariantSelector.present() ? "visible" : "invisible",
-            shouldShowVariantSelector.status() === "present"
-              ? ""
-              : "translate-y-full opacity-0",
-          )}
-        >
-          <VariantSelector
-            setValue={setVariant}
-            value={variant()}
-            variants={variants}
-          />
-        </div>
+        <Show when={props.noteType !== "private"}>
+          <div
+            ref={setVariantSelectorRef}
+            class={clsxString(
+              "mx-[10px] mb-2 rounded-full backdrop-blur-xl transition-[transform,opacity] duration-200 will-change-[transform,opacity] contain-layout contain-style",
+              shouldShowVariantSelector.present() ? "visible" : "invisible",
+              shouldShowVariantSelector.status() === "present"
+                ? ""
+                : "translate-y-full opacity-0",
+            )}
+          >
+            <VariantSelector
+              setValue={setVariant}
+              value={variant()}
+              variants={variants}
+            />
+          </div>
+        </Show>
 
         <div
           class={clsxString(
@@ -658,6 +698,6 @@ export const CommentsPage = () => {
           )}
         </BottomDialog>
       </section>
-    </main>
+    </>
   );
 };
