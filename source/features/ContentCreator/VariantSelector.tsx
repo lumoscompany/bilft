@@ -236,7 +236,7 @@ export const VariantSelector = <T extends string>(props: {
             "--selection-index": visibleSelectionIndex(),
           }}
           class={clsxString(
-            "pointer-events-none absolute inset-y-0 top-0 -z-10 flex w-[calc(100%/var(--variants))] translate-x-[calc(100%*var(--selection-index))] items-stretch justify-stretch p-[2px] transition-transform ease-out contain-strict",
+            "pointer-events-none absolute inset-y-0 top-0 -z-10 flex w-[calc(100%/var(--variants))] translate-x-[calc(100%*var(--selection-index))] items-stretch justify-stretch p-[2px] transition-transform ease-out",
             isNearbySelectorChoose() ? "duration-150" : "duration-[225ms]",
           )}
         >
@@ -254,7 +254,7 @@ export const VariantSelector = <T extends string>(props: {
               {...createInputFocusPreventer.FRIENDLY}
               data-variant={variant}
               class={clsxString(
-                "flex items-center justify-center transition-[transform,opacity] duration-[150ms,300ms] ease-out contain-strict",
+                "flex items-center justify-center transition-[transform,opacity] duration-[150ms,300ms] ease-out",
                 "text-text",
                 // workaround because we cannot use disable
                 props.value !== variant &&
@@ -315,7 +315,7 @@ export const VariantSelector = <T extends string>(props: {
                     "--index": relativeToActiveIndex(),
                     "--opacity": relativeToActiveIndex() === 0 ? 1 : 0.5,
                   }}
-                  class="flex -translate-x-[calc(100%*var(--index))] flex-row items-center px-4 opacity-[--opacity] drop-shadow-lg transition-[transform,opacity] duration-200"
+                  class="flex -translate-x-[calc(100%*var(--index))] flex-row items-center px-4 opacity-[--opacity] drop-shadow-[0px_0px_8px_rgba(0,0,0,0.1)] transition-[transform,opacity] duration-200"
                 >
                   <div
                     class={
