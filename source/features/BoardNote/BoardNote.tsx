@@ -45,6 +45,7 @@ const BoardNoteAnonymousHeader = (props: {
   <div class="flex items-center gap-[10px] px-[14px] pb-[10px] pt-[14px]">
     <AnonymousAvatarIcon
       class={clsxString(
+        "aspect-square h-10",
         themeParams.isDark
           ? "fill-[#1C1C1D] text-white"
           : "fill-slate-200 text-black",

@@ -2,15 +2,16 @@ import { platform } from "@/features/telegramIntegration";
 import { ArrowUpIcon } from "@/icons";
 import { clsxString } from "@/lib/clsxString";
 import { mergeRefs, useCleanup, useObserverCleanup } from "@/lib/solid";
+import { isEmpty } from "@/lib/string";
 import { type StyleProps } from "@/lib/types";
 import {
   Show,
   createEffect,
-  createMemo,
   createSignal,
   onMount,
   type Accessor,
   type JSX,
+  type JSXElement,
   type Ref,
 } from "solid-js";
 import { LoadingSvg } from "../LoadingSvg";
@@ -27,6 +28,8 @@ export type PostInputProps = StyleProps & {
   ref?: Ref<HTMLFormElement>;
   preventScrollTouches: boolean;
   disabled?: boolean;
+  children: JSXElement;
+  showChildren: boolean;
 };
 
 const _createInputFocusPreventer = (
@@ -70,9 +73,8 @@ const MAX_POST_LENGTH = 1200;
 export function PostInput(props: PostInputProps) {
   let inputRef!: HTMLTextAreaElement;
   let formRef!: HTMLFormElement;
-  const trimmedText = createMemo(() => props.value.trim());
-  const isEmpty = () => trimmedText().length === 0;
-  const symbolsRemaining = () => MAX_POST_LENGTH - trimmedText().length;
+  const isDisabled = () =>
+    props.value.length > MAX_POST_LENGTH || isEmpty(props.value);
   const [isFocused, setIsFocused] = createSignal(false);
 
   if (platform === "ios") {
@@ -83,6 +85,10 @@ export function PostInput(props: PostInputProps) {
     );
   }
   const { isKeyboardOpen } = useKeyboardStatus();
+
+  const isLayoutVertical = () =>
+    props.value.length > 10 || props.value.includes("\n");
+
   createInputFocusPreventer(
     () => inputRef,
     () => isKeyboardOpen(),
@@ -126,74 +132,88 @@ export function PostInput(props: PostInputProps) {
       }}
       ref={mergeRefs((e) => (formRef = e), props.ref)}
       class={clsxString(
-        "flex flex-row items-center overflow-hidden rounded-3xl border border-[#AAA] border-opacity-15 bg-section-bg py-2 pl-4 pr-2",
+        "flex flex-col gap-3 rounded-3xl border border-[#AAA] border-opacity-15 bg-section-bg p-4",
         shouldPreventScrollTouches() ? "touch-none [&_*]:touch-none" : "",
         props.class ?? "",
       )}
     >
-      <div
-        ref={inputWrapperRef}
-        class='grid max-h-[calc(var(--tgvh)*40)] flex-1 grid-cols-1 overflow-y-auto pr-1 font-inter text-[16px] leading-[21px] [scrollbar-gutter:stable] after:invisible after:select-none after:whitespace-pre-wrap after:break-words after:font-[inherit] after:content-[attr(data-value)_"_"] after:[grid-area:1/1/2/2] [&>textarea]:[grid-area:1/1/2/2]'
-        data-value={props.value}
-      >
-        <textarea
-          placeholder="Text me here..."
-          rows={1}
-          value={props.value}
-          onInput={(e) => {
-            props.onChange(e.target.value);
-          }}
-          onFocus={(e) => {
-            setIsFocused(true);
-            props?.onFocus?.(e);
-          }}
-          onBlur={(e) => {
-            setIsFocused(false);
-            props.onBlur?.(e);
-          }}
-          inert={props.isLoading}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && e.ctrlKey && props.value.length > 0) {
-              e.preventDefault();
-              props.onSubmit();
-            }
-          }}
-          ref={inputRef}
-          class="w-full max-w-full resize-none overflow-hidden break-words border-none bg-transparent placeholder:select-none focus:border-none focus:outline-none"
-          classList={{
-            // outsmarting safari repositioning for inputs outside of top of page
-            "mt-[-50vh] pt-[50vh]": platform === "ios",
-          }}
-        />
-      </div>
+      <Show when={props.showChildren}>
+        {props.children}
 
-      <button
-        disabled={
-          !!props.disabled ||
-          isEmpty() ||
-          props.isLoading ||
-          symbolsRemaining() <= 0
-        }
-        class="relative mt-auto flex aspect-square w-7 items-center justify-center overflow-hidden rounded-full [&:disabled>svg>path]:fill-gray-400 [&>svg>path]:fill-accent"
+        <div class="h-separator bg-separator" />
+      </Show>
+
+      <div
+        class={clsxString(
+          "flex overflow-hidden",
+          isLayoutVertical() ? "flex-col" : "flex-row items-center",
+        )}
       >
-        <Show fallback={<ArrowUpIcon />} when={props.isLoading}>
-          <div role="status">
-            <LoadingSvg class="w-7 fill-gray-300 text-gray-600" />
-            <span class="sr-only">Loading...</span>
-          </div>
-        </Show>
-      </button>
-      {/* [TODO]: figure out where to place it */}
-      {/* <Show when={symbolsRemaining() < MAX_POST_LENGTH / 4}>
+        <div
+          ref={inputWrapperRef}
+          class='grid max-h-[calc(var(--tgvh)*40)] flex-1 grid-cols-1 overflow-y-auto pr-1 font-inter text-[16px] leading-[21px] [scrollbar-gutter:stable] after:invisible after:select-none after:whitespace-pre-wrap after:break-words after:font-[inherit] after:content-[attr(data-value)_"_"] after:[grid-area:1/1/2/2] [&>textarea]:[grid-area:1/1/2/2]'
+          data-value={props.value}
+        >
+          <textarea
+            placeholder="Text me here..."
+            rows={1}
+            value={props.value}
+            onInput={(e) => {
+              props.onChange(e.target.value);
+            }}
+            onFocus={(e) => {
+              setIsFocused(true);
+              props?.onFocus?.(e);
+            }}
+            onBlur={(e) => {
+              setIsFocused(false);
+              props.onBlur?.(e);
+            }}
+            inert={props.isLoading}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && e.ctrlKey && props.value.length > 0) {
+                e.preventDefault();
+                props.onSubmit();
+              }
+            }}
+            ref={inputRef}
+            class="w-full max-w-full resize-none overflow-hidden break-words border-none bg-transparent placeholder:select-none focus:border-none focus:outline-none"
+            classList={{
+              // outsmarting safari repositioning for inputs outside of top of page
+              "mt-[-50vh] pt-[50vh]": platform === "ios",
+            }}
+          />
+        </div>
+
+        <div
+          class={clsxString(
+            "flex flex-row items-center gap-2",
+            isLayoutVertical() ? "self-end" : "",
+          )}
+        >
           <p
             class={clsxString(
-              "ml-auto font-inter text-[16px] leading-[16px]",
-              symbolsRemaining() > 0 ? "text-hint" : "text-destructive-text",
+              "font-inter text-[11px] leading-[13px]",
+              props.value.length <= MAX_POST_LENGTH
+                ? "text-hint"
+                : "text-destructive-text",
             )}
           >
-            {symbolsRemaining()}
+            {props.value.length}/{MAX_POST_LENGTH}
           </p>
-        </Show> */}
+          <button
+            disabled={!!props.disabled || props.isLoading || isDisabled()}
+            class="relative mt-auto flex aspect-square w-7 items-center justify-center overflow-hidden rounded-full [&:disabled>svg>path]:fill-gray-400 [&>svg>path]:fill-accent"
+          >
+            <Show fallback={<ArrowUpIcon />} when={props.isLoading}>
+              <div role="status">
+                <LoadingSvg class="w-7 fill-gray-300 text-gray-600" />
+                <span class="sr-only">Loading...</span>
+              </div>
+            </Show>
+          </button>
+        </div>
+      </div>
     </form>
   );
 }

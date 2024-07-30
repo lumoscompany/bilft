@@ -599,17 +599,7 @@ export const CommentsFooter = (props: {
       boardId: props.boardId,
     });
   };
-  const [variantSelectorRef, setVariantSelectorRef] =
-    createSignal<HTMLDivElement>();
   const keyboard = useKeyboardStatus();
-  const shouldShowVariantSelector = createTransitionPresence({
-    when: () =>
-      (platform !== "android" && platform !== "ios") ||
-      inputValue().length > 0 ||
-      keyboard.isKeyboardOpen(),
-    element: variantSelectorRef,
-    animateInitial: false,
-  });
 
   let bottomScroller!: HTMLButtonElement;
   const shouldShowBottomScroller = createTransitionPresence({
@@ -654,53 +644,29 @@ export const CommentsFooter = (props: {
           onClick={() => props.onScrollDown(null)}
           inert={!props.showBottomScroller}
           ref={bottomScroller}
-          style={{
-            "--variant-offset":
-              // offsetting when variant selector is shown
-              shouldShowVariantSelector.status() === "present" ? "0px" : "60px",
-          }}
           class={clsxString(
             "absolute bottom-[calc(100%+12px)] right-3 -z-10 flex aspect-square w-10 items-center justify-center rounded-full bg-section-bg transition-[transform,opacity] duration-200 will-change-[transform,opacity] contain-strict after:absolute after:-inset-3 after:content-[''] active:scale-90",
             shouldShowBottomScroller.present() ? "visible" : "invisible",
             shouldShowBottomScroller.status() === "present"
-              ? "translate-y-[--variant-offset]"
-              : "translate-y-[calc(var(--variant-offset)+100%+12px)] opacity-0",
+              ? "translate-y-0"
+              : "translate-y-[calc(100%+12px)] opacity-0",
           )}
           aria-label="Scroll to the bottom"
         >
           <ArrowDownIcon class="scale-[85%] text-hint" />
         </button>
 
-        <Show when={props.noteType !== "private"}>
-          <div
-            ref={setVariantSelectorRef}
-            class={clsxString(
-              "mx-[10px] mb-2 rounded-full backdrop-blur-xl transition-[transform,opacity] duration-200 will-change-[transform,opacity] contain-layout contain-style",
-              shouldShowVariantSelector.present() ? "visible" : "invisible",
-              shouldShowVariantSelector.status() === "present"
-                ? ""
-                : "translate-y-full opacity-0",
-            )}
-          >
-            <VariantSelector
-              setValue={setVariant}
-              value={variant()}
-              variants={variants}
-            />
-          </div>
-        </Show>
-
         <div
           class={clsxString(
-            "transform-gpu px-4 pt-2 backdrop-blur-xl contain-layout contain-style",
+            "bg-secondary-bg px-4 pt-2 contain-layout contain-style",
             keyboard.isKeyboardOpen()
               ? "pb-2"
               : "pb-[max(var(--safe-area-inset-bottom,0px),0.5rem)]",
           )}
         >
-          <div class="absolute inset-0 -z-10 bg-secondary-bg opacity-50" />
           <PostInput
             preventScrollTouches
+            showChildren={props.noteType !== "private"}
             isLoading={addCommentMutation.isPending}
             onSubmit={() => {
               if (!inputValue) {
@@ -711,7 +677,17 @@ export const CommentsFooter = (props: {
             }}
             value={inputValue()}
             onChange={setInputValue}
-          />
+          >
+            <Show when={props.noteType !== "private"}>
+              <div class={clsxString("contain-layout contain-style")}>
+                <VariantSelector
+                  setValue={setVariant}
+                  value={variant()}
+                  variants={variants}
+                />
+              </div>
+            </Show>
+          </PostInput>
         </div>
 
         <BottomDialog

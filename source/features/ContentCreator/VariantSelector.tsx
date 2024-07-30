@@ -228,7 +228,7 @@ export const VariantSelector = <T extends string>(props: {
             return;
           }
         }}
-        class="relative isolate grid min-h-11 touch-pan-x select-none grid-cols-[repeat(auto-fit,minmax(0,1fr))] grid-rows-1 self-stretch overflow-hidden rounded-full p-[2px] before:absolute before:inset-0 before:-z-10 before:bg-section-bg before:opacity-70 before:content-[''] [&>*]:contain-strict"
+        class="relative isolate grid min-h-11 touch-pan-x select-none grid-cols-[repeat(auto-fit,minmax(0,1fr))] grid-rows-1 self-stretch overflow-hidden rounded-full bg-secondary-bg p-[2px] [&>*]:contain-strict"
       >
         <div
           style={{
@@ -251,6 +251,7 @@ export const VariantSelector = <T extends string>(props: {
         <For each={variantValues()}>
           {(variant) => (
             <button
+              type="button"
               {...createInputFocusPreventer.FRIENDLY}
               data-variant={variant}
               class={clsxString(
@@ -324,7 +325,7 @@ export const VariantSelector = <T extends string>(props: {
                   >
                     <Dynamic
                       component={variant.icon}
-                      class="aspect-square w-7"
+                      class="aspect-square w-7 text-text"
                     />
                     <div class="flex flex-1 flex-col gap-[2px]">
                       <strong class="font-inter text-base leading-[22px] text-text">
@@ -360,7 +361,7 @@ export const VariantSelector = <T extends string>(props: {
             </section>
             <Dynamic
               component={variant().icon}
-              class="aspect-square w-[82px]"
+              class="aspect-square w-[82px] text-text"
             />
 
             <strong class="mt-6 text-center font-inter text-xl font-semibold leading-6 text-text">
@@ -374,7 +375,7 @@ export const VariantSelector = <T extends string>(props: {
               onClick={() => {
                 setBottomSheet(null);
               }}
-              class="relative mt-[76px] flex w-full items-center justify-center overflow-hidden rounded-xl bg-accent p-[14px] font-inter text-text"
+              class="group relative mt-[76px] flex w-full items-center justify-center overflow-hidden rounded-xl bg-accent p-[14px] font-inter text-text"
             >
               <Show when={platform === "ios"} fallback={<Ripples />}>
                 <div class="pointer-events-none absolute inset-0 -z-10 bg-text opacity-0 transition-opacity ease-out group-active:opacity-10" />
