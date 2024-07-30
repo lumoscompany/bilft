@@ -239,7 +239,7 @@ export const WalletModalContent = (props: {
                   {status().isPrivate
                     ? `To send more than ${limit()} private posts per day`
                     : "To send a post anonymously"}
-                  , you need to have at least{" "}
+                  ,you need to have at least{" "}
                   {renderRequiredBalance(walletError().payload.requiredBalance)}
                   <Switch>
                     <Match
