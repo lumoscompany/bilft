@@ -1,17 +1,20 @@
 import { CloseIcon } from "@/icons";
 import { assertOk } from "@/lib/assert";
 import { clsxString } from "@/lib/clsxString";
+import { PxStringFromNumber } from "@/lib/pxString";
 import { createTransitionPresence, SignalHelper } from "@/lib/solid";
 import type { StyleProps } from "@/lib/types";
 import {
   batch,
   createMemo,
+  createRenderEffect,
   createSignal,
   For,
   Show,
+  untrack,
   type JSXElement,
 } from "solid-js";
-import { Dynamic } from "solid-js/web";
+import { Dynamic, Portal } from "solid-js/web";
 import { BottomDialog } from "../BottomDialog";
 import { Ripples } from "../Ripple";
 import { platform } from "../telegramIntegration";
@@ -56,6 +59,7 @@ export const VariantSelector = <T extends string>(props: {
   variants: readonly VariantEntry<T>[];
   value: T;
   setValue(newVariant: T): void;
+  estimatePopoverSize: number;
 }) => {
   const variantValues = createMemo(() => props.variants.map((it) => it.value));
   const variantStateIndex = () => variantValues().indexOf(props.value);
@@ -140,15 +144,39 @@ export const VariantSelector = <T extends string>(props: {
   let touchId: number | null = null;
 
   const [popoverRef, setPopoverRef] = createSignal<HTMLElement>();
+
   const presentPopover = createTransitionPresence({
     element: popoverRef,
     when: () => (isGripping() && touchOver()) || null,
+  });
+  const shouldShowPopover = createMemo(() => !!presentPopover.present());
+  const [sectionRef, setSectionRef] = createSignal<HTMLElement>();
+  const [sectionY, setSectionY] = createSignal<number | null>(null);
+  const [sectionHeight, setSectionHeight] = createSignal<number | null>(null);
+  const positionPopoverBottom = createMemo(() => {
+    const _sectionY = sectionY();
+    // 16 - is offset
+    return (
+      _sectionY !== null &&
+      _sectionY < untrack(() => props.estimatePopoverSize) + 16
+    );
+  });
+  createRenderEffect(() => {
+    const _sectionRef = sectionRef();
+    if (!_sectionRef || !shouldShowPopover()) return;
+
+    const rect = _sectionRef.getBoundingClientRect();
+    batch(() => {
+      setSectionY(rect.top);
+      setSectionHeight(rect.height);
+    });
   });
 
   const [bottomSheet, setBottomSheet] = createSignal<T | null>(null);
   const bottomSheetInfo = createMemo(
     () => props.variants.find((it) => it.value === bottomSheet()) ?? null,
   );
+
   // createComputed((prev: T | null) => {
   //   const present = presentPopover.present();
   //   if (!present) {
@@ -161,25 +189,29 @@ export const VariantSelector = <T extends string>(props: {
   // }, presentPopover.present() || null);
 
   return (
-    <article>
+    <article class="relative">
       <section
+        ref={setSectionRef}
         onTouchStart={(e) => {
           if (touchId !== null) return;
 
           const firstTouch = e.changedTouches.item(0);
           if (!firstTouch) return;
-          touchId = firstTouch.identifier;
+          const firstTouchId = firstTouch.identifier;
+          touchId = firstTouchId;
           const targetVariant = onTouchMove(
             e.currentTarget,
             firstTouch,
             touchOver(),
             isGripping(),
           );
+          const nextIsGripping = targetVariant === props.value;
+
           batch(() => {
             // resetting animation state
             setIsNearbySelectorChoose(false);
             setTouchOver(targetVariant);
-            setIsGripping(targetVariant === props.value);
+            setIsGripping(nextIsGripping);
           });
         }}
         onTouchMove={(e) => {
@@ -294,54 +326,69 @@ export const VariantSelector = <T extends string>(props: {
         </For>
       </section>
 
-      <div class="absolute bottom-[calc(100%+1rem)] left-1/2 w-screen -translate-x-1/2">
+      <Portal>
         <div
-          ref={setPopoverRef}
+          data-bottom={positionPopoverBottom() ? "" : undefined}
+          style={{
+            "--sec-y": PxStringFromNumber(sectionY() ?? 0),
+            "--sec-h": PxStringFromNumber(sectionHeight() ?? 0),
+          }}
           class={clsxString(
-            "grid grid-cols-1 content-center transition-opacity duration-300 [&>*]:[grid-area:1/1/2/2]",
-            presentPopover.status() === "present" ? "" : "opacity-0",
-            presentPopover.present() ? "" : "invisible",
+            "pointer-events-none fixed inset-x-0 top-0 translate-y-[calc(var(--sec-y)-100%-1rem)] data-[bottom]:translate-y-[calc(var(--sec-y)+var(--sec-h)+1rem)]",
+            sectionY() !== null && presentPopover.present()
+              ? ""
+              : "invisible [content-visibility:hidden]",
           )}
         >
-          <For each={props.variants}>
-            {(variant, index) => {
-              const relativeToActiveIndex = () =>
-                SignalHelper.map(presentPopover.present, (value) =>
-                  value === null ? 0 : index() - variantValues().indexOf(value),
-                );
+          <div
+            ref={setPopoverRef}
+            class={clsxString(
+              "grid grid-cols-1 content-center transition-opacity duration-300 [&>*]:[grid-area:1/1/2/2]",
+              presentPopover.status() === "present" ? "" : "opacity-0",
+            )}
+          >
+            <For each={props.variants}>
+              {(variant, index) => {
+                const relativeToActiveIndex = () =>
+                  SignalHelper.map(presentPopover.present, (value) =>
+                    value === null
+                      ? 0
+                      : index() - variantValues().indexOf(value),
+                  );
 
-              return (
-                <div
-                  style={{
-                    "--index": relativeToActiveIndex(),
-                    "--opacity": relativeToActiveIndex() === 0 ? 1 : 0.5,
-                  }}
-                  class="flex -translate-x-[calc(100%*var(--index))] flex-row items-center px-4 opacity-[--opacity] drop-shadow-[0px_0px_8px_rgba(0,0,0,0.1)] transition-[transform,opacity] duration-200"
-                >
+                return (
                   <div
-                    class={
-                      "flex flex-row items-start gap-2 rounded-3xl bg-bg p-4"
-                    }
+                    style={{
+                      "--index": relativeToActiveIndex(),
+                      "--opacity": relativeToActiveIndex() === 0 ? 1 : 0.5,
+                    }}
+                    class="flex -translate-x-[calc(100%*var(--index))] flex-row items-center px-4 opacity-[--opacity] drop-shadow-[0px_0px_8px_rgba(0,0,0,0.1)] transition-[transform,opacity] duration-200"
                   >
-                    <Dynamic
-                      component={variant.icon}
-                      class="aspect-square w-7 text-text"
-                    />
-                    <div class="flex flex-1 flex-col gap-[2px]">
-                      <strong class="font-inter text-base leading-[22px] text-text">
-                        {variant.title}
-                      </strong>
-                      <p class="font-inter text-sm leading-[18px] text-subtitle">
-                        {variant.description}
-                      </p>
+                    <div
+                      class={
+                        "flex flex-row items-start gap-2 rounded-3xl bg-bg p-4"
+                      }
+                    >
+                      <Dynamic
+                        component={variant.icon}
+                        class="aspect-square w-7 text-text"
+                      />
+                      <div class="flex flex-1 flex-col gap-[2px]">
+                        <strong class="font-inter text-base leading-[22px] text-text">
+                          {variant.title}
+                        </strong>
+                        <p class="font-inter text-sm leading-[18px] text-subtitle">
+                          {variant.description}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            }}
-          </For>
+                );
+              }}
+            </For>
+          </div>
         </div>
-      </div>
+      </Portal>
       <BottomDialog
         onClose={() => setBottomSheet(null)}
         when={bottomSheetInfo()}

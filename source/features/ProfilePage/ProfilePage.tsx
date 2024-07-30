@@ -19,8 +19,6 @@ import {
 } from "@/icons";
 import { assertOk } from "@/lib/assert";
 import { clsxString } from "@/lib/clsxString";
-import { PxStringFromNumber } from "@/lib/pxString";
-import { createInnerHeight, createTransitionPresence } from "@/lib/solid";
 import { type StyleProps } from "@/lib/types";
 import { queryClient } from "@/queryClient";
 import { A, useParams } from "@solidjs/router";
@@ -35,12 +33,6 @@ import {
 } from "solid-js";
 import { Virtualizer } from "virtua/solid";
 import { BottomDialog } from "../BottomDialog";
-import {
-  createCommentInputBottomOffset,
-  createOnResizeScrollAdjuster,
-  createSafariScrollAdjuster,
-  createScrollAdjuster,
-} from "../CommentsPage/scrollAdjusters";
 import { createCommentsPageUrl } from "../CommentsPage/utils";
 import { createInputState } from "../ContentCreator/CommentCreator";
 import { PostInput } from "../ContentCreator/PostInput";
@@ -61,9 +53,8 @@ import {
   createUnlinkMutation,
 } from "../ContentCreator/shared";
 import { useInfiniteScroll } from "../infiniteScroll";
-import { useKeyboardStatus } from "../keyboardStatus";
 import { scrollableElement, setVirtualizerHandle } from "../scroll";
-import { platform, utils } from "../telegramIntegration";
+import { utils } from "../telegramIntegration";
 import { CommentNoteFooterLayout } from "./CommantNoteFooterLayour";
 
 const UserStatus = (props: ParentProps<StyleProps>) => (
@@ -133,27 +124,6 @@ const UserProfilePage = (props: {
     });
   };
 
-  const keyboard = useKeyboardStatus();
-  // long story short: Webview Safari + IOS Telegram = dog shit
-  const innerHeight = createInnerHeight();
-  const commentInputBottomOffset =
-    platform === "ios"
-      ? createCommentInputBottomOffset(innerHeight, keyboard)
-      : null;
-
-  const commentInputBottomOffsetPx = commentInputBottomOffset
-    ? () => PxStringFromNumber(commentInputBottomOffset())
-    : null;
-  if (platform === "ios") {
-    assertOk(commentInputBottomOffset);
-    createSafariScrollAdjuster(keyboard, commentInputBottomOffset);
-  } else {
-    createScrollAdjuster(innerHeight);
-  }
-  let commentCreatorContainerRef!: HTMLDivElement;
-  createOnResizeScrollAdjuster(() => commentCreatorContainerRef);
-  //#endregion scroll
-
   const variants = [
     VariantEntryMake(
       "public",
@@ -222,15 +192,6 @@ const UserProfilePage = (props: {
       type: variantMap[type],
     });
   };
-  let variantSelectorRef!: HTMLDivElement;
-  const shouldShowVariantSelector = createTransitionPresence({
-    when: () =>
-      (platform !== "android" && platform !== "ios") ||
-      inputValue().length > 0 ||
-      keyboard.isKeyboardOpen(),
-    element: () => variantSelectorRef,
-    animateInitial: false,
-  });
 
   return (
     <main class="flex min-h-screen flex-col pt-4 text-text">
@@ -275,6 +236,56 @@ const UserProfilePage = (props: {
           ? "Loading..."
           : boardQuery.data?.profile?.description}
       </UserStatus>
+
+      <div class={"px-4 pt-2 contain-layout contain-style"}>
+        <PostInput
+          preventScrollTouches={false}
+          isLoading={addNoteMutation.isPending}
+          onSubmit={() => {
+            if (!inputValue) {
+              return;
+            }
+
+            sendNote(variant());
+          }}
+          value={inputValue()}
+          onChange={setInputValue}
+          showChildren
+        >
+          <VariantSelector
+            estimatePopoverSize={110}
+            setValue={setVariant}
+            value={variant()}
+            variants={variants}
+          />
+        </PostInput>
+
+        <BottomDialog
+          onClose={() => {
+            setWalletError(null);
+          }}
+          when={optimisticModalStatus()}
+        >
+          {(status) => (
+            <WalletModalContent
+              onSend={() => {
+                sendNote(variant());
+                setWalletError(null);
+              }}
+              status={status()}
+              onClose={() => {
+                setWalletError(null);
+              }}
+              onUnlinkWallet={() => {
+                unlinkMutation.mutate();
+              }}
+              onSendPublic={() => {
+                sendNote("public");
+              }}
+            />
+          )}
+        </BottomDialog>
+      </div>
 
       <section class="mt-6 flex flex-1 flex-col">
         <Switch>
@@ -376,104 +387,6 @@ const UserProfilePage = (props: {
             </Switch>
           </Match>
         </Switch>
-      </section>
-
-      <Show
-        when={
-          platform === "ios" &&
-          commentInputBottomOffsetPx &&
-          commentInputBottomOffsetPx()
-        }
-      >
-        {(height) => (
-          <div
-            class="h-0 contain-strict"
-            style={{
-              height: height(),
-            }}
-          />
-        )}
-      </Show>
-
-      <section
-        ref={commentCreatorContainerRef}
-        style={
-          platform === "ios" && commentInputBottomOffsetPx
-            ? {
-                transform: `translateY(-${commentInputBottomOffsetPx()})`,
-              }
-            : undefined
-        }
-        class={clsxString(
-          "sticky bottom-0 isolate mt-auto [&_*]:overscroll-y-contain",
-        )}
-      >
-        <div
-          ref={variantSelectorRef}
-          class={clsxString(
-            "mx-[10px] mb-2 rounded-full backdrop-blur-xl transition-[transform,opacity] duration-200 will-change-[transform,opacity] contain-layout contain-style",
-            shouldShowVariantSelector.present() ? "visible" : "invisible",
-            shouldShowVariantSelector.status() === "present"
-              ? ""
-              : "translate-y-full opacity-0",
-          )}
-        >
-          <VariantSelector
-            setValue={setVariant}
-            value={variant()}
-            variants={variants}
-          />
-        </div>
-
-        <div
-          class={clsxString(
-            "transform-gpu px-4 pt-2 backdrop-blur-xl contain-layout contain-style",
-            keyboard.isKeyboardOpen()
-              ? "pb-2"
-              : "pb-[max(var(--safe-area-inset-bottom,0px),0.5rem)]",
-          )}
-        >
-          <div class="absolute inset-0 -z-10 bg-secondary-bg opacity-50" />
-          <PostInput
-            preventScrollTouches
-            isLoading={addNoteMutation.isPending}
-            onSubmit={() => {
-              if (!inputValue) {
-                return;
-              }
-
-              sendNote(variant());
-            }}
-            value={inputValue()}
-            onChange={setInputValue}
-          />
-        </div>
-
-        <BottomDialog
-          onClose={() => {
-            setWalletError(null);
-          }}
-          when={optimisticModalStatus()}
-        >
-          {(status) => (
-            <WalletModalContent
-              onSend={() => {
-                sendNote(variant());
-                setWalletError(null);
-              }}
-              status={status()}
-              onClose={() => {
-                setWalletError(null);
-              }}
-              onUnlinkWallet={() => {
-                unlinkMutation.mutate();
-              }}
-              onSendPublic={() => {
-                sendNote("public");
-              }}
-            />
-          )}
-        </BottomDialog>
       </section>
     </main>
   );

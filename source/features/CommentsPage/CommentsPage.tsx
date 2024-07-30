@@ -681,6 +681,7 @@ export const CommentsFooter = (props: {
             <Show when={props.noteType !== "private"}>
               <div class={clsxString("contain-layout contain-style")}>
                 <VariantSelector
+                  estimatePopoverSize={110}
                   setValue={setVariant}
                   value={variant()}
                   variants={variants}
