@@ -228,7 +228,7 @@ export const VariantSelector = <T extends string>(props: {
             return;
           }
         }}
-        class="relative isolate grid min-h-11 touch-pan-x select-none overflow-hidden grid-cols-[repeat(auto-fit,minmax(0,1fr))] grid-rows-1 self-stretch rounded-full p-[2px] [&>*]:contain-strict before:absolute before:inset-0 before:-z-10 before:bg-section-bg before:opacity-70 before:content-['']"
+        class="relative isolate grid min-h-11 touch-pan-x select-none grid-cols-[repeat(auto-fit,minmax(0,1fr))] grid-rows-1 self-stretch overflow-hidden rounded-full p-[2px] before:absolute before:inset-0 before:-z-10 before:bg-section-bg before:opacity-70 before:content-[''] [&>*]:contain-strict"
       >
         <div
           style={{
@@ -271,7 +271,11 @@ export const VariantSelector = <T extends string>(props: {
                   : "",
               )}
               onClick={(e) => {
-                if ((e as unknown as PointerEvent).pointerType === "touch") {
+                if (
+                  // ios click event doesn't have pointerType property
+                  platform === "ios" ||
+                  (e as unknown as PointerEvent).pointerType === "touch"
+                ) {
                   return;
                 }
                 if (variant === props.value) {
@@ -311,9 +315,13 @@ export const VariantSelector = <T extends string>(props: {
                     "--index": relativeToActiveIndex(),
                     "--opacity": relativeToActiveIndex() === 0 ? 1 : 0.5,
                   }}
-                  class="flex -translate-x-[calc(100%*var(--index))] flex-row items-center px-4 opacity-[--opacity] drop-shadow-md transition-[transform,opacity] duration-200"
+                  class="flex -translate-x-[calc(100%*var(--index))] flex-row items-center px-4 opacity-[--opacity] drop-shadow-lg transition-[transform,opacity] duration-200"
                 >
-                  <div class={"flex flex-row gap-2 rounded-3xl bg-bg p-4 items-start"}>
+                  <div
+                    class={
+                      "flex flex-row items-start gap-2 rounded-3xl bg-bg p-4"
+                    }
+                  >
                     <Dynamic
                       component={variant.icon}
                       class="aspect-square w-7"
