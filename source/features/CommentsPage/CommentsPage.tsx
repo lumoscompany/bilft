@@ -41,8 +41,6 @@ import { BottomDialog } from "../BottomDialog";
 import {
   createCommentMutation,
   createInputState,
-  createOptimisticModalStatus,
-  createUnlinkMutation,
 } from "../ContentCreator/CommentCreator";
 import {
   PostInput,
@@ -58,6 +56,10 @@ import {
   type VariantEntry,
 } from "../ContentCreator/VariantSelector";
 import { WalletModalContent } from "../ContentCreator/WalletModal";
+import {
+  createOptimisticModalStatus,
+  createUnlinkMutation,
+} from "../ContentCreator/shared";
 import { LoadingSvg } from "../LoadingSvg";
 import type { ProfileIdWithoutPrefix } from "../idUtils";
 import { useKeyboardStatus } from "../keyboardStatus";
@@ -559,7 +561,7 @@ export const CommentsFooter = (props: {
     [inputValue, setInputValue],
     [walletError, setWalletError],
     [variant, setVariant],
-  ] = createInputState<Variant>(variants[0].value);
+  ] = createInputState<Variant, false>(variants[0].value);
 
   const addCommentMutation = createCommentMutation(
     async (comment) => {

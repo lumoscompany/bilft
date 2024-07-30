@@ -25,7 +25,7 @@ export const SEND_ANONYMOUS_TITLE = "Send anonymously";
 export const SEND_PUBLIC_DESCRIPTION =
   "Your name and the content of the post will be visible to everyone.";
 export const SEND_PRIVATE_DESCRIPTION =
-  "A private message is visible only to the two individuals involved. The owner of the board cannot see your name";
+  "A private post is visible only to the two individuals involved. The owner of the board cannot see your name";
 export const SEND_ANONYMOUS_DESCRIPTION =
   "You can post anonymously, and no one will see your name. Maybe you want to ask a question?";
 

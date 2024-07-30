@@ -75,6 +75,22 @@ export type WalletError = {
   };
 };
 
+/**
+ * @description limit errors are only possible now with private comments
+ */
+export type LimitReachedError = {
+  error: {
+    reason: "reached_limit";
+    payload: {
+      source: WalletError["error"];
+      limit: number;
+      limitResetAt: DateString;
+    };
+  };
+};
+
+export type WalletOrLimitError = WalletError | LimitReachedError;
+
 export type Comment = {
   id: string;
   content: string;

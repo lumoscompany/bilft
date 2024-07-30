@@ -1,10 +1,10 @@
+import type { model } from "@/api";
 import {
   fetchMethod,
-  getWalletError,
+  getWalletOrLimitError,
   keysFactory,
   type CreateNoteRequest,
 } from "@/api/api";
-import type { WalletError } from "@/api/model";
 import { createMutation, useQueryClient } from "@tanstack/solid-query";
 import { AxiosError } from "axios";
 import type { ProfileIdWithoutPrefix } from "../idUtils";
@@ -14,7 +14,7 @@ export const createNoteMutation = (
   boardId: () => ProfileIdWithoutPrefix,
   onSuccess: () => void,
   onResetError: (value: null) => void,
-  onCreationError: (error: WalletError) => void,
+  onCreationError: (error: model.WalletOrLimitError) => void,
 ) => {
   const queryClient = useQueryClient();
   return createMutation(() => ({
@@ -29,7 +29,7 @@ export const createNoteMutation = (
           if (!(error instanceof AxiosError) || !error.response) {
             return null;
           }
-          const walletError = getWalletError(error.response);
+          const walletError = getWalletOrLimitError(error.response);
           if (!walletError) {
             return null;
           }

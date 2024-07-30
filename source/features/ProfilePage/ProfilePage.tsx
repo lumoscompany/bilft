@@ -42,11 +42,7 @@ import {
   createScrollAdjuster,
 } from "../CommentsPage/scrollAdjusters";
 import { createCommentsPageUrl } from "../CommentsPage/utils";
-import {
-  createInputState,
-  createOptimisticModalStatus,
-  createUnlinkMutation,
-} from "../ContentCreator/CommentCreator";
+import { createInputState } from "../ContentCreator/CommentCreator";
 import { PostInput } from "../ContentCreator/PostInput";
 import {
   SEND_ANONYMOUS_DESCRIPTION,
@@ -60,6 +56,10 @@ import {
 } from "../ContentCreator/VariantSelector";
 import { WalletModalContent } from "../ContentCreator/WalletModal";
 import { createNoteMutation } from "../ContentCreator/post";
+import {
+  createOptimisticModalStatus,
+  createUnlinkMutation,
+} from "../ContentCreator/shared";
 import { useInfiniteScroll } from "../infiniteScroll";
 import { useKeyboardStatus } from "../keyboardStatus";
 import { scrollableElement, setVirtualizerHandle } from "../scroll";
@@ -179,7 +179,7 @@ const UserProfilePage = (props: {
     [inputValue, setInputValue],
     [walletError, setWalletError],
     [variant, setVariant],
-  ] = createInputState<Variant>(variants[0].value);
+  ] = createInputState<Variant, true>(variants[0].value);
 
   const addNoteMutation = createNoteMutation(
     () => {
