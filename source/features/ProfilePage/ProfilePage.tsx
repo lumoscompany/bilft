@@ -311,13 +311,15 @@ const UserProfilePage = (props: {
                   <BoardNote.Card>
                     <Switch
                       fallback={
-                        <BoardNote.AnonymousHeader createdAt={note.createdAt} />
+                        <BoardNote.AnonymousHeader
+                          private={note.type === "private"}
+                          createdAt={note.createdAt}
+                        />
                       }
                     >
                       <Match when={note.author}>
                         {(author) => (
                           <BoardNote.AuthorHeader
-                            private={note.type === "private"}
                             name={author().name}
                             avatarUrl={author().photo}
                             authorId={author().id}

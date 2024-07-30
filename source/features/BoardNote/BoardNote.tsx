@@ -13,7 +13,6 @@ import { Ripples } from "../Ripple";
 import { AvatarIcon } from "./AvatarIcon";
 
 const BoardNoteAuthorHeader = (props: {
-  private: boolean;
   name: string;
   avatarUrl: string | null;
   authorId: string | null;
@@ -36,20 +35,13 @@ const BoardNoteAuthorHeader = (props: {
         {formatPostTime(props.createdAt)}
       </div>
     </div>
-
-    <Show when={props.private}>
-      <div class="text-text-opposite ml-auto flex flex-row items-center justify-center gap-[2px] rounded-full bg-accent py-[6px] pl-2 pr-[10px]">
-        <LockIcon />
-
-        <span class="font-inter text-[13px] font-[590] leading-[18px]">
-          private
-        </span>
-      </div>
-    </Show>
   </A>
 );
 
-const BoardNoteAnonymousHeader = (props: { createdAt: DateString }) => (
+const BoardNoteAnonymousHeader = (props: {
+  createdAt: DateString;
+  private: boolean;
+}) => (
   <div class="flex items-center gap-[10px] px-[14px] pb-[10px] pt-[14px]">
     <AnonymousAvatarIcon
       class={clsxString(
@@ -67,6 +59,16 @@ const BoardNoteAnonymousHeader = (props: { createdAt: DateString }) => (
         {formatPostTime(props.createdAt)}
       </div>
     </div>
+
+    <Show when={props.private}>
+      <div class="ml-auto flex flex-row items-center justify-center gap-[2px] rounded-full bg-accent py-[6px] pl-2 pr-[10px] text-text-opposite">
+        <LockIcon />
+
+        <span class="font-inter text-[13px] font-[590] leading-[18px]">
+          private
+        </span>
+      </div>
+    </Show>
   </div>
 );
 const BoardNoteDivider = (props: StyleProps) => (
