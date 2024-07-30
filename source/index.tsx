@@ -1,4 +1,4 @@
-import { render } from "solid-js/web";
+import { Portal, render } from "solid-js/web";
 import "unfonts.css";
 import "./index.css";
 
@@ -97,17 +97,19 @@ const App = () => {
             </Router>
           </TonConnectProvider>
 
-          <Toaster
-            position="top-center"
-            richColors
-            toastOptions={{
-              classes: {
-                title: "font-inter",
-                toast: "rounded-xl",
-              },
-            }}
-            theme={miniApp.isDark ? "dark" : "light"}
-          />
+          <Portal>
+            <Toaster
+              position="top-center"
+              richColors
+              toastOptions={{
+                classes: {
+                  title: "font-inter",
+                  toast: "rounded-xl",
+                },
+              }}
+              theme={miniApp.isDark ? "dark" : "light"}
+            />
+          </Portal>
         </KeyboardStatusProvider>
       </ScreenSizeProvider>
     </AppQueryClientProvider>
