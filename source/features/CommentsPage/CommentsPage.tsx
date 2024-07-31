@@ -550,7 +550,7 @@ export const CommentsFooter = (props: {
       PublicHintIcon,
     ),
     VariantEntryMake(
-      "anonymous",
+      "anonym",
       SEND_ANONYMOUS_TITLE,
       SEND_ANONYMOUS_DESCRIPTION,
       AnonymousHintIcon,
@@ -595,7 +595,12 @@ export const CommentsFooter = (props: {
     addCommentMutation.mutate({
       noteID: props.noteId,
       content: inputValue(),
-      type,
+      type:
+        props.noteType === "private"
+          ? undefined
+          : type === "anonym"
+            ? "anonymous"
+            : "public",
       boardId: props.boardId,
     });
   };

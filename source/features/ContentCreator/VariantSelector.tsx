@@ -4,8 +4,10 @@ import { clsxString } from "@/lib/clsxString";
 import { PxStringFromNumber } from "@/lib/pxString";
 import { createTransitionPresence, SignalHelper } from "@/lib/solid";
 import type { StyleProps } from "@/lib/types";
+import { postEvent } from "@telegram-apps/sdk";
 import {
   batch,
+  createEffect,
   createMemo,
   createRenderEffect,
   createSignal,
@@ -177,16 +179,29 @@ export const VariantSelector = <T extends string>(props: {
     () => props.variants.find((it) => it.value === bottomSheet()) ?? null,
   );
 
-  // createComputed((prev: T | null) => {
-  //   const present = presentPopover.present();
-  //   if (!present) {
-  //     return null;
-  //   }
-  //   if (prev && presentPopover.present()) {
-  //     document.startViewTransition();
-  //   }
-  //   return present;
-  // }, presentPopover.present() || null);
+  //#region haptic
+  createEffect((prev: T | null) => {
+    const next = presentPopover.present();
+
+    if (next === prev || !prev || !next) return next;
+
+    postEvent("web_app_trigger_haptic_feedback", {
+      type: "selection_change",
+    });
+    return next;
+  }, null);
+  createEffect((prev: boolean) => {
+    const next = !!presentPopover.present();
+
+    if (next === prev || !next) return next;
+
+    postEvent("web_app_trigger_haptic_feedback", {
+      type: "impact",
+      impact_style: "soft",
+    });
+    return next;
+  }, false);
+  //#endregion haptic
 
   return (
     <article class="relative">
@@ -355,12 +370,13 @@ export const VariantSelector = <T extends string>(props: {
                       ? 0
                       : index() - variantValues().indexOf(value),
                   );
+                const isActive = () => relativeToActiveIndex() === 0;
 
                 return (
                   <div
                     style={{
                       "--index": relativeToActiveIndex(),
-                      "--opacity": relativeToActiveIndex() === 0 ? 1 : 0.5,
+                      "--opacity": isActive() ? 1 : 0.5,
                     }}
                     class="flex -translate-x-[calc(100%*var(--index))] flex-row items-center px-4 opacity-[--opacity] drop-shadow-[0px_0px_8px_rgba(0,0,0,0.1)] transition-[transform,opacity] duration-200"
                   >

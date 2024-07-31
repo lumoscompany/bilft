@@ -140,7 +140,7 @@ export function PostInput(props: PostInputProps) {
       <Show when={props.showChildren}>
         {props.children}
 
-        <div class="h-separator bg-separator" />
+        <div class="h-separator bg-separator select-none" />
       </Show>
 
       <div

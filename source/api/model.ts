@@ -102,5 +102,8 @@ export type Comment = {
 export type CreateCommentRequest = {
   noteID: string;
   content: string;
-  type: Comment["type"];
+  /**
+   * @description undefined should be used for comments on private notes
+   */
+  type: Comment["type"] | undefined;
 };

@@ -132,7 +132,7 @@ const UserProfilePage = (props: {
       PublicHintIcon,
     ),
     VariantEntryMake(
-      "anonymous",
+      "anonym",
       SEND_ANONYMOUS_TITLE,
       SEND_ANONYMOUS_DESCRIPTION,
       AnonymousHintIcon,
@@ -181,7 +181,7 @@ const UserProfilePage = (props: {
 
   const variantMap = {
     public: "public",
-    anonymous: "public-anonymous",
+    anonym: "public-anonymous",
     private: "private",
   } satisfies Record<Variant, CreateNoteRequest["type"]>;
 
