@@ -106,7 +106,12 @@ export const AvatarIconEntryMakeGenerated = (
   const firstNameLetter = entityName?.at(0)?.toUpperCase() ?? "";
 
   const nextLetterSym = entityName.indexOf(" ") + 1;
-  const secondNameLetter = entityName?.at(nextLetterSym)?.toUpperCase() ?? "";
+  const secondNameLetter =
+    nextLetterSym === 0 ||
+    // (me) postfix when showing inside of title: Maria (me) -> M
+    entityName.at(nextLetterSym) === "("
+      ? ""
+      : entityName?.at(nextLetterSym)?.toUpperCase() ?? "";
 
   return makeEntry(
     AVATAR_GENERATED,
