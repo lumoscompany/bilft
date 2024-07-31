@@ -3,8 +3,8 @@ import type { NoteWithComment } from "@/api/model";
 import {
   AvatarIcon,
   AvatarIconEntryLoading,
-  AvatarIconEntryMakeLoaded,
   AvatarIconEntryMakeGenerated,
+  AvatarIconEntryMakeLoaded,
 } from "@/features/BoardNote/AvatarIcon";
 import { BoardNote } from "@/features/BoardNote/BoardNote";
 import { LoadingSvg } from "@/features/LoadingSvg";
@@ -202,7 +202,7 @@ const UserProfilePage = (props: {
     boardQuery.data?.profile?.title ?? boardQuery.data?.name ?? " ";
 
   return (
-    <main class="flex min-h-screen flex-col pt-4 text-text">
+    <main class="flex min-h-screen flex-col pt-4 pb-6 text-text">
       <section class="sticky top-0 z-10 mx-2 flex flex-row items-center gap-3 bg-secondary-bg px-2 py-2">
         <AvatarIcon
           size={48}
@@ -396,7 +396,7 @@ const UserProfilePage = (props: {
                       top: 0,
                     });
                   }}
-                  class="mx-auto mt-6 flex items-center gap-x-2 font-inter text-[17px] leading-[22px] text-accent transition-opacity active:opacity-70"
+                  class="mx-auto mt-6 flex items-center gap-x-2 font-inter text-[17px] leading-[22px] text-accent transition-opacity active:opacity-50 active:ease-out"
                 >
                   Back to top
                   <ArrowPointUp />
