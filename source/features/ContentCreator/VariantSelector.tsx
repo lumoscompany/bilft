@@ -315,13 +315,15 @@ export const VariantSelector = <T extends string>(props: {
                   // on safari active style will be applied until touchend even if active class removed
                   platform !== "ios" &&
                   touchOver() !== variant
-                  ? "active:opacity-30"
+                  ? "active:opacity-30 active:ease-out"
                   : "",
-                isGripping() && variant === touchOver() ? "scale-95 ease-out" : "",
+                isGripping() && variant === touchOver()
+                  ? "scale-95 ease-out"
+                  : "",
                 !isGripping() &&
                   touchOver() === variant &&
                   touchOver() !== props.value
-                  ? "opacity-30"
+                  ? "opacity-30 ease-out"
                   : "",
               )}
               onClick={(e) => {
