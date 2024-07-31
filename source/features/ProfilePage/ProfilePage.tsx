@@ -255,7 +255,7 @@ const UserProfilePage = (props: {
           : boardQuery.data?.profile?.description}
       </UserStatus>
 
-      <div class={"px-4 pt-2 contain-layout contain-style"}>
+      <div class={"px-4 pt-4 contain-layout contain-style"}>
         <PostInput
           preventScrollTouches={false}
           isLoading={addNoteMutation.isPending}
