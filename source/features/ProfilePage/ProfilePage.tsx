@@ -237,8 +237,8 @@ const UserProfilePage = (props: {
               const url = new URL(import.meta.env.VITE_SELF_BOT_WEBAPP_URL);
               url.searchParams.set("startapp", `id${props.id}`);
 
-              const shareText =
-                boardQuery.data?.profile?.title ?? boardQuery.data?.name ?? "";
+              // server adds (me) postfix to your name
+              const shareText = name().replace(" (me)", "");
               const shareUrl = url.toString();
               utils.shareURL(shareUrl, shareText);
             }}
