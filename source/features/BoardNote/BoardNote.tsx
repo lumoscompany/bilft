@@ -13,8 +13,8 @@ import { Ripples } from "../Ripple";
 import {
   AvatarIcon,
   AvatarIconEntryLoading,
-  AvatarIconEntryMakeLoaded,
   AvatarIconEntryMakeGenerated,
+  AvatarIconEntryMakeLoaded,
 } from "./AvatarIcon";
 
 const BoardNoteAuthorHeader = (props: {
@@ -76,7 +76,7 @@ const BoardNoteAnonymousHeader = (props: {
     </div>
 
     <Show when={props.private}>
-      <div class="ml-auto flex flex-row items-center justify-center gap-[2px] rounded-full bg-accent py-[6px] pl-2 pr-[10px] text-text-opposite">
+      <div class="ml-auto flex flex-row items-center justify-center gap-[2px] rounded-full bg-accent py-[6px] pl-2 pr-[10px] text-button-text">
         <LockIcon />
 
         <span class="font-inter text-[13px] font-[590] leading-[18px]">

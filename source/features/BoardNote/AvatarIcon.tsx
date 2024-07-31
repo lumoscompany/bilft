@@ -181,7 +181,7 @@ export const AvatarIcon = (
             return (
               <div
                 class={clsxString(
-                  "absolute inset-0 flex items-center justify-center text-center font-['ui-rounded'] text-[calc(var(--size)/2.4)] leading-none text-white",
+                  "absolute inset-0 flex items-center justify-center text-center text-[calc(var(--size)/2.2)] leading-none text-white",
                   isApple()
                     ? "font-apple font-semibold"
                     : "font-inter font-medium tracking-tight",

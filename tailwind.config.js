@@ -22,6 +22,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
+        roboto: ["Roboto", "Inter Variable", "Inter", "sans-serif"],
         inter: ["Inter Variable", "Inter", "sans-serif"],
         apple: ["ui-rounded", "sans-serif"],
       },
@@ -32,7 +33,8 @@ export default {
         hint: "var(--tg-theme-hint-color,#AAA)",
         text: "var(--tg-theme-text-color,#FFF)",
         "text-opposite": "var(--theme-text-opposite-color,#000)",
-        "button-text": "var(--tag-theme-button-text,#FFF)",
+        // button-text should be used on accent elements
+        "button-text": "var(--tg-theme-button-text-color,#FFF)",
         "destructive-text": "var(--tg-theme-destructive-text-color,#FF4530)",
         subtitle: "var(--tg-theme-subtitle-text-color,#AAA)",
         accent: "var(--tg-theme-accent-text-color,#FF375F)",
