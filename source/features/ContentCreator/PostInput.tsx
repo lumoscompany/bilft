@@ -132,7 +132,7 @@ export function PostInput(props: PostInputProps) {
       }}
       ref={mergeRefs((e) => (formRef = e), props.ref)}
       class={clsxString(
-        "flex flex-col gap-3 rounded-3xl border border-[#AAA] border-opacity-15 bg-section-bg p-4",
+        "flex flex-col gap-3 rounded-3xl border border-separator p-4",
         shouldPreventScrollTouches() ? "touch-none [&_*]:touch-none" : "",
         props.class ?? "",
       )}
@@ -140,12 +140,12 @@ export function PostInput(props: PostInputProps) {
       <Show when={props.showChildren}>
         {props.children}
 
-        <div class="h-separator bg-separator select-none" />
+        <div class="h-separator select-none bg-separator" />
       </Show>
 
       <div
         class={clsxString(
-          "flex overflow-hidden",
+          "flex gap-2 overflow-hidden",
           isLayoutVertical() ? "flex-col" : "flex-row items-center",
         )}
       >

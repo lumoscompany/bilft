@@ -275,7 +275,7 @@ export const VariantSelector = <T extends string>(props: {
             return;
           }
         }}
-        class="relative isolate grid min-h-11 touch-pan-x select-none grid-cols-[repeat(auto-fit,minmax(0,1fr))] grid-rows-1 self-stretch overflow-hidden rounded-full bg-secondary-bg p-[2px] [&>*]:contain-strict"
+        class="relative isolate grid min-h-11 touch-pan-x select-none grid-cols-[repeat(auto-fit,minmax(0,1fr))] grid-rows-1 self-stretch overflow-hidden rounded-full bg-section-bg p-[2px] [&>*]:contain-strict"
       >
         <div
           style={{
@@ -302,8 +302,14 @@ export const VariantSelector = <T extends string>(props: {
               {...createInputFocusPreventer.FRIENDLY}
               data-variant={variant}
               class={clsxString(
-                "flex items-center justify-center transition-[transform,opacity] duration-[150ms,300ms] ease-out",
-                "text-text",
+                "flex items-center justify-center transition-[transform,color,opacity] duration-[150ms,150ms,300ms]",
+                (
+                  isGripping() && touchOver()
+                    ? touchOver() === variant
+                    : props.value === variant
+                )
+                  ? "text-button-text"
+                  : "text-text",
                 // workaround because we cannot use disable
                 props.value !== variant &&
                   // on safari active style will be applied until touchend even if active class removed
@@ -311,7 +317,7 @@ export const VariantSelector = <T extends string>(props: {
                   touchOver() !== variant
                   ? "active:opacity-30"
                   : "",
-                isGripping() && variant === touchOver() ? "scale-95" : "",
+                isGripping() && variant === touchOver() ? "scale-95 ease-out" : "",
                 !isGripping() &&
                   touchOver() === variant &&
                   touchOver() !== props.value
