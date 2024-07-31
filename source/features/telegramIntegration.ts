@@ -17,6 +17,14 @@ const [miniApp, cleanupMiniApp] = initMiniApp();
 export { miniApp, themeParams };
 export const platform = launchParams.platform;
 
+let _isApple: boolean;
+export const isApple = () => {
+  if (_isApple === undefined)
+    _isApple = platform === "ios" || platform === "macos";
+
+  return _isApple;
+};
+
 if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     cleanupMiniApp();

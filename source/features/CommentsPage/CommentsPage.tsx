@@ -35,7 +35,11 @@ import {
   onMount,
 } from "solid-js";
 import { Virtualizer } from "virtua/solid";
-import { AvatarIcon } from "../BoardNote/AvatarIcon";
+import {
+  AvatarIcon,
+  AvatarIconEntryMakeLoaded,
+  AvatarIconEntryMakeGenerated,
+} from "../BoardNote/AvatarIcon";
 import { BoardNote } from "../BoardNote/BoardNote";
 import { BottomDialog } from "../BottomDialog";
 import {
@@ -420,10 +424,17 @@ export const CommentsPage = () => {
                                 href={`/board/${author().id}`}
                               >
                                 <AvatarIcon
-                                  lazy
-                                  class="h-[22px] w-[22px]"
-                                  isLoading={false}
-                                  url={comment().author?.photo ?? null}
+                                  entry={
+                                    author().photo
+                                      ? AvatarIconEntryMakeLoaded(
+                                          author().photo,
+                                        )
+                                      : AvatarIconEntryMakeGenerated(
+                                          author().name,
+                                          author().id,
+                                        )
+                                  }
+                                  size={22}
                                 />
                                 {author().name}
                               </A>

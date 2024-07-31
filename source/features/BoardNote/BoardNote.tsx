@@ -10,7 +10,12 @@ import { type StyleProps } from "@/lib/types";
 import { A } from "@solidjs/router";
 import { Show, type ComponentProps, type ParentProps } from "solid-js";
 import { Ripples } from "../Ripple";
-import { AvatarIcon } from "./AvatarIcon";
+import {
+  AvatarIcon,
+  AvatarIconEntryLoading,
+  AvatarIconEntryMakeLoaded,
+  AvatarIconEntryMakeGenerated,
+} from "./AvatarIcon";
 
 const BoardNoteAuthorHeader = (props: {
   name: string;
@@ -25,7 +30,16 @@ const BoardNoteAuthorHeader = (props: {
     <Show when={platform === "ios"} fallback={<Ripples />}>
       <div class="pointer-events-none absolute inset-0 -z-10 bg-text opacity-0 transition-opacity ease-out group-active:opacity-10" />
     </Show>
-    <AvatarIcon lazy isLoading={false} url={props.avatarUrl} class="w-10" />
+    <AvatarIcon
+      entry={
+        props.avatarUrl
+          ? AvatarIconEntryMakeLoaded(props.avatarUrl)
+          : props.authorId
+            ? AvatarIconEntryMakeGenerated(props.name, props.authorId)
+            : AvatarIconEntryLoading
+      }
+      size={40}
+    />
     <div class="flex flex-col">
       <div class="font-inter text-[17px] font-medium leading-[22px]">
         {props.name}

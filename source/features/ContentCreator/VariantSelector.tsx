@@ -352,7 +352,7 @@ export const VariantSelector = <T extends string>(props: {
             "pointer-events-none fixed inset-x-0 top-0 translate-y-[calc(var(--sec-y)-100%-1rem)] data-[bottom]:translate-y-[calc(var(--sec-y)+var(--sec-h)+1rem)]",
             sectionY() !== null && presentPopover.present()
               ? ""
-              : "invisible [content-visibility:hidden]",
+              : "content-hidden invisible",
           )}
         >
           <div

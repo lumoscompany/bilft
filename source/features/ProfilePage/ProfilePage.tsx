@@ -1,6 +1,11 @@
 import { keysFactory, type CreateNoteRequest } from "@/api/api";
 import type { NoteWithComment } from "@/api/model";
-import { AvatarIcon } from "@/features/BoardNote/AvatarIcon";
+import {
+  AvatarIcon,
+  AvatarIconEntryLoading,
+  AvatarIconEntryMakeLoaded,
+  AvatarIconEntryMakeGenerated,
+} from "@/features/BoardNote/AvatarIcon";
 import { BoardNote } from "@/features/BoardNote/BoardNote";
 import { LoadingSvg } from "@/features/LoadingSvg";
 import {
@@ -193,18 +198,31 @@ const UserProfilePage = (props: {
     });
   };
 
+  const name = () =>
+    boardQuery.data?.profile?.title ?? boardQuery.data?.name ?? " ";
+
   return (
     <main class="flex min-h-screen flex-col pt-4 text-text">
       <section class="sticky top-0 z-10 mx-2 flex flex-row items-center gap-3 bg-secondary-bg px-2 py-2">
         <AvatarIcon
-          class="w-12"
-          isLoading={boardQuery.isLoading}
-          url={boardQuery.data?.profile?.photo ?? null}
+          size={48}
+          entry={(() => {
+            let photo: string | undefined;
+            if ((photo = boardQuery.data?.profile?.photo)) {
+              return AvatarIconEntryMakeLoaded(photo);
+            }
+
+            let _name: string;
+            if ((_name = name()) && _name !== " ") {
+              return AvatarIconEntryMakeGenerated(_name, props.id);
+            }
+            return AvatarIconEntryLoading;
+          })()}
         />
         <div class="flex flex-1 flex-row justify-between">
           <div class="flex flex-1 flex-col">
             <p class="relative font-inter text-[20px] font-bold leading-6">
-              {boardQuery.data?.profile?.title ?? boardQuery.data?.name ?? " "}
+              {name()}
               <Show when={boardQuery.isLoading}>
                 <div class="absolute inset-y-1 left-0 right-[50%] animate-pulse rounded-xl bg-gray-600" />
               </Show>

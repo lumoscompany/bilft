@@ -1,5 +1,20 @@
 // @ts-check
 import animated from "tailwindcss-animated";
+import plugin from "tailwindcss/plugin";
+
+const contentVisibilityPlugin = plugin(({ addUtilities }) => {
+  addUtilities({
+    ".content-auto": {
+      "content-visibility": "auto",
+    },
+    ".content-hidden": {
+      "content-visibility": "hidden",
+    },
+    ".content-visible": {
+      "content-visibility": "visible",
+    },
+  });
+});
 
 /** @type {import('tailwindcss').Config} */
 export default {
@@ -8,6 +23,7 @@ export default {
     extend: {
       fontFamily: {
         inter: ["Inter Variable", "Inter", "sans-serif"],
+        apple: ["ui-rounded", "sans-serif"],
       },
       colors: {
         bg: "var(--tg-theme-bg-color,#181818)",
@@ -15,7 +31,7 @@ export default {
         "section-bg": "var(--tg-theme-section-bg-color,#0F0F0F)",
         hint: "var(--tg-theme-hint-color,#AAA)",
         text: "var(--tg-theme-text-color,#FFF)",
-        'text-opposite': 'var(--theme-text-opposite-color,#000)',
+        "text-opposite": "var(--theme-text-opposite-color,#000)",
         "button-text": "var(--tag-theme-button-text,#FFF)",
         "destructive-text": "var(--tg-theme-destructive-text-color,#FF4530)",
         subtitle: "var(--tg-theme-subtitle-text-color,#AAA)",
@@ -51,5 +67,5 @@ export default {
       },
     },
   },
-  plugins: [animated],
+  plugins: [animated, contentVisibilityPlugin],
 };
