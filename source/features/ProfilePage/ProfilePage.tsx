@@ -202,7 +202,7 @@ const UserProfilePage = (props: {
     boardQuery.data?.profile?.title ?? boardQuery.data?.name ?? " ";
 
   return (
-    <main class="flex min-h-screen flex-col pt-4 pb-6 text-text">
+    <main class="flex min-h-screen flex-col pb-6 pt-4 text-text">
       <section class="sticky top-0 z-10 mx-2 flex flex-row items-center gap-3 bg-secondary-bg px-2 py-2">
         <AvatarIcon
           size={48}

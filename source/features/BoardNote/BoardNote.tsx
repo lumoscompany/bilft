@@ -3,7 +3,7 @@ import {
   formatPostTime,
   type DateString,
 } from "@/features/format";
-import { platform, themeParams } from "@/features/telegramIntegration";
+import { isApple, themeParams } from "@/features/telegramIntegration";
 import { AnonymousAvatarIcon, LockIcon } from "@/icons";
 import { clsxString } from "@/lib/clsxString";
 import { type StyleProps } from "@/lib/types";
@@ -27,8 +27,8 @@ const BoardNoteAuthorHeader = (props: {
     href={`/board/${props.authorId}`}
     class="group relative isolate flex items-center gap-[10px] px-[14px] pb-[10px] pt-[14px]"
   >
-    <Show when={platform === "ios"} fallback={<Ripples />}>
-      <div class="pointer-events-none absolute inset-0 -z-10 bg-text opacity-0 transition-opacity ease-out group-active:opacity-10" />
+    <Show when={isApple()} fallback={<Ripples />}>
+      <div class="pointer-events-none absolute inset-0 -z-10 select-none bg-text opacity-0 transition-opacity ease-out group-active:opacity-10" />
     </Show>
     <AvatarIcon
       entry={
@@ -114,8 +114,8 @@ const BoardNoteContentLink = (
     href={props.href}
     onClick={props.onClick}
   >
-    <Show when={platform === "ios"} fallback={<Ripples />}>
-      <div class="pointer-events-none absolute inset-0 -z-10 bg-text opacity-0 transition-opacity ease-out group-active:opacity-10" />
+    <Show when={isApple()} fallback={<Ripples />}>
+      <div class="pointer-events-none absolute inset-0 -z-10 select-none bg-text opacity-0 transition-opacity ease-out group-active:opacity-10" />
     </Show>
     {props.children}
   </A>

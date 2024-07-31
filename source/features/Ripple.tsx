@@ -65,7 +65,7 @@ export const Ripples = (props: { rippleClass?: string }) => {
       onTouchMove={onCancel}
       onTouchEnd={onCancel}
       onTouchCancel={onCancel}
-      class={clsxString("absolute inset-0 overflow-hidden")}
+      class={"absolute inset-0 select-none overflow-hidden"}
     >
       <For each={ripples()}>
         {(ripple) => {

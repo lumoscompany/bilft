@@ -6,8 +6,8 @@ import { A } from "@solidjs/router";
 import { Show, createEffect, createMemo, createSignal, on } from "solid-js";
 import {
   AvatarIcon,
-  AvatarIconEntryMakeLoaded,
   AvatarIconEntryMakeGenerated,
+  AvatarIconEntryMakeLoaded,
 } from "../BoardNote/AvatarIcon";
 import { useScreenSize } from "../screenSize";
 

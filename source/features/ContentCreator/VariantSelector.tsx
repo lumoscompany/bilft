@@ -19,7 +19,7 @@ import {
 import { Dynamic, Portal } from "solid-js/web";
 import { BottomDialog } from "../BottomDialog";
 import { Ripples } from "../Ripple";
-import { platform } from "../telegramIntegration";
+import { isApple, platform } from "../telegramIntegration";
 import { pointIsInsideBox } from "./point";
 import { createInputFocusPreventer } from "./PostInput";
 
@@ -352,7 +352,7 @@ export const VariantSelector = <T extends string>(props: {
             "pointer-events-none fixed inset-x-0 top-0 translate-y-[calc(var(--sec-y)-100%-1rem)] data-[bottom]:translate-y-[calc(var(--sec-y)+var(--sec-h)+1rem)]",
             sectionY() !== null && presentPopover.present()
               ? ""
-              : "content-hidden invisible",
+              : "invisible content-hidden",
           )}
         >
           <div
@@ -438,10 +438,10 @@ export const VariantSelector = <T extends string>(props: {
               onClick={() => {
                 setBottomSheet(null);
               }}
-              class="group relative mt-[76px] flex w-full items-center justify-center overflow-hidden rounded-xl bg-accent p-[14px] font-inter text-text"
+              class="group relative mt-[76px] flex w-full items-center justify-center overflow-hidden rounded-xl bg-accent p-[14px] font-inter text-button-text"
             >
-              <Show when={platform === "ios"} fallback={<Ripples />}>
-                <div class="pointer-events-none absolute inset-0 -z-10 bg-text opacity-0 transition-opacity ease-out group-active:opacity-10" />
+              <Show when={isApple()} fallback={<Ripples />}>
+                <div class="pointer-events-none absolute inset-0 -z-10 select-none bg-text opacity-0 transition-opacity ease-out group-active:opacity-10" />
               </Show>
               Fine
             </button>

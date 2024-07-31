@@ -184,7 +184,7 @@ export const AvatarIcon = (
                   "absolute inset-0 flex items-center justify-center text-center text-[calc(var(--size)/2.2)] leading-none text-white",
                   isApple()
                     ? "font-apple font-semibold"
-                    : "font-inter font-medium tracking-tight",
+                    : "font-roboto font-medium tracking-tight",
                 )}
                 style={{
                   background:
