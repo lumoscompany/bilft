@@ -257,7 +257,7 @@ const UserProfilePage = (props: {
 
       <div class={"px-4 pt-4 contain-layout contain-style"}>
         <PostInput
-          preventScrollTouches={false}
+          preventScrollTouches
           isLoading={addNoteMutation.isPending}
           onSubmit={() => {
             if (!inputValue) {
