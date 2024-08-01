@@ -275,7 +275,7 @@ export const VariantSelector = <T extends string>(props: {
             return;
           }
         }}
-        class="relative isolate grid min-h-11 touch-pan-x select-none grid-cols-[repeat(auto-fit,minmax(0,1fr))] grid-rows-1 self-stretch overflow-hidden rounded-full bg-secondary-bg p-[2px] [&>*]:contain-strict"
+        class="relative isolate grid min-h-9 touch-pan-x select-none grid-cols-[repeat(auto-fit,minmax(0,1fr))] grid-rows-1 self-stretch overflow-hidden rounded-full bg-secondary-bg p-[2px] [&>*]:contain-strict"
       >
         <div
           style={{
@@ -289,7 +289,7 @@ export const VariantSelector = <T extends string>(props: {
         >
           <div
             class={clsxString(
-              "flex-1 rounded-full bg-accent font-inter text-[13px] font-[590] leading-[18px]",
+              "flex-1 rounded-full bg-accent",
               "origin-center transition-transform ease-out",
               isGripping() ? "scale-95" : "",
             )}
@@ -310,6 +310,7 @@ export const VariantSelector = <T extends string>(props: {
                 )
                   ? "text-button-text"
                   : "text-text",
+                "font-inter text-[13px] leading-[18px]",
                 // workaround because we cannot use disable
                 props.value !== variant &&
                   // on safari active style will be applied until touchend even if active class removed
