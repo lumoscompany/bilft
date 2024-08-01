@@ -1,4 +1,4 @@
-import { platform } from "@/features/telegramIntegration";
+import { platform, themeParams } from "@/features/telegramIntegration";
 import { ArrowUpIcon } from "@/icons";
 import { clsxString } from "@/lib/clsxString";
 import { mergeRefs, useCleanup, useObserverCleanup } from "@/lib/solid";
@@ -29,7 +29,6 @@ export type PostInputProps = StyleProps & {
   preventScrollTouches: boolean;
   disabled?: boolean;
   children: JSXElement;
-  showChildren: boolean;
 };
 
 const _createInputFocusPreventer = (
@@ -132,16 +131,16 @@ export function PostInput(props: PostInputProps) {
       }}
       ref={mergeRefs((e) => (formRef = e), props.ref)}
       class={clsxString(
-        "flex flex-col gap-3 rounded-3xl border border-separator p-4",
+        "relative isolate flex flex-col gap-3 overflow-hidden rounded-3xl p-4",
         shouldPreventScrollTouches() ? "touch-none [&_*]:touch-none" : "",
         props.class ?? "",
       )}
     >
-      <Show when={props.showChildren}>
-        {props.children}
-
-        <div class="h-separator select-none bg-separator" />
-      </Show>
+      <div
+        data-dark={themeParams.isDark ? "" : undefined}
+        class="bg-section-bg absolute inset-0 -z-10 data-[dark]:opacity-70"
+      />
+      {props.children}
 
       <div
         class={clsxString(

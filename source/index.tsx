@@ -68,6 +68,7 @@ const App = () => {
 
   const Router = createRouterWithPageTransition(navigator);
 
+  postEvent("web_app_setup_swipe_behavior", { allow_vertical_swipe: false });
   onMount(() => {
     miniApp.ready();
     postEvent("web_app_expand");

@@ -37,8 +37,8 @@ import {
 import { Virtualizer } from "virtua/solid";
 import {
   AvatarIcon,
-  AvatarIconEntryMakeLoaded,
   AvatarIconEntryMakeGenerated,
+  AvatarIconEntryMakeLoaded,
 } from "../BoardNote/AvatarIcon";
 import { BoardNote } from "../BoardNote/BoardNote";
 import { BottomDialog } from "../BottomDialog";
@@ -682,7 +682,6 @@ export const CommentsFooter = (props: {
         >
           <PostInput
             preventScrollTouches
-            showChildren={props.noteType !== "private"}
             isLoading={addCommentMutation.isPending}
             onSubmit={() => {
               if (!inputValue) {

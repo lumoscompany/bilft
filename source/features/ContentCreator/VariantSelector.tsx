@@ -275,7 +275,7 @@ export const VariantSelector = <T extends string>(props: {
             return;
           }
         }}
-        class="relative isolate grid min-h-11 touch-pan-x select-none grid-cols-[repeat(auto-fit,minmax(0,1fr))] grid-rows-1 self-stretch overflow-hidden rounded-full bg-section-bg p-[2px] [&>*]:contain-strict"
+        class="relative isolate grid min-h-11 touch-pan-x select-none grid-cols-[repeat(auto-fit,minmax(0,1fr))] grid-rows-1 self-stretch overflow-hidden rounded-full bg-secondary-bg p-[2px] [&>*]:contain-strict"
       >
         <div
           style={{

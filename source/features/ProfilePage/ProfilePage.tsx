@@ -268,7 +268,6 @@ const UserProfilePage = (props: {
           }}
           value={inputValue()}
           onChange={setInputValue}
-          showChildren
         >
           <VariantSelector
             estimatePopoverSize={110}
