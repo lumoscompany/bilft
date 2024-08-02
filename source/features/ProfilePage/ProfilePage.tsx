@@ -154,7 +154,7 @@ const UserProfilePage = (props: {
     [inputValue, setInputValue],
     [walletError, setWalletError],
     [variant, setVariant],
-  ] = createInputState<Variant, true>(variants[0].value);
+  ] = createInputState<Variant, true>(variants[2].value);
 
   const addNoteMutation = createNoteMutation(
     () => {
