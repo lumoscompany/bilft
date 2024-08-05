@@ -1,4 +1,5 @@
 import {
+  initMainButton,
   initMiniApp,
   initThemeParams,
   initUtils,
@@ -13,9 +14,11 @@ export const authData = launchParams.initDataRaw;
 const [themeParams, cleanUpThemeParams] = initThemeParams();
 export const utils = initUtils();
 const [miniApp, cleanupMiniApp] = initMiniApp();
+const [mainButton, cleanupMainButton] = initMainButton();
 
-export { miniApp, themeParams };
+export { mainButton, miniApp, themeParams };
 export const platform = launchParams.platform;
+export const userHasPremium = !!launchParams.initData?.user?.isPremium;
 
 let _isApple: boolean;
 export const isApple = () => {
@@ -29,6 +32,7 @@ if (import.meta.hot) {
   import.meta.hot.dispose(() => {
     cleanupMiniApp();
     cleanUpThemeParams();
+    cleanupMainButton();
   });
 }
 

@@ -27,5 +27,5 @@ export const getSelfUserId = () => {
   if (!id) {
     throw new Error("Invalid user");
   }
-  return id.toString() as ProfileId;
+  return id.toString() as ProfileIdWithoutPrefix;
 };

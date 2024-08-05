@@ -52,7 +52,7 @@ export default {
             opacity: "0",
           },
         },
-        ripple: {
+        scale: {
           "0%": {
             transform: "scale(0)",
           },
@@ -60,12 +60,26 @@ export default {
             transform: "scale(1)",
           },
         },
+        "transition-indicator": {
+          "0%": {
+            transform: "scaleX(0)",
+          },
+          "70%": {
+            transform: "scaleX(1)",
+            opacity: "1",
+          },
+          "100%": {
+            opacity: "0",
+          },
+        },
       },
       animation: {
         "fade-out":
           "fade-out var(--tw-animate-duration, 1s) var(--tw-animate-easing, ease) var(--tw-animate-delay, 0s) var(--tw-animate-iteration, 1) var(--tw-animate-fill, both)",
         ripple:
-          "ripple var(--tw-animate-duration, 0.3s) var(--tw-animate-easing, ease-out) var(--tw-animate-delay, 0s) var(--tw-animate-iteration, 1) var(--tw-animate-fill, both)",
+          "scale var(--tw-animate-duration, 0.3s) var(--tw-animate-easing, ease-out) var(--tw-animate-delay, 0s) var(--tw-animate-iteration, 1) var(--tw-animate-fill, both)",
+        "transition-indicator":
+          "transition-indicator var(--tw-animate-duration, 0.3s) var(--tw-animate-easing, ease) var(--tw-animate-delay, 0s) var(--tw-animate-iteration, 1) var(--tw-animate-fill, both)",
       },
     },
   },
