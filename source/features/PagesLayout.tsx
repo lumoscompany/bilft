@@ -66,7 +66,6 @@ const useStories = (shouldShowMainButton: () => boolean) => {
         import.meta.env.VITE_SELF_BOT_WEBAPP_URL +
         "?startapp=id" +
         getSelfUserId();
-      console.log({ userHasPremium, postLink, mediaUrl });
       postEvent(
         "web_app_share_to_story",
         userHasPremium
