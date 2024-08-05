@@ -11,8 +11,14 @@ import type {
   BrowserNavigatorEvents,
 } from "@telegram-apps/sdk";
 import { getHash, urlToPath } from "@telegram-apps/sdk";
-import type { Component } from "solid-js";
-import { createContext, createSignal, onCleanup, useContext } from "solid-js";
+import type { Accessor, Component } from "solid-js";
+import {
+  batch,
+  createContext,
+  createSignal,
+  onCleanup,
+  useContext,
+} from "solid-js";
 
 /**
  * Guard against selector being an invalid CSS selector.
@@ -111,13 +117,23 @@ export function createRouter<State>(
 }
 
 const PageTransitionContext = createContext<
-  undefined | null | (() => Promise<void>)
+  | undefined
+  | [
+      transitionsCount: Accessor<number>,
+      lastPageTransitionPromise: null | (() => Promise<void>),
+    ]
 >();
 export const usePageTransitionFinished = () => {
   const ctx = useContext(PageTransitionContext);
   assertOk(ctx !== undefined);
 
-  return ctx;
+  return ctx[1];
+};
+export const usePageTransitionsCount = () => {
+  const ctx = useContext(PageTransitionContext);
+  assertOk(ctx !== undefined);
+
+  return ctx[0];
 };
 
 export const createRouterWithPageTransition = (
@@ -133,47 +149,52 @@ export const createRouterWithPageTransition = (
     Promise.resolve(),
   );
 
-  let idToScrollPosition: Map<string, number>;
-  if (startViewTransition) {
-    // we need to make it, but our own, cause of junk frame after popstate
-    history.scrollRestoration = "manual";
-    idToScrollPosition = new Map<string, number>();
-    let lastViewTransitionFinish: Promise<void> | null = null;
-    onCleanup(
-      navigator.on("change", (e: ChangeEvent) => {
-        if (
-          (e.from.hash === e.to.hash &&
-            e.from.pathname === e.to.pathname &&
-            e.from.search !== e.to.search) ||
-          // do not react on replace
-          e.delta === 0
-        ) {
+  const idToScrollPosition = new Map<string, number>();
+  const [transitionNumber, setTransitionNumber] = createSignal(0);
+  // we need to make it, but our own, cause of junk frame after popstate
+  history.scrollRestoration = "manual";
+  let lastViewTransitionFinish: Promise<void> | null = null;
+  onCleanup(
+    navigator.on("change", (e: ChangeEvent) => {
+      if (
+        (e.from.hash === e.to.hash &&
+          e.from.pathname === e.to.pathname &&
+          e.from.search !== e.to.search) ||
+        // do not react on replace
+        e.delta === 0
+      ) {
+        return;
+      }
+      idToScrollPosition.set(e.from.id, scrollableElement.scrollTop);
+
+      // garbage collecting obsolete pages scroll positions
+      if (idToScrollPosition.size > 100) {
+        const currentPagesIds = new Set<string>();
+
+        for (const { id } of navigator.history) {
+          currentPagesIds.add(id);
+        }
+
+        const idsForRemove: string[] = [];
+        for (const [id] of idToScrollPosition) {
+          if (!currentPagesIds.has(id)) {
+            idsForRemove.push(id);
+          }
+        }
+        for (const id of idsForRemove) {
+          idToScrollPosition.delete(id);
+        }
+      }
+
+      document.documentElement.dataset.navigationDir =
+        e.delta > 0 ? "forward" : "backward";
+
+      batch(() => {
+        setTransitionNumber(transitionNumber() + 1);
+        if (!startViewTransition) {
+          e._delay = Promise.resolve();
           return;
         }
-        idToScrollPosition.set(e.from.id, scrollableElement.scrollTop);
-
-        // garbage collecting obsolete pages scroll positions
-        if (idToScrollPosition.size > 100) {
-          const currentPagesIds = new Set<string>();
-
-          for (const { id } of navigator.history) {
-            currentPagesIds.add(id);
-          }
-
-          const idsForRemove: string[] = [];
-          for (const [id] of idToScrollPosition) {
-            if (!currentPagesIds.has(id)) {
-              idsForRemove.push(id);
-            }
-          }
-          for (const id of idsForRemove) {
-            idToScrollPosition.delete(id);
-          }
-        }
-
-        document.documentElement.dataset.navigationDir =
-          e.delta > 0 ? "forward" : "backward";
-
         const transition = startViewTransition();
         e._delay = transition.ready;
 
@@ -186,9 +207,9 @@ export const createRouterWithPageTransition = (
             lastViewTransitionFinish = null;
           }
         });
-      }),
-    );
-  }
+      });
+    }),
+  );
   const on: typeof navigator.on = (evName, callback) => {
     return navigator.on(evName, (e: ChangeEvent, ...rest) => {
       if (!e._delay) {
@@ -216,14 +237,14 @@ export const createRouterWithPageTransition = (
     });
   };
 
-  const Router = createRouter(
-    navigator,
-    startViewTransition ? on : navigator.on.bind(navigator),
-  );
+  const Router = createRouter(navigator, on);
 
   const RouterWrapper: Component<BaseRouterProps> = (props) => (
     <PageTransitionContext.Provider
-      value={startViewTransition ? viewTransitionPromise : null}
+      value={[
+        transitionNumber,
+        startViewTransition ? viewTransitionPromise : null,
+      ]}
     >
       <Router {...props}>{props.children}</Router>
     </PageTransitionContext.Provider>

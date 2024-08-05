@@ -1,10 +1,22 @@
 import { assertOk } from "@/lib/assert";
 import { type RouteSectionProps } from "@solidjs/router";
 import { compareVersions, postEvent, type UnionKeys } from "@telegram-apps/sdk";
-import { createEffect, on, onCleanup, type Component } from "solid-js";
-import { getSelfUserId } from "./idUtils";
-import { usePageTransitionFinished } from "./pageTransitions";
 import {
+  Show,
+  createEffect,
+  createSignal,
+  on,
+  onCleanup,
+  type Component,
+} from "solid-js";
+import { Portal } from "solid-js/web";
+import { getSelfUserId } from "./idUtils";
+import {
+  usePageTransitionFinished,
+  usePageTransitionsCount,
+} from "./pageTransitions";
+import {
+  isApple,
   launchParams,
   mainButton,
   platform,
@@ -121,5 +133,32 @@ export const PageLayout: Component<RouteSectionProps> = (props) => {
         props.params.idWithoutPrefix === getSelfUserId(),
     );
   }
-  return <>{props.children}</>;
+
+  const transitionsCount = usePageTransitionsCount();
+  const [finishedTransition, setFinishedTransition] = createSignal<
+    null | number
+  >(null);
+
+  return (
+    <>
+      {props.children}
+      <Show when={isApple()}>
+        <Portal>
+          <Show keyed when={transitionsCount() !== 0 && transitionsCount()}>
+            {(count) => (
+              <div
+                onAnimationEnd={() => {
+                  setFinishedTransition(count);
+                }}
+                class="animate-transition-indicator pointer-events-none fixed inset-x-0 bottom-0 h-[2px] origin-left bg-accent will-change-[transform,opacity]"
+                classList={{
+                  hidden: finishedTransition() === count,
+                }}
+              />
+            )}
+          </Show>
+        </Portal>
+      </Show>
+    </>
+  );
 };
