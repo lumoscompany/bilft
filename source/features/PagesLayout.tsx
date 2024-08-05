@@ -134,22 +134,24 @@ export const PageLayout: Component<RouteSectionProps> = (props) => {
   }
 
   const transitionsCount = usePageTransitionsCount();
-  const [finishedTransition, setFinishedTransition] = createSignal<
-    null | number
-  >(null);
+  // skipping page load transition
+  const [finishedTransition, setFinishedTransition] = createSignal<number>(0);
 
   return (
     <>
       {props.children}
       <Show when={isApple()}>
         <Portal>
-          <Show keyed when={transitionsCount() !== 0 && transitionsCount()}>
+          <Show keyed when={transitionsCount()}>
             {(count) => (
               <div
                 onAnimationEnd={() => {
                   setFinishedTransition(count);
                 }}
-                class="animate-transition-indicator pointer-events-none fixed inset-x-0 bottom-0 h-[2px] origin-left bg-accent will-change-[transform,opacity]"
+                class="animate-transition-indicator pointer-events-none fixed inset-x-0 bottom-0 origin-left bg-accent will-change-[transform,opacity]"
+                style={{
+                  height: mainButton.isVisible ? "1.5px" : "3.2px",
+                }}
                 classList={{
                   hidden: finishedTransition() === count,
                 }}
