@@ -85,12 +85,12 @@ const useStories = (shouldShowMainButton: () => boolean) => {
   );
 
   createEffect(
-    on(shouldShowMainButton, (isSelf) => {
-      if (!isSelf) return;
+    on(shouldShowMainButton, (shouldShow) => {
+      if (!shouldShow) return;
       const showButton = () => {
         mainButton.setParams({
           isVisible: true,
-          text: "Share to stories",
+          text: "Share to Stories",
           isEnabled: true,
         });
       };
