@@ -138,7 +138,7 @@ export function PostInput(props: PostInputProps) {
     >
       <div
         data-dark={themeParams.isDark ? "" : undefined}
-        class="bg-section-bg absolute inset-0 -z-10 data-[dark]:opacity-80"
+        class="absolute inset-0 -z-10 bg-section-bg data-[dark]:opacity-80"
       />
       {props.children}
 
