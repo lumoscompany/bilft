@@ -15,6 +15,7 @@ import { Toaster } from "solid-sonner";
 import { CommentsPage } from "./features/CommentsPage/CommentsPage";
 import { KeyboardStatusProvider } from "./features/keyboardStatus";
 import { createNavigatorFromStartParam } from "./features/navigation";
+import { PageLayout } from "./features/PagesLayout";
 import { createRouterWithPageTransition } from "./features/pageTransitions";
 import { parseStartParam } from "./features/parseStartParam";
 import { useFixSafariScroll } from "./features/safariScrollFix";
@@ -92,7 +93,7 @@ const App = () => {
         <KeyboardStatusProvider>
           <TonConnectProvider manifestUrl={getTonconnectManifestUrl()}>
             <SetupTonWallet />
-            <Router>
+            <Router root={PageLayout}>
               <Route component={ProfilePage} path={"/board/:idWithoutPrefix"} />
               <Route component={CommentsPage} path={"/comments/:noteId"} />
             </Router>

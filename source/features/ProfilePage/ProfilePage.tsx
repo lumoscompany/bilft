@@ -28,12 +28,16 @@ import { type StyleProps } from "@/lib/types";
 import { queryClient } from "@/queryClient";
 import { A, useParams } from "@solidjs/router";
 import { createInfiniteQuery, createQuery } from "@tanstack/solid-query";
+import { postEvent } from "@telegram-apps/sdk";
 import {
   Match,
   Show,
   Switch,
   batch,
+  createEffect,
   createMemo,
+  on,
+  onCleanup,
   type ParentProps,
 } from "solid-js";
 import { Virtualizer } from "virtua/solid";
@@ -58,6 +62,7 @@ import {
   createUnlinkMutation,
 } from "../ContentCreator/shared";
 import { useInfiniteScroll } from "../infiniteScroll";
+import { usePageTransitionFinished } from "../pageTransitions";
 import { scrollableElement, setVirtualizerHandle } from "../scroll";
 import { utils } from "../telegramIntegration";
 import { CommentNoteFooterLayout } from "./CommantNoteFooterLayour";
@@ -104,6 +109,8 @@ const UserProfilePage = (props: {
   const notes = createMemo(() =>
     notesQuery.isSuccess ? notesQuery.data.pages.flatMap((it) => it.data) : [],
   );
+
+  
 
   useInfiniteScroll(() => {
     if (notesQuery.hasNextPage && !notesQuery.isFetchingNextPage) {

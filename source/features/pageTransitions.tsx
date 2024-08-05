@@ -5,13 +5,14 @@ import {
 } from "@solidjs/router";
 import { getVirtualizerHandle, scrollableElement } from "./scroll";
 
+import { assertOk } from "@/lib/assert";
 import type {
   BrowserNavigator,
   BrowserNavigatorEvents,
 } from "@telegram-apps/sdk";
 import { getHash, urlToPath } from "@telegram-apps/sdk";
 import type { Component } from "solid-js";
-import { onCleanup } from "solid-js";
+import { createContext, createSignal, onCleanup, useContext } from "solid-js";
 
 /**
  * Guard against selector being an invalid CSS selector.
@@ -109,10 +110,28 @@ export function createRouter<State>(
   });
 }
 
+const PageTransitionContext = createContext<
+  undefined | null | (() => Promise<void>)
+>();
+export const usePageTransitionFinished = () => {
+  const ctx = useContext(PageTransitionContext);
+  assertOk(ctx !== undefined);
+
+  return ctx;
+};
+
 export const createRouterWithPageTransition = (
   navigator: BrowserNavigator<unknown>,
 ): Component<BaseRouterProps> => {
-  const startViewTransition = document.startViewTransition?.bind(document);
+  const startViewTransition = (
+    document.startViewTransition as
+      | undefined
+      | (typeof document)["startViewTransition"]
+  )?.bind(document);
+
+  const [viewTransitionPromise, setViewTransitionPromise] = createSignal(
+    Promise.resolve(),
+  );
 
   let idToScrollPosition: Map<string, number>;
   if (startViewTransition) {
@@ -159,6 +178,7 @@ export const createRouterWithPageTransition = (
         e._delay = transition.ready;
 
         lastViewTransitionFinish = transition.finished;
+        setViewTransitionPromise(lastViewTransitionFinish);
 
         lastViewTransitionFinish.finally(() => {
           if (lastViewTransitionFinish === transition.finished) {
@@ -196,8 +216,18 @@ export const createRouterWithPageTransition = (
     });
   };
 
-  return createRouter(
+  const Router = createRouter(
     navigator,
     startViewTransition ? on : navigator.on.bind(navigator),
   );
+
+  const RouterWrapper: Component<BaseRouterProps> = (props) => (
+    <PageTransitionContext.Provider
+      value={startViewTransition ? viewTransitionPromise : null}
+    >
+      <Router {...props}>{props.children}</Router>
+    </PageTransitionContext.Provider>
+  );
+
+  return RouterWrapper;
 };
