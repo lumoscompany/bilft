@@ -62,7 +62,7 @@ const useModalNavigation = ({
       if (!isSet) {
         return;
       }
-      console.log("on close");
+      // console.log("on close");
       onClose();
       isSet = false;
     });
