@@ -4,7 +4,11 @@ import { AnonymousAvatarIcon } from "@/icons";
 import { assertOk } from "@/lib/assert";
 import { A } from "@solidjs/router";
 import { Show, createEffect, createMemo, createSignal, on } from "solid-js";
-import { AvatarIcon } from "../BoardNote/AvatarIcon";
+import {
+  AvatarIcon,
+  AvatarIconEntryMakeGenerated,
+  AvatarIconEntryMakeLoaded,
+} from "../BoardNote/AvatarIcon";
 import { useScreenSize } from "../screenSize";
 
 const cnv = document.createElement("canvas");
@@ -250,9 +254,12 @@ export const CommentNoteFooterLayout = (props: {
               href={`/board/${author().id}`}
             >
               <AvatarIcon
-                class="h-[18px] w-[18px]"
-                isLoading={false}
-                url={author().photo}
+                size={18}
+                entry={
+                  author().photo
+                    ? AvatarIconEntryMakeLoaded(author().photo)
+                    : AvatarIconEntryMakeGenerated(author().name, author().id)
+                }
               />
               {authorName()}
             </A>

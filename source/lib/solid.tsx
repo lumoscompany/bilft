@@ -60,12 +60,12 @@ export type TransitionPresenceStatus =
   | "hiding"
   | "hidden";
 export const createTransitionPresence = <T,>(params: {
-  when: Accessor<T | undefined | null | false>;
+  when: Accessor<T | null | false | undefined>;
   element: Accessor<undefined | HTMLElement>;
   timeout?: number;
   animateInitial?: boolean;
 }): {
-  present: Accessor<T | undefined | null | false>;
+  present: Accessor<T | null>;
   status: Accessor<TransitionPresenceStatus>;
 } => {
   const timeout = params.timeout ?? 2000;
@@ -78,13 +78,14 @@ export const createTransitionPresence = <T,>(params: {
       : "hidden",
   );
 
-  const whenOrPrev = createMemo<T | undefined | null | false>((prev) =>
-    status() === "hidden"
+  const whenOrPrev = createMemo<T | null>((prev) => {
+    let _when: T | null | false | undefined;
+    return status() === "hidden"
       ? null
-      : status() !== "hiding" && params.when()
-        ? params.when()
-        : prev,
-  );
+      : status() !== "hiding" && (_when = params.when())
+        ? _when
+        : prev ?? null;
+  });
 
   // we need to execute effect before render
   createRenderEffect((shouldPresentWithAnimation: boolean): boolean => {

@@ -1,6 +1,7 @@
 import axios from "axios";
-import type * as model from "./model";
+import * as model from "./model";
 
+import type { ProfileId, ProfileIdWithoutPrefix } from "@/features/idUtils";
 import { authData } from "@/features/telegramIntegration";
 import { infiniteQueryOptions, queryOptions } from "@tanstack/solid-query";
 import type { Comment, CreateCommentRequest } from "./model";
@@ -16,7 +17,7 @@ type RequestResponse<Request, Response> = {
 };
 
 export type CreateNoteRequest = {
-  board: string;
+  board: ProfileIdWithoutPrefix;
   content: string;
   type: "private" | "public" | "public-anonymous";
 };
@@ -27,16 +28,16 @@ export type GetCommentResponse = {
 };
 
 type RequestResponseMappings = {
-  "/board/resolve": RequestResponse<{ value: string }, model.Board>;
+  "/board/resolve": RequestResponse<{ value: ProfileId }, model.Board>;
   "/board/createNote": RequestResponse<CreateNoteRequest, model.Note>;
   "/board/getNotes": RequestResponse<
-    { board: string; next?: string },
+    { board: ProfileIdWithoutPrefix; next?: string },
     model.NoteArray
   >;
   "/note/resolve": RequestResponse<
     { noteId: string },
     model.Note & {
-      boardId: string;
+      boardId: ProfileIdWithoutPrefix;
     }
   >;
   "/me": RequestResponse<
@@ -87,10 +88,10 @@ export const fetchMethod = async <T extends AvailableRequests>(
     })
     .then((it) => it.data);
 
-export const getWalletError = (response: {
+export const getWalletOrLimitError = (response: {
   status: number;
   data: unknown;
-}): model.WalletError | null => {
+}): model.WalletOrLimitError | null => {
   if (response.status !== 403) {
     return null;
   }
@@ -105,12 +106,44 @@ export const getWalletError = (response: {
 
   if (
     data?.error?.reason !== "no_connected_wallet" &&
-    data.error?.reason !== "insufficient_balance"
+    data.error?.reason !== "insufficient_balance" &&
+    data.error?.reason !== "reached_limit"
   ) {
     return null;
   }
 
-  return data as model.WalletError;
+  return data as model.WalletOrLimitError;
+};
+export const isWalletError = (
+  error: model.WalletOrLimitError,
+): error is model.WalletError =>
+  error.error.reason === "insufficient_balance" ||
+  error.error.reason === "no_connected_wallet";
+
+export const walletErrorBodyOf = (
+  error: model.WalletOrLimitError,
+): model.WalletError["error"] =>
+  isWalletError(error) ? error.error : error.error.payload.source;
+
+export const changeWalletErrorBody = (
+  error: model.WalletOrLimitError,
+  newValue: model.WalletError["error"],
+): model.WalletOrLimitError => {
+  if (error.error.reason === "reached_limit") {
+    return {
+      error: {
+        reason: "reached_limit",
+        payload: {
+          limit: error.error.payload.limit,
+          limitResetAt: error.error.payload.limitResetAt,
+          source: newValue,
+        },
+      },
+    };
+  }
+  return {
+    error: newValue,
+  };
 };
 
 export const fetchMethodCurry =

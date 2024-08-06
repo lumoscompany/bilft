@@ -1,19 +1,29 @@
-import { keysFactory } from "@/api/api";
+import { keysFactory, type CreateNoteRequest } from "@/api/api";
 import type { NoteWithComment } from "@/api/model";
-import { AvatarIcon } from "@/features/BoardNote/AvatarIcon";
+import {
+  AvatarIcon,
+  AvatarIconEntryLoading,
+  AvatarIconEntryMakeGenerated,
+  AvatarIconEntryMakeLoaded,
+} from "@/features/BoardNote/AvatarIcon";
 import { BoardNote } from "@/features/BoardNote/BoardNote";
 import { LoadingSvg } from "@/features/LoadingSvg";
 import {
-  addPrefix,
+  ProfileIdAddPrefix,
+  ProfileIdWithoutPrefixCheck,
   getSelfUserId,
   isEqualIds,
-  removePrefix,
+  type ProfileIdWithoutPrefix,
 } from "@/features/idUtils";
-import { ArrowPointUp, ShareProfileIcon } from "@/icons";
+import {
+  AnonymousHintIcon,
+  ArrowPointUp,
+  PrivateHintIcon,
+  PublicHintIcon,
+  ShareProfileIcon,
+} from "@/icons";
 import { assertOk } from "@/lib/assert";
 import { clsxString } from "@/lib/clsxString";
-import { PxStringFromNumber } from "@/lib/pxString";
-import { createInnerHeight, createTransitionPresence } from "@/lib/solid";
 import { type StyleProps } from "@/lib/types";
 import { queryClient } from "@/queryClient";
 import { A, useParams } from "@solidjs/router";
@@ -28,27 +38,28 @@ import {
 } from "solid-js";
 import { Virtualizer } from "virtua/solid";
 import { BottomDialog } from "../BottomDialog";
-import {
-  createCommentInputBottomOffset,
-  createOnResizeScrollAdjuster,
-  createSafariScrollAdjuster,
-  createScrollAdjuster,
-} from "../CommentsPage/scrollAdjusters";
 import { createCommentsPageUrl } from "../CommentsPage/utils";
+import { createInputState } from "../ContentCreator/CommentCreator";
+import { PostInput } from "../ContentCreator/PostInput";
 import {
-  createInputState,
+  SEND_ANONYMOUS_DESCRIPTION,
+  SEND_ANONYMOUS_TITLE,
+  SEND_PRIVATE_DESCRIPTION,
+  SEND_PRIVATE_TITLE,
+  SEND_PUBLIC_DESCRIPTION,
+  SEND_PUBLIC_TITLE,
+  VariantEntryMake,
+  VariantSelector,
+} from "../ContentCreator/VariantSelector";
+import { WalletModalContent } from "../ContentCreator/WalletModal";
+import { createNoteMutation } from "../ContentCreator/post";
+import {
   createOptimisticModalStatus,
   createUnlinkMutation,
-} from "../ContentCreator/CommentCreator";
-import { createNoteMutation } from "../ContentCreator/PostCreator";
-import { PostInput } from "../ContentCreator/PostInput";
-import { VariantSelector } from "../ContentCreator/VariantSelector";
-import { WalletModalContent } from "../ContentCreator/WalletModal";
+} from "../ContentCreator/shared";
 import { useInfiniteScroll } from "../infiniteScroll";
-import { useKeyboardStatus } from "../keyboardStatus";
-import { useScreenSize } from "../screenSize";
 import { scrollableElement, setVirtualizerHandle } from "../scroll";
-import { platform, utils } from "../telegramIntegration";
+import { utils } from "../telegramIntegration";
 import { CommentNoteFooterLayout } from "./CommantNoteFooterLayour";
 
 const UserStatus = (props: ParentProps<StyleProps>) => (
@@ -74,15 +85,15 @@ const UserStatus = (props: ParentProps<StyleProps>) => (
 
 const UserProfilePage = (props: {
   isSelf: boolean;
-  idWithoutPrefix: string;
+  id: ProfileIdWithoutPrefix;
 }) => {
   const boardQuery = createQuery(() =>
     keysFactory.board({
-      value: addPrefix(props.idWithoutPrefix),
+      value: ProfileIdAddPrefix(props.id),
     }),
   );
 
-  const getBoardId = () => removePrefix(props.idWithoutPrefix);
+  const getBoardId = () => props.id;
 
   const notesQuery = createInfiniteQuery(() => ({
     ...keysFactory.notes({
@@ -118,38 +129,32 @@ const UserProfilePage = (props: {
     });
   };
 
-  const keyboard = useKeyboardStatus();
-  // long story short: Webview Safari + IOS Telegram = dog shit
-  const innerHeight = createInnerHeight();
-  const commentInputBottomOffset =
-    platform === "ios"
-      ? createCommentInputBottomOffset(
-          innerHeight,
-          useScreenSize().height,
-          keyboard,
-        )
-      : null;
-
-  const commentInputBottomOffsetPx = commentInputBottomOffset
-    ? () => PxStringFromNumber(commentInputBottomOffset())
-    : null;
-  if (platform === "ios") {
-    assertOk(commentInputBottomOffset);
-    createSafariScrollAdjuster(keyboard, commentInputBottomOffset);
-  } else {
-    createScrollAdjuster(innerHeight);
-  }
-  let commentCreatorContainerRef!: HTMLDivElement;
-  createOnResizeScrollAdjuster(() => commentCreatorContainerRef);
-  //#endregion scroll
-
-  const variants = ["public", "anonymous", "private"] as const;
-  type Variant = (typeof variants)[number];
+  const variants = [
+    VariantEntryMake(
+      "public",
+      SEND_PUBLIC_TITLE,
+      SEND_PUBLIC_DESCRIPTION,
+      PublicHintIcon,
+    ),
+    VariantEntryMake(
+      "anonym",
+      SEND_ANONYMOUS_TITLE,
+      SEND_ANONYMOUS_DESCRIPTION,
+      AnonymousHintIcon,
+    ),
+    VariantEntryMake(
+      "private",
+      SEND_PRIVATE_TITLE,
+      SEND_PRIVATE_DESCRIPTION,
+      PrivateHintIcon,
+    ),
+  ] as const;
+  type Variant = (typeof variants)[number]["value"];
   const [
     [inputValue, setInputValue],
     [walletError, setWalletError],
     [variant, setVariant],
-  ] = createInputState<Variant>(variants[0]);
+  ] = createInputState<Variant, true>(variants[2].value);
 
   const addNoteMutation = createNoteMutation(
     () => {
@@ -179,35 +184,45 @@ const UserProfilePage = (props: {
 
   const optimisticModalStatus = createOptimisticModalStatus(walletError);
 
+  const variantMap = {
+    public: "public",
+    anonym: "public-anonymous",
+    private: "private",
+  } satisfies Record<Variant, CreateNoteRequest["type"]>;
+
   const sendNote = (type: Variant) => {
     addNoteMutation.mutate({
       content: inputValue(),
-      // @ts-expect-error [TODO]: update backend and types
-      type,
+      board: props.id,
+      type: variantMap[type],
     });
   };
-  let variantSelectorRef!: HTMLDivElement;
-  const shouldShowVariantSelector = createTransitionPresence({
-    when: () =>
-      (platform !== "android" && platform !== "ios") ||
-      inputValue().length > 0 ||
-      keyboard.isKeyboardOpen(),
-    element: () => variantSelectorRef,
-    animateInitial: false,
-  });
+
+  const name = () =>
+    boardQuery.data?.profile?.title ?? boardQuery.data?.name ?? " ";
 
   return (
-    <main class="flex min-h-screen flex-col pt-4 text-text">
+    <main class="flex min-h-screen flex-col pb-6 pt-4 text-text">
       <section class="sticky top-0 z-10 mx-2 flex flex-row items-center gap-3 bg-secondary-bg px-2 py-2">
         <AvatarIcon
-          class="w-12"
-          isLoading={boardQuery.isLoading}
-          url={boardQuery.data?.profile?.photo ?? null}
+          size={48}
+          entry={(() => {
+            let photo: string | undefined;
+            if ((photo = boardQuery.data?.profile?.photo)) {
+              return AvatarIconEntryMakeLoaded(photo);
+            }
+
+            let _name: string;
+            if ((_name = name()) && _name !== " ") {
+              return AvatarIconEntryMakeGenerated(_name, props.id);
+            }
+            return AvatarIconEntryLoading;
+          })()}
         />
         <div class="flex flex-1 flex-row justify-between">
           <div class="flex flex-1 flex-col">
             <p class="relative font-inter text-[20px] font-bold leading-6">
-              {boardQuery.data?.profile?.title ?? boardQuery.data?.name ?? " "}
+              {name()}
               <Show when={boardQuery.isLoading}>
                 <div class="absolute inset-y-1 left-0 right-[50%] animate-pulse rounded-xl bg-gray-600" />
               </Show>
@@ -220,10 +235,10 @@ const UserProfilePage = (props: {
             class="transition-opacity active:opacity-50"
             onClick={() => {
               const url = new URL(import.meta.env.VITE_SELF_BOT_WEBAPP_URL);
-              url.searchParams.set("startapp", `id${props.idWithoutPrefix}`);
+              url.searchParams.set("startapp", `id${props.id}`);
 
-              const shareText =
-                boardQuery.data?.profile?.title ?? boardQuery.data?.name ?? "";
+              // server adds (me) postfix to your name
+              const shareText = name().replace(" (me)", "");
               const shareUrl = url.toString();
               utils.shareURL(shareUrl, shareText);
             }}
@@ -239,6 +254,55 @@ const UserProfilePage = (props: {
           ? "Loading..."
           : boardQuery.data?.profile?.description}
       </UserStatus>
+
+      <div class={"px-4 pt-4 contain-layout contain-style"}>
+        <PostInput
+          preventScrollTouches
+          isLoading={addNoteMutation.isPending}
+          onSubmit={() => {
+            if (!inputValue) {
+              return;
+            }
+
+            sendNote(variant());
+          }}
+          value={inputValue()}
+          onChange={setInputValue}
+        >
+          <VariantSelector
+            estimatePopoverSize={110}
+            setValue={setVariant}
+            value={variant()}
+            variants={variants}
+          />
+        </PostInput>
+
+        <BottomDialog
+          onClose={() => {
+            setWalletError(null);
+          }}
+          when={optimisticModalStatus()}
+        >
+          {(status) => (
+            <WalletModalContent
+              onSend={() => {
+                sendNote(variant());
+                setWalletError(null);
+              }}
+              status={status()}
+              onClose={() => {
+                setWalletError(null);
+              }}
+              onUnlinkWallet={() => {
+                unlinkMutation.mutate();
+              }}
+              onSendPublic={() => {
+                sendNote("public");
+              }}
+            />
+          )}
+        </BottomDialog>
+      </div>
 
       <section class="mt-6 flex flex-1 flex-col">
         <Switch>
@@ -275,12 +339,15 @@ const UserProfilePage = (props: {
                   <BoardNote.Card>
                     <Switch
                       fallback={
-                        <BoardNote.PrivateHeader createdAt={note.createdAt} />
+                        <BoardNote.AnonymousHeader
+                          private={note.type === "private"}
+                          createdAt={note.createdAt}
+                        />
                       }
                     >
                       <Match when={note.author}>
                         {(author) => (
-                          <BoardNote.PublicHeader
+                          <BoardNote.AuthorHeader
                             name={author().name}
                             avatarUrl={author().photo}
                             authorId={author().id}
@@ -328,7 +395,7 @@ const UserProfilePage = (props: {
                       top: 0,
                     });
                   }}
-                  class="mx-auto mt-6 flex items-center gap-x-2 font-inter text-[17px] leading-[22px] text-accent transition-opacity active:opacity-70"
+                  class="mx-auto mt-6 flex items-center gap-x-2 font-inter text-[17px] leading-[22px] text-accent transition-opacity active:opacity-50 active:ease-out"
                 >
                   Back to top
                   <ArrowPointUp />
@@ -338,104 +405,6 @@ const UserProfilePage = (props: {
           </Match>
         </Switch>
       </section>
-
-      <Show
-        when={
-          platform === "ios" &&
-          commentInputBottomOffsetPx &&
-          commentInputBottomOffsetPx()
-        }
-      >
-        {(height) => (
-          <div
-            class="h-0 contain-strict"
-            style={{
-              height: height(),
-            }}
-          />
-        )}
-      </Show>
-
-      <section
-        ref={commentCreatorContainerRef}
-        style={
-          platform === "ios" && commentInputBottomOffsetPx
-            ? {
-                transform: `translateY(-${commentInputBottomOffsetPx()})`,
-              }
-            : undefined
-        }
-        class={clsxString(
-          "sticky bottom-0 isolate mt-auto [&_*]:overscroll-y-contain",
-        )}
-      >
-        <div
-          ref={variantSelectorRef}
-          class={clsxString(
-            "mx-[10px] mb-2 rounded-full backdrop-blur-xl transition-[transform,opacity] duration-200 will-change-[transform,opacity] contain-layout contain-style",
-            shouldShowVariantSelector.present() ? "visible" : "invisible",
-            shouldShowVariantSelector.status() === "present"
-              ? ""
-              : "translate-y-full opacity-0",
-          )}
-        >
-          <VariantSelector
-            setValue={setVariant}
-            value={variant()}
-            variants={variants}
-          />
-        </div>
-
-        <div
-          class={clsxString(
-            "transform-gpu px-4 pt-2 backdrop-blur-xl contain-layout contain-style",
-            keyboard.isKeyboardOpen()
-              ? "pb-2"
-              : "pb-[max(var(--safe-area-inset-bottom,0px),0.5rem)]",
-          )}
-        >
-          <div class="absolute inset-0 -z-10 bg-secondary-bg opacity-50" />
-          <PostInput
-            preventScrollTouches
-            isLoading={addNoteMutation.isPending}
-            onSubmit={() => {
-              if (!inputValue) {
-                return;
-              }
-
-              sendNote(variant());
-            }}
-            value={inputValue()}
-            onChange={setInputValue}
-          />
-        </div>
-
-        <BottomDialog
-          onClose={() => {
-            setWalletError(null);
-          }}
-          when={optimisticModalStatus()}
-        >
-          {(status) => (
-            <WalletModalContent
-              onSend={() => {
-                sendNote(variant());
-                setWalletError(null);
-              }}
-              status={status()}
-              onClose={() => {
-                setWalletError(null);
-              }}
-              onUnlinkWallet={() => {
-                unlinkMutation.mutate();
-              }}
-              onSendPublic={() => {
-                sendNote("public");
-              }}
-            />
-          )}
-        </BottomDialog>
-      </section>
     </main>
   );
 };
@@ -443,11 +412,14 @@ const UserProfilePage = (props: {
 export const ProfilePage = () => {
   const selfUserId = getSelfUserId().toString();
   const params = useParams();
-  const idWithoutPrefix = () => params.idWithoutPrefix;
+  const idWithoutPrefix = () => {
+    assertOk(ProfileIdWithoutPrefixCheck(params.idWithoutPrefix));
+    return params.idWithoutPrefix;
+  };
 
   return (
     <UserProfilePage
-      idWithoutPrefix={idWithoutPrefix()}
+      id={idWithoutPrefix()}
       isSelf={isEqualIds(selfUserId, idWithoutPrefix())}
     />
   );

@@ -1,38 +1,39 @@
 import type { model } from "@/api";
 import {
   fetchMethod,
-  fetchMethodCurry,
-  getWalletError,
+  getWalletOrLimitError,
+  isWalletError,
   keysFactory,
 } from "@/api/api";
 import type {
   CreateCommentRequest,
   NoteArray,
   NoteWithComment,
-  WalletError,
 } from "@/api/model";
-import { SignalHelper } from "@/lib/solid";
-import {
-  createMutation,
-  createQuery,
-  useQueryClient,
-} from "@tanstack/solid-query";
+import { createMutation, useQueryClient } from "@tanstack/solid-query";
 import { AxiosError } from "axios";
-import { createMemo, createSignal } from "solid-js";
-import { ErrorHelper, type ModalStatus } from "./common";
+import { createSignal } from "solid-js";
+import type { ProfileIdWithoutPrefix } from "../idUtils";
+import { ErrorHelper } from "./common";
 
-export const createInputState = <TVariant extends string>(
+export const createInputState = <
+  TVariant extends string,
+  TIsActionLimitPossible extends boolean,
+>(
   initial: TVariant,
 ) => {
   const [inputValue, setInputValue] = createSignal("");
   const [variant, setVariant] = createSignal(initial);
-  const [walletError, setWalletError] = createSignal<model.WalletError | null>(
-    null,
-  );
+  const [modalStatus, setModalStatus] = createSignal<
+    | (TIsActionLimitPossible extends true
+        ? model.WalletOrLimitError
+        : model.WalletError)
+    | null
+  >(null);
 
   return [
     [inputValue, setInputValue],
-    [walletError, setWalletError],
+    [modalStatus, setModalStatus],
     [variant, setVariant],
   ] as const;
 };
@@ -40,15 +41,17 @@ export const createInputState = <TVariant extends string>(
 export function createCommentMutation(
   onCreated: (
     comment: model.Comment,
-    boardId: string,
+    boardId: ProfileIdWithoutPrefix,
     noteId: string,
   ) => Promise<void>,
   onResetError: () => void,
-  onSendError: (newError: WalletError) => unknown,
+  onSendError: (newError: model.WalletError) => unknown,
 ) {
   const queryClient = useQueryClient();
   return createMutation(() => ({
-    mutationFn: (request: CreateCommentRequest & { boardId: string }) => {
+    mutationFn: (
+      request: CreateCommentRequest & { boardId: ProfileIdWithoutPrefix },
+    ) => {
       return ErrorHelper.tryCatchAsyncMap(
         () => fetchMethod("/note/createComment", request),
         (error) => {
@@ -59,8 +62,9 @@ export function createCommentMutation(
           if (!(error instanceof AxiosError) || !error.response) {
             return null;
           }
-          const walletError = getWalletError(error.response);
-          if (!walletError) {
+          const walletError = getWalletOrLimitError(error.response);
+          // it's unexpected to throw with limit error from adding comment
+          if (!walletError || !isWalletError(walletError)) {
             return null;
           }
 
@@ -99,6 +103,7 @@ export function createCommentMutation(
               const note = notesPage.data[j];
               if (note.id === noteID) {
                 const newNote: NoteWithComment = {
+                  type: note.type,
                   commentsCount: note.commentsCount + 1,
                   content: note.content,
                   createdAt: note.createdAt,
@@ -132,94 +137,3 @@ export function createCommentMutation(
     },
   }));
 }
-export const createUnlinkMutation = (
-  walletError: () => null | WalletError,
-  onUnlinkCauseError: (value: WalletError) => unknown,
-  onFallbackError: (value: WalletError | null) => unknown,
-) => {
-  const queryClient = useQueryClient();
-
-  return createMutation(() => ({
-    mutationFn: fetchMethodCurry("/me/unlinkWallet"),
-    onMutate: () => {
-      const curWalletError = walletError();
-      if (curWalletError) {
-        onUnlinkCauseError({
-          error: {
-            reason: "no_connected_wallet",
-            payload: curWalletError.error.payload,
-          },
-        });
-      }
-      const curData = queryClient.getQueryData(keysFactory.me.queryKey);
-
-      queryClient.setQueryData(keysFactory.me.queryKey, (data) =>
-        data ? { ...data, wallet: undefined } : undefined,
-      );
-
-      return {
-        curWalletError,
-        curData,
-      };
-    },
-    onError: (_, __, ctx) => {
-      queryClient.setQueryData(keysFactory.me.queryKey, ctx?.curData);
-      if (!walletError()) {
-        return;
-      }
-      onFallbackError(ctx?.curWalletError ?? null);
-    },
-  }));
-};
-
-export const createOptimisticModalStatus = (
-  walletError: () => null | WalletError,
-) => {
-  const meQuery = createQuery(() => keysFactory.me);
-
-  const hasEnoughMoney = createMemo(() => {
-    const curWalletError = walletError();
-    const tokensBalance = meQuery.data?.wallet?.tokens.yo;
-    if (!curWalletError || !tokensBalance) {
-      return false;
-    }
-    return (
-      BigInt(curWalletError.error.payload.requiredBalance) <=
-      BigInt(tokensBalance)
-    );
-  });
-
-  const modalStatus = (): ModalStatus | null =>
-    SignalHelper.map(walletError, (error): ModalStatus | null => {
-      if (!error) {
-        return null;
-      }
-      if (hasEnoughMoney()) {
-        return {
-          type: "success",
-          data: null,
-        };
-      }
-
-      if (
-        error.error.reason === "no_connected_wallet" &&
-        meQuery.data?.wallet
-      ) {
-        return {
-          type: "error",
-          data: {
-            error: {
-              reason: "insufficient_balance",
-              payload: { ...error.error.payload },
-            },
-          },
-        };
-      }
-      return {
-        type: "error",
-        data: error,
-      };
-    });
-
-  return modalStatus;
-};

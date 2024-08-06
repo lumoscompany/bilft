@@ -1,22 +1,24 @@
 import { getVirtualizerHandle, scrollableElement } from "@/features/scroll";
 import { platform } from "@/features/telegramIntegration";
-import { assertOk } from "@/lib/assert";
 import { createWindowScrollTop, useCleanup } from "@/lib/solid";
 import {
   createEffect,
-  createSignal,
+  createMemo,
+  createRenderEffect,
   on,
-  onMount,
+  untrack,
   type Accessor,
 } from "solid-js";
 import type { KeyboardStatus } from "../keyboardStatus";
+import { useScreenSize } from "../screenSize";
 
 export function createOnResizeScrollAdjuster(
-  commentCreatorContainer: () => HTMLDivElement,
+  commentCreatorContainer: Accessor<HTMLElement | undefined>,
 ) {
   createEffect(() => {
     const commentCreatorContainerRef = commentCreatorContainer();
-    assertOk(commentCreatorContainerRef);
+    if (!commentCreatorContainerRef) return;
+
     useCleanup((signal) => {
       let prevHeight = commentCreatorContainerRef.clientHeight;
       const resizeObserver = new ResizeObserver(() => {
@@ -35,7 +37,7 @@ export function createOnResizeScrollAdjuster(
 }
 
 export function createScrollAdjuster(innerHeight: Accessor<number>) {
-  createEffect(
+  createRenderEffect(
     on(
       () => innerHeight(),
       (height, prevHeight) => {
@@ -78,18 +80,12 @@ export function createSafariScrollAdjuster(
 
 export function createCommentInputBottomOffset(
   innerHeight: Accessor<number>,
-  tgHeight: Accessor<number>,
   keyboard: KeyboardStatus,
 ) {
-  const [initialHeightDiff, setInitialHeightDiff] = createSignal(
-    window.innerHeight - tgHeight(),
+  const { height: tgHeight, isReady } = useScreenSize();
+  const initialHeightDiff = createMemo(
+    () => (isReady(), untrack(() => window.innerHeight - tgHeight())),
   );
-  onMount(() => {
-    // if it's first render - tgHeight - is not initialized and we need to wait some time to get it
-    requestAnimationFrame(() => {
-      setInitialHeightDiff(window.innerHeight - tgHeight());
-    });
-  });
   const windowScrollTop = createWindowScrollTop();
   const commentInputBottomOffset = () =>
     innerHeight() -

@@ -34,8 +34,12 @@ const useModalNavigation = ({
       return;
     }
 
-    const id = Math.random().toString(16).slice(2);
+    const id =
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : Math.random().toString(16).slice(2);
     untrack(() => {
+      // console.log("setted");
       setParams(
         {
           ...params,
@@ -50,7 +54,7 @@ const useModalNavigation = ({
 
     createEffect(() => {
       // expensive operation, but not a big deal
-      const includesId = params.modals?.split(".").includes(id);
+      const includesId = params.modals?.includes(id);
       if (includesId) {
         isSet = true;
         return;
@@ -58,11 +62,13 @@ const useModalNavigation = ({
       if (!isSet) {
         return;
       }
+      // console.log("on close");
       onClose();
       isSet = false;
     });
 
     onCleanup(() => {
+      // console.log("cleanup");
       if (isSet) {
         navigate(-1);
       }
@@ -81,6 +87,7 @@ export const BottomDialog = <T,>(
 
   const transitionPresence = createTransitionPresence({
     when: () => props.when,
+    animateInitial: true,
     element: dialogRef,
   });
   useModalNavigation({
