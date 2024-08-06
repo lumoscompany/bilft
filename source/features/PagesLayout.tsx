@@ -19,6 +19,7 @@ import {
   usePageTransitionsCount,
 } from "./pageTransitions";
 import {
+  createProfileShareUrl,
   isApple,
   launchParams,
   mainButton,
@@ -65,10 +66,7 @@ const useStories = (shouldShowMainButton: () => boolean) => {
         import.meta.env.VITE_SELF_WEBAPP_URL +
         `/assets/stories/${randomInt(1, 6)}${userHasPremium ? "-premium" : ""}.webp`;
 
-      const postLink =
-        import.meta.env.VITE_SELF_BOT_WEBAPP_URL +
-        "?startapp=id" +
-        getSelfUserId();
+      const postLink = createProfileShareUrl(getSelfUserId());
       postEvent(
         "web_app_share_to_story",
         userHasPremium

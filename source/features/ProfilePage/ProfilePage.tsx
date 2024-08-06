@@ -59,7 +59,7 @@ import {
 import { useInfiniteScroll } from "../infiniteScroll";
 import { createCommentsUrl } from "../navigation";
 import { scrollableElement, setVirtualizerHandle } from "../scroll";
-import { utils } from "../telegramIntegration";
+import { createProfileShareUrl, utils } from "../telegramIntegration";
 import { CommentNoteFooterLayout } from "./CommantNoteFooterLayour";
 
 const UserStatus = (props: ParentProps<StyleProps>) => (
@@ -234,8 +234,7 @@ const UserProfilePage = (props: {
           <button
             class="transition-opacity active:opacity-50"
             onClick={() => {
-              const url = new URL(import.meta.env.VITE_SELF_BOT_WEBAPP_URL);
-              url.searchParams.set("startapp", `id${props.id}`);
+              const url = createProfileShareUrl(props.id);
 
               // server adds (me) postfix to your name
               const shareText = name().replace(" (me)", "");
