@@ -1,16 +1,24 @@
 import { getVirtualizerHandle, scrollableElement } from "@/features/scroll";
 import { platform } from "@/features/telegramIntegration";
-import { assertOk } from "@/lib/assert";
 import { createWindowScrollTop, useCleanup } from "@/lib/solid";
-import { createEffect, on, type Accessor } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createRenderEffect,
+  on,
+  untrack,
+  type Accessor,
+} from "solid-js";
 import type { KeyboardStatus } from "../keyboardStatus";
+import { useScreenSize } from "../screenSize";
 
 export function createOnResizeScrollAdjuster(
-  commentCreatorContainer: () => HTMLDivElement,
+  commentCreatorContainer: Accessor<HTMLElement | undefined>,
 ) {
   createEffect(() => {
     const commentCreatorContainerRef = commentCreatorContainer();
-    assertOk(commentCreatorContainerRef);
+    if (!commentCreatorContainerRef) return;
+
     useCleanup((signal) => {
       let prevHeight = commentCreatorContainerRef.clientHeight;
       const resizeObserver = new ResizeObserver(() => {
@@ -29,7 +37,7 @@ export function createOnResizeScrollAdjuster(
 }
 
 export function createScrollAdjuster(innerHeight: Accessor<number>) {
-  createEffect(
+  createRenderEffect(
     on(
       () => innerHeight(),
       (height, prevHeight) => {
@@ -72,19 +80,21 @@ export function createSafariScrollAdjuster(
 
 export function createCommentInputBottomOffset(
   innerHeight: Accessor<number>,
-  tgHeight: Accessor<number>,
   keyboard: KeyboardStatus,
-  initialHeightDiff: number,
 ) {
+  const { height: tgHeight, isReady } = useScreenSize();
+  const initialHeightDiff = createMemo(
+    () => (isReady(), untrack(() => window.innerHeight - tgHeight())),
+  );
   const windowScrollTop = createWindowScrollTop();
   const commentInputBottomOffset = () =>
     innerHeight() -
     tgHeight() -
     windowScrollTop() -
     (!keyboard.isKeyboardOpen()
-      ? initialHeightDiff
+      ? initialHeightDiff()
       : keyboard.isPortrait()
         ? 0
-        : initialHeightDiff / 2);
+        : initialHeightDiff() / 2);
   return commentInputBottomOffset;
 }

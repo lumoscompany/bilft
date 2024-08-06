@@ -21,8 +21,14 @@
     <!-- <link rel="apple-touch-icon" href="/assets/logo192.png" />
     <link rel="manifest" href="/assets/manifest.json" /> -->
   </head>
-  <body class="max-h-screen overflow-hidden bg-secondary-bg text-text">
-    <div class="max-h-screen overflow-auto" id="scroll-target">
+  <body
+    class="max-h-screen overflow-hidden bg-secondary-bg font-inter text-text"
+  >
+    <!-- TranslateZ is required for Safari sticky headers to be shown behind scroll: https://stackoverflow.com/questions/67076468/why-scrollbar-is-behind-sticky-elements-in-ios-safari -->
+    <div
+      class="max-h-screen overflow-y-auto overflow-x-hidden [transform:translateZ(0)]"
+      id="scroll-target"
+    >
       <div id="root"></div>
     </div>
     <noscript>You need to enable JavaScript to run this app</noscript>

@@ -1,4 +1,4 @@
-import { keysFactory } from "@/api/api";
+import { keysFactory, walletErrorBodyOf } from "@/api/api";
 import { utils } from "@/features/telegramIntegration";
 import {
   ArrowPointDownIcon,
@@ -8,8 +8,14 @@ import {
   UnlinkIcon,
   YoCoinIcon,
 } from "@/icons";
+import { assertOk } from "@/lib/assert";
 import { clsxString } from "@/lib/clsxString";
-import { createTransitionPresence, mergeRefs, useCleanup } from "@/lib/solid";
+import {
+  SignalHelper,
+  createTransitionPresence,
+  mergeRefs,
+  useCleanup,
+} from "@/lib/solid";
 import { useTonConnectUI } from "@/lib/ton-connect-solid";
 import { type StyleProps } from "@/lib/types";
 import { createQuery } from "@tanstack/solid-query";
@@ -26,7 +32,7 @@ import {
   type ComponentProps,
 } from "solid-js";
 import { disconnectWallet } from "../SetupTonWallet";
-import { CheckboxUI, type ModalStatus } from "./common";
+import { type ModalStatus } from "./common";
 
 const buttonClass =
   "transition-transform duration-200 active:scale-[98%] bg-accent p-[12px] font-inter text-[17px] leading-[22px] text-button-text text-center rounded-xl self-stretch";
@@ -162,7 +168,6 @@ export const WalletModalContent = (props: {
 }) => {
   const status = () => props.status;
   const meQuery = createQuery(() => keysFactory.me);
-
   const [tonConnectUI] = useTonConnectUI();
 
   const renderRequiredBalance = (requiredBalance: string) => (
@@ -171,16 +176,16 @@ export const WalletModalContent = (props: {
     </span>
   );
 
-  const SendAnonymous = (props: StyleProps) => (
+  const postTypeLabel = () =>
+    status().isPrivate ? "privately" : "anonymously";
+  const ModalTitle = (props: StyleProps) => (
     <p
-      data-checked=""
       class={clsxString(
         "group flex items-center gap-2 text-center font-inter text-[20px] font-semibold leading-7 text-text",
         props.class ?? "",
       )}
     >
-      <CheckboxUI />
-      Send anonymously
+      Send {postTypeLabel()}
     </p>
   );
   const delayedIsRefetching = createDelayed(
@@ -216,134 +221,142 @@ export const WalletModalContent = (props: {
 
       <Switch>
         <Match when={status().data}>
-          {(walletError) => (
-            <section class="mt-5 flex flex-1 flex-col items-center">
-              <YoCoinIcon class="mb-6" />
-              <SendAnonymous />
-              <p class="mt-2 text-center font-inter text-[17px] leading-[22px] text-hint">
-                To send a post anonymously, you need to have at least{" "}
-                {renderRequiredBalance(
-                  walletError().error.payload.requiredBalance,
-                )}
+          {(error) => {
+            const walletError = () =>
+              SignalHelper.map(error, walletErrorBodyOf);
+
+            const limit = () =>
+              SignalHelper.map(error, (error) => {
+                assertOk(error.error.reason === "reached_limit");
+                return error.error.payload.limit;
+              });
+
+            return (
+              <section class="mt-5 flex flex-1 flex-col items-center">
+                <YoCoinIcon class="mb-6" />
+                <ModalTitle />
+                <p class="mt-2 text-center font-inter text-[17px] leading-[22px] text-hint">
+                  {status().isPrivate
+                    ? `To send more than ${limit()} private posts per day`
+                    : "To send a post anonymously"}
+                  ,you need to have at least{" "}
+                  {renderRequiredBalance(walletError().payload.requiredBalance)}
+                  <Switch>
+                    <Match
+                      when={walletError().reason === "insufficient_balance"}
+                    >
+                      . Please top up your balance
+                    </Match>
+                    <Match
+                      when={walletError().reason === "no_connected_wallet"}
+                    >
+                      {" "}
+                      in your wallet balance
+                    </Match>
+                  </Switch>
+                </p>
                 <Switch>
-                  <Match
-                    when={walletError().error.reason === "insufficient_balance"}
-                  >
-                    . Please top up your balance
+                  <Match when={walletError().reason === "insufficient_balance"}>
+                    <article class="mb-auto mt-5 flex flex-row gap-1">
+                      <div class="flex flex-col rounded-[10px] bg-section-bg px-[10px] py-[6px]">
+                        <div class="font-inter text-[12px] leading-4 text-subtitle">
+                          Your balance
+                        </div>
+                        <div class="font-inter text-[13px] leading-[18px] text-text">
+                          {yokenAmountToFloat(
+                            meQuery.data?.wallet?.tokens.yo ?? "0",
+                          ).toFixed(0)}{" "}
+                          Yo
+                        </div>
+                      </div>
+
+                      <div class="flex flex-col rounded-[10px] bg-section-bg px-[10px] py-[6px]">
+                        <div class="font-inter text-[12px] leading-4 text-subtitle">
+                          lacks
+                        </div>
+                        <div class="font-inter text-[13px] leading-[18px] text-text">
+                          {Math.ceil(
+                            yokenAmountToFloat(
+                              walletError().payload.requiredBalance,
+                            ) -
+                              yokenAmountToFloat(
+                                meQuery.data?.wallet?.tokens.yo ?? "0",
+                              ),
+                          )}{" "}
+                          Yo
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          meQuery.refetch();
+                        }}
+                        inert={meQuery.isFetching}
+                        class="flex h-full flex-row items-center gap-1 rounded-[10px] bg-section-bg px-[10px] py-[14px] font-inter text-[13px] leading-[18px] text-text transition-transform active:scale-[97%]"
+                      >
+                        <RefreshIcon
+                          class={clsxString(
+                            "origin-center animate-spin text-accent animate-duration-[750ms]",
+                            delayedIsRefetching() ? "" : "animate-stop",
+                          )}
+                        />
+                        Refresh
+                      </button>
+                    </article>
+
+                    <button
+                      type="button"
+                      class={clsxString("mb-4 mt-7", buttonClass)}
+                      onClick={() => {
+                        utils.openLink("https://app.dedust.io/swap/TON/YO");
+                      }}
+                    >
+                      Get YO
+                    </button>
                   </Match>
-                  <Match
-                    when={walletError().error.reason === "no_connected_wallet"}
-                  >
-                    {" "}
-                    in your wallet balance
+                  <Match when={walletError().reason === "no_connected_wallet"}>
+                    <div class="mt-7 flex flex-1 flex-col justify-center self-stretch">
+                      <button
+                        type="button"
+                        class={clsxString(buttonClass)}
+                        onClick={async () => {
+                          const ton = tonConnectUI();
+                          if (!ton) {
+                            return;
+                          }
+
+                          await disconnectWallet(ton);
+                          ton.modal.open();
+                        }}
+                      >
+                        Connect Wallet
+                      </button>
+                      <button
+                        type="button"
+                        class="mb-2 pt-[14px] text-center font-inter text-[17px] leading-[22px] text-accent transition-opacity active:opacity-70"
+                        onClick={() => {
+                          props.onSendPublic();
+                        }}
+                      >
+                        Never mind, I'll post publicly
+                      </button>
+                    </div>
                   </Match>
                 </Switch>
-              </p>
-              <Switch>
-                <Match
-                  when={walletError().error.reason === "insufficient_balance"}
-                >
-                  <article class="mb-auto mt-5 flex flex-row gap-1">
-                    <div class="flex flex-col rounded-[10px] bg-section-bg px-[10px] py-[6px]">
-                      <div class="font-inter text-[12px] leading-4 text-subtitle">
-                        Your balance
-                      </div>
-                      <div class="font-inter text-[13px] leading-[18px] text-text">
-                        {yokenAmountToFloat(
-                          meQuery.data?.wallet?.tokens.yo ?? "0",
-                        ).toFixed(0)}{" "}
-                        Yo
-                      </div>
-                    </div>
-
-                    <div class="flex flex-col rounded-[10px] bg-section-bg px-[10px] py-[6px]">
-                      <div class="font-inter text-[12px] leading-4 text-subtitle">
-                        lacks
-                      </div>
-                      <div class="font-inter text-[13px] leading-[18px] text-text">
-                        {Math.ceil(
-                          yokenAmountToFloat(
-                            walletError().error.payload.requiredBalance,
-                          ) -
-                            yokenAmountToFloat(
-                              meQuery.data?.wallet?.tokens.yo ?? "0",
-                            ),
-                        )}{" "}
-                        Yo
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        meQuery.refetch();
-                      }}
-                      inert={meQuery.isFetching}
-                      class="flex h-full flex-row items-center gap-1 rounded-[10px] bg-section-bg px-[10px] py-[14px] font-inter text-[13px] leading-[18px] text-text transition-transform active:scale-[97%]"
-                    >
-                      <RefreshIcon
-                        class={clsxString(
-                          "origin-center animate-spin text-accent animate-duration-[750ms]",
-                          delayedIsRefetching() ? "" : "animate-stop",
-                        )}
-                      />
-                      Refresh
-                    </button>
-                  </article>
-
-                  <button
-                    type="button"
-                    class={clsxString("mb-4 mt-7", buttonClass)}
-                    onClick={() => {
-                      utils.openLink("https://app.dedust.io/swap/TON/YO");
-                    }}
-                  >
-                    Get YO
-                  </button>
-                </Match>
-                <Match
-                  when={walletError().error.reason === "no_connected_wallet"}
-                >
-                  <div class="mt-7 flex flex-1 flex-col justify-center self-stretch">
-                    <button
-                      type="button"
-                      class={clsxString(buttonClass)}
-                      onClick={async () => {
-                        const ton = tonConnectUI();
-                        if (!ton) {
-                          return;
-                        }
-
-                        await disconnectWallet(ton);
-                        ton.modal.open();
-                      }}
-                    >
-                      Connect Wallet
-                    </button>
-                    <button
-                      type="button"
-                      class="mb-2 pt-[14px] text-center font-inter text-[17px] leading-[22px] text-accent transition-opacity active:opacity-70"
-                      onClick={() => {
-                        props.onSendPublic();
-                      }}
-                    >
-                      Never mind, I'll post publicly
-                    </button>
-                  </div>
-                </Match>
-              </Switch>
-            </section>
-          )}
+              </section>
+            );
+          }}
         </Match>
 
         <Match when={status().type === "success"}>
           <section class="mt-5 flex flex-1 flex-col items-center">
             <SuccessIcon class="mb-6" />
 
-            <SendAnonymous />
+            <ModalTitle />
             <p class="mt-2 text-center font-inter text-[17px] leading-[22px] text-hint">
-              Awesome! Now you have enough YO to post anonymously. Click "Send"
-              to post
+              Awesome! Now you have enough YO to post {postTypeLabel()}. Click
+              "Send" to post
             </p>
 
             <div class="mb-auto mt-5 flex flex-col self-center rounded-[10px] bg-section-bg px-[10px] py-[6px]">

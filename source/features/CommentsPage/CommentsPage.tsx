@@ -1,5 +1,5 @@
-import { COMMENTS_PAGE_SIZE, keysFactory } from "@/api/api";
-import type { Comment } from "@/api/model";
+import { keysFactory } from "@/api/api";
+import type { Comment, Note } from "@/api/model";
 import { formatPostDate, formatPostTime } from "@/features/format";
 import {
   getVirtualizerHandle,
@@ -7,31 +7,67 @@ import {
   setVirtualizerHandle,
 } from "@/features/scroll";
 import { platform } from "@/features/telegramIntegration";
-import { AnonymousAvatarIcon, ArrowDownIcon } from "@/icons";
+import {
+  AnonymousAvatarIcon,
+  AnonymousHintIcon,
+  ArrowDownIcon,
+  PublicHintIcon,
+} from "@/icons";
 import { assertOk } from "@/lib/assert";
 import { clsxString } from "@/lib/clsxString";
 import { PxStringFromNumber, type PxString } from "@/lib/pxString";
-import { createInnerHeight, createTransitionPresence } from "@/lib/solid";
+import {
+  createInnerHeight,
+  createTransitionPresence,
+  type Ref,
+} from "@/lib/solid";
 import { A, useParams } from "@solidjs/router";
 import { createQuery } from "@tanstack/solid-query";
 import {
   Match,
   Show,
   Switch,
+  batch,
   createEffect,
   createMemo,
   createSignal,
   on,
-  type Accessor,
+  onMount,
 } from "solid-js";
 import { Virtualizer } from "virtua/solid";
-import { AvatarIcon } from "../BoardNote/AvatarIcon";
+import {
+  AvatarIcon,
+  AvatarIconEntryMakeGenerated,
+  AvatarIconEntryMakeLoaded,
+} from "../BoardNote/AvatarIcon";
 import { BoardNote } from "../BoardNote/BoardNote";
-import { CommentCreator } from "../ContentCreator/CommentCreator";
-import { createInputFocusPreventer } from "../ContentCreator/PostInput";
+import { BottomDialog } from "../BottomDialog";
+import {
+  createCommentMutation,
+  createInputState,
+} from "../ContentCreator/CommentCreator";
+import {
+  PostInput,
+  createInputFocusPreventer,
+} from "../ContentCreator/PostInput";
+import {
+  SEND_ANONYMOUS_DESCRIPTION,
+  SEND_ANONYMOUS_TITLE,
+  SEND_PUBLIC_DESCRIPTION,
+  SEND_PUBLIC_TITLE,
+  VariantEntryMake,
+  VariantSelector,
+  type VariantEntry,
+} from "../ContentCreator/VariantSelector";
+import { WalletModalContent } from "../ContentCreator/WalletModal";
+import {
+  createOptimisticModalStatus,
+  createUnlinkMutation,
+} from "../ContentCreator/shared";
 import { LoadingSvg } from "../LoadingSvg";
+import type { ProfileIdWithoutPrefix } from "../idUtils";
 import { useKeyboardStatus } from "../keyboardStatus";
-import { useScreenSize } from "../screenSize";
+import { createBoardUrl } from "../navigation";
 import { createReversingCommentsQuery } from "./createReversingCommentsQuery";
 import {
   createCommentInputBottomOffset,
@@ -61,7 +97,6 @@ export const CommentsPage = () => {
   const noteId = () => params.noteId;
 
   const note = createQuery(() => keysFactory.note(params.noteId));
-  const boardId = () => note.data?.boardId;
 
   const [isReversed, setIsReversed] = useReversed();
   const reversingComments = createReversingCommentsQuery(
@@ -93,32 +128,31 @@ export const CommentsPage = () => {
       ),
   );
 
-  const { height: tgHeight } = useScreenSize();
+  //#region scroll
   const keyboard = useKeyboardStatus();
-
-  const initialHeightDiff = window.innerHeight - tgHeight();
-
   const [scrollMarginTop, setBeforeListElement] = createListMarginTop(128);
 
   // long story short: Webview Safari + IOS Telegram = dog shit
-  let commentInputTranslateTopPx: null | Accessor<PxString> = null;
-
   const innerHeight = createInnerHeight();
+  const commentInputBottomOffset =
+    platform === "ios"
+      ? createCommentInputBottomOffset(innerHeight, keyboard)
+      : null;
+
   if (platform === "ios") {
-    const commentInputSize = createCommentInputBottomOffset(
-      innerHeight,
-      tgHeight,
-      keyboard,
-      initialHeightDiff,
-    );
-    commentInputTranslateTopPx = () => PxStringFromNumber(commentInputSize());
-    createSafariScrollAdjuster(keyboard, commentInputSize);
+    assertOk(commentInputBottomOffset);
+    createSafariScrollAdjuster(keyboard, commentInputBottomOffset);
   } else {
     createScrollAdjuster(innerHeight);
   }
 
-  let commentCreatorContainerRef!: HTMLDivElement;
-  createOnResizeScrollAdjuster(() => commentCreatorContainerRef);
+  const commentInputBottomOffsetPx = commentInputBottomOffset
+    ? () => PxStringFromNumber(commentInputBottomOffset())
+    : null;
+  const [commentCreatorContainerRef, setCommentCreatorContainerRef] =
+    createSignal<HTMLElement>();
+  createOnResizeScrollAdjuster(commentCreatorContainerRef);
+  //#endregion scroll
 
   const [range, setRange] = createSignal<[number, number]>([0, 0], {
     equals: (a, b) => a === b || (!!a && !!b && a[0] === b[0] && a[1] === b[1]),
@@ -175,7 +209,7 @@ export const CommentsPage = () => {
       return;
     }
     if (!comment && isReversed()) {
-      console.log("scrolling to last");
+      // console.log("scrolling to last");
       getVirtualizerHandle()?.scrollToIndex(commentItems().length - 1, {
         smooth: true,
       });
@@ -184,33 +218,6 @@ export const CommentsPage = () => {
 
     await reversingComments.reverse(comment);
   };
-
-  const showBottomScroller = createMemo(() => {
-    // for some reason on IOS scroll is not working when keyboard open
-    // [TODO]: figure out why
-    if (platform === "ios" && keyboard.isKeyboardOpen()) {
-      return false;
-    }
-    const count = reversingComments.commentsCount();
-
-    if (!count) {
-      return false;
-    }
-
-    return (
-      count -
-        COMMENTS_PAGE_SIZE *
-          ((reversingComments.firstLoadedPageNumber() ?? 1) - 1) -
-        (range()?.[1] ?? 0) >
-      10
-    );
-  });
-
-  let bottomScroller!: HTMLButtonElement;
-  const shouldShowBottomScroller = createTransitionPresence({
-    when: showBottomScroller,
-    element: () => bottomScroller,
-  });
 
   const _commentsWithLoaders = createMemo(() => {
     if (reversingComments.isLoading()) {
@@ -282,6 +289,37 @@ export const CommentsPage = () => {
   //     },
   //   ),
   // );
+  //
+
+  const [scrollTop, setScrollTop] = createSignal(0);
+  const [isRendered, setIsRendered] = createSignal(false);
+  onMount(() => setIsRendered(true));
+  const showBottomScroller = createMemo(() => {
+    if (!isRendered()) {
+      return false;
+    }
+    // for some reason on IOS scroll is not working when keyboard open
+    // [TODO]: figure out why
+    if (platform === "ios" && keyboard.isKeyboardOpen()) {
+      return false;
+    }
+    const count = reversingComments.commentsCount();
+
+    if (!count) {
+      return false;
+    }
+    if (reversingComments.hasNextPage()) {
+      return true;
+    }
+
+    const scrollSize = getVirtualizerHandle()?.scrollSize;
+    const viewportHeight = getVirtualizerHandle()?.viewportSize;
+    if (scrollSize === undefined || viewportHeight === undefined) {
+      return false;
+    }
+
+    return scrollSize - viewportHeight - scrollTop() > 500;
+  });
 
   return (
     <main class="flex min-h-screen flex-col bg-secondary-bg px-4">
@@ -299,12 +337,15 @@ export const CommentsPage = () => {
               <>
                 <Switch
                   fallback={
-                    <BoardNote.PrivateHeader createdAt={note().createdAt} />
+                    <BoardNote.AnonymousHeader
+                      private={note().type === "private"}
+                      createdAt={note().createdAt}
+                    />
                   }
                 >
                   <Match when={note().author}>
                     {(author) => (
-                      <BoardNote.PublicHeader
+                      <BoardNote.AuthorHeader
                         name={author().name}
                         avatarUrl={author().photo}
                         authorId={author().id}
@@ -335,6 +376,8 @@ export const CommentsPage = () => {
               reversingComments.checkIsReversed(range());
             }}
             onScroll={(e) => {
+              setScrollTop(e);
+
               if (platform !== "ios" || e > 0) {
                 return;
               }
@@ -379,13 +422,20 @@ export const CommentsPage = () => {
                             <div class="col-span-full flex">
                               <A
                                 class="flex flex-row items-center gap-x-[6px] pl-2 font-inter text-[17px] font-medium leading-[22px] text-text transition-opacity active:opacity-70"
-                                href={`/board/${author().id}`}
+                                href={createBoardUrl(author().id)}
                               >
                                 <AvatarIcon
-                                  lazy
-                                  class="h-[22px] w-[22px]"
-                                  isLoading={false}
-                                  url={comment().author?.photo ?? null}
+                                  entry={
+                                    author().photo
+                                      ? AvatarIconEntryMakeLoaded(
+                                          author().photo,
+                                        )
+                                      : AvatarIconEntryMakeGenerated(
+                                          author().name,
+                                          author().id,
+                                        )
+                                  }
+                                  size={22}
                                 />
                                 {author().name}
                               </A>
@@ -395,7 +445,7 @@ export const CommentsPage = () => {
                         <Match when={comment().type === "anonymous"}>
                           <div class="col-span-full flex flex-row items-center gap-x-[6px] pl-2 font-inter text-[17px] font-medium leading-[22px] text-text transition-opacity">
                             <AnonymousAvatarIcon class="h-[22px] w-[22px]" />
-                            Anonymously
+                            Anonym
                           </div>
                         </Match>
                       </Switch>
@@ -476,11 +526,111 @@ export const CommentsPage = () => {
         </Match>
       </Switch>
 
+      <Show when={note.data}>
+        {(note) => (
+          <CommentsFooter
+            inputBottomOffset={commentInputBottomOffsetPx?.() ?? null}
+            showBottomScroller={showBottomScroller()}
+            ref={setCommentCreatorContainerRef}
+            boardId={note().boardId}
+            noteId={note().id}
+            noteType={note().type}
+            onScrollDown={onScrollDown}
+          />
+        )}
+      </Show>
+    </main>
+  );
+};
+
+export const CommentsFooter = (props: {
+  boardId: ProfileIdWithoutPrefix;
+  noteId: string;
+  noteType: Note["type"];
+  inputBottomOffset: PxString | null;
+  showBottomScroller: boolean;
+
+  onScrollDown(comment: Comment | null): Promise<void>;
+
+  ref: Ref<HTMLElement>;
+}) => {
+  const variants = [
+    VariantEntryMake(
+      "public",
+      SEND_PUBLIC_TITLE,
+      SEND_PUBLIC_DESCRIPTION,
+      PublicHintIcon,
+    ),
+    VariantEntryMake(
+      "anonym",
+      SEND_ANONYMOUS_TITLE,
+      SEND_ANONYMOUS_DESCRIPTION,
+      AnonymousHintIcon,
+    ),
+  ] satisfies VariantEntry<string>[];
+  type Variant = (typeof variants)[number]["value"];
+  const [
+    [inputValue, setInputValue],
+    [walletError, setWalletError],
+    [variant, setVariant],
+  ] = createInputState<Variant, false>(variants[0].value);
+
+  const addCommentMutation = createCommentMutation(
+    async (comment) => {
+      await props.onScrollDown(comment);
+
+      batch(() => {
+        setWalletError(null);
+        setInputValue("");
+      });
+    },
+    () => {
+      setWalletError(null);
+    },
+    (error) => {
+      setWalletError(error);
+    },
+  );
+
+  const unlinkMutation = createUnlinkMutation(
+    walletError,
+    setWalletError,
+    setWalletError,
+  );
+
+  const optimisticModalStatus = createOptimisticModalStatus(walletError);
+
+  const sendComment = (type: Variant) => {
+    const _boardId = props.boardId;
+    assertOk(_boardId);
+
+    addCommentMutation.mutate({
+      noteID: props.noteId,
+      content: inputValue(),
+      type:
+        props.noteType === "private"
+          ? undefined
+          : type === "anonym"
+            ? "anonymous"
+            : "public",
+      boardId: props.boardId,
+    });
+  };
+  const keyboard = useKeyboardStatus();
+
+  let bottomScroller!: HTMLButtonElement;
+  const shouldShowBottomScroller = createTransitionPresence({
+    when: () => props.showBottomScroller,
+    element: () => bottomScroller,
+  });
+
+  return (
+    <>
       <Show
         when={
           platform === "ios" &&
-          commentInputTranslateTopPx &&
-          commentInputTranslateTopPx()
+          props.inputBottomOffset !== null &&
+          props.inputBottomOffset
         }
       >
         {(height) => (
@@ -494,39 +644,95 @@ export const CommentsPage = () => {
       </Show>
 
       <section
-        ref={commentCreatorContainerRef}
+        ref={props.ref}
         style={
-          platform === "ios" && commentInputTranslateTopPx
+          platform === "ios" && props.inputBottomOffset !== null
             ? {
-                transform: `translateY(-${commentInputTranslateTopPx()})`,
+                transform: `translateY(-${props.inputBottomOffset})`,
               }
             : undefined
         }
-        class="sticky bottom-0 isolate -mx-2 mt-auto px-2 pb-6 pt-2 [&_*]:overscroll-y-contain"
+        class={clsxString(
+          "sticky bottom-0 isolate -mx-4 mt-auto [&_*]:overscroll-y-contain",
+        )}
       >
         <button
           {...createInputFocusPreventer.FRIENDLY}
-          onClick={() => onScrollDown(null)}
-          inert={!showBottomScroller()}
+          onClick={() => props.onScrollDown(null)}
+          inert={!props.showBottomScroller}
           ref={bottomScroller}
           class={clsxString(
-            "absolute bottom-[calc(100%+12px)] right-0 -z-10 flex aspect-square w-10 items-center justify-center rounded-full bg-section-bg transition-transform contain-strict after:absolute after:-inset-3 after:content-[''] active:scale-90",
-            showBottomScroller() ? "ease-out" : "translate-y-[calc(100%+12px)]",
+            "absolute bottom-[calc(100%+12px)] right-3 -z-10 flex aspect-square w-10 items-center justify-center rounded-full bg-section-bg transition-[transform,opacity] duration-200 will-change-[transform,opacity] contain-strict after:absolute after:-inset-3 after:content-[''] active:scale-90",
             shouldShowBottomScroller.present() ? "visible" : "invisible",
+            shouldShowBottomScroller.status() === "present"
+              ? "translate-y-0"
+              : "translate-y-[calc(100%+12px)] opacity-0",
           )}
           aria-label="Scroll to the bottom"
         >
           <ArrowDownIcon class="scale-[85%] text-hint" />
         </button>
-        <div class="absolute inset-0 -z-10 bg-secondary-bg" />
 
-        <CommentCreator
-          disabled={!note.isSuccess}
-          boardId={boardId() ?? null}
-          noteId={noteId()}
-          onCreated={onScrollDown}
-        />
+        <div
+          class={clsxString(
+            "bg-secondary-bg px-4 pt-2 contain-layout contain-style",
+            keyboard.isKeyboardOpen()
+              ? "pb-2"
+              : "pb-[max(var(--safe-area-inset-bottom,0px),0.5rem)]",
+          )}
+        >
+          <PostInput
+            preventScrollTouches
+            isLoading={addCommentMutation.isPending}
+            onSubmit={() => {
+              if (!inputValue) {
+                return;
+              }
+
+              sendComment(variant());
+            }}
+            value={inputValue()}
+            onChange={setInputValue}
+          >
+            <Show when={props.noteType !== "private"}>
+              <div class={clsxString("contain-layout contain-style")}>
+                <VariantSelector
+                  estimatePopoverSize={110}
+                  setValue={setVariant}
+                  value={variant()}
+                  variants={variants}
+                />
+              </div>
+            </Show>
+          </PostInput>
+        </div>
+
+        <BottomDialog
+          onClose={() => {
+            setWalletError(null);
+          }}
+          when={optimisticModalStatus()}
+        >
+          {(status) => (
+            <WalletModalContent
+              onSend={() => {
+                sendComment(variant());
+                setWalletError(null);
+              }}
+              status={status()}
+              onClose={() => {
+                setWalletError(null);
+              }}
+              onUnlinkWallet={() => {
+                unlinkMutation.mutate();
+              }}
+              onSendPublic={() => {
+                sendComment("public");
+              }}
+            />
+          )}
+        </BottomDialog>
       </section>
-    </main>
+    </>
   );
 };

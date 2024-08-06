@@ -1,27 +1,9 @@
 import { useCleanup } from "@/lib/solid";
 import { createEffect, type Accessor } from "solid-js";
+import { Point, pointIsInsideBox } from "./point";
 
-export type Point = { x: number; y: number };
-export const Point = {
-  isInsideElement: (point: Point, element: HTMLElement) => {
-    const elementRect = element.getBoundingClientRect();
-    if (point.x < elementRect.left || point.x > elementRect.right) {
-      return false;
-    }
-
-    if (point.y > elementRect.bottom || point.y < elementRect.top) {
-      return false;
-    }
-    return true;
-  },
-  fromTouch: (item: Touch): Point => ({
-    x: item.clientX,
-    y: item.clientY,
-  }),
-};
 export function createSafariKeyboardHider(
   isFocused: Accessor<boolean>,
-  position: Accessor<"top" | "bottom">,
   formRef: () => HTMLFormElement,
   inputRef: () => HTMLTextAreaElement | undefined,
 ) {
@@ -68,10 +50,25 @@ export function createSafariKeyboardHider(
               continue;
             }
 
+            const formRefBox = formRef().getBoundingClientRect();
             if (
               nextPoint.y > prevPoint.y &&
-              !Point.isInsideElement(prevPoint, formRef()) &&
-              Point.isInsideElement(nextPoint, formRef())
+              !pointIsInsideBox(
+                prevPoint.x,
+                prevPoint.y,
+                formRefBox.x,
+                formRefBox.y,
+                formRefBox.width,
+                formRefBox.height,
+              ) &&
+              pointIsInsideBox(
+                nextPoint.x,
+                nextPoint.y,
+                formRefBox.x,
+                formRefBox.y,
+                formRefBox.width,
+                formRefBox.height,
+              )
             ) {
               someInside = true;
               continue;
@@ -115,9 +112,7 @@ export function createSafariKeyboardHider(
           if (
             input &&
             form &&
-            (position() === "top"
-              ? touchState === "outside-input" || touchState === "inside-input"
-              : touchState === "inside-input") &&
+            touchState === "inside-input" &&
             e.target &&
             (e.target instanceof Element || e.target instanceof Document) &&
             !form.contains(e.target)

@@ -3,7 +3,6 @@ import {
   createRenderEffect,
   createSignal,
   onCleanup,
-  onMount,
   untrack,
   type Accessor,
 } from "solid-js";
@@ -61,51 +60,48 @@ export type TransitionPresenceStatus =
   | "hiding"
   | "hidden";
 export const createTransitionPresence = <T,>(params: {
-  when: Accessor<T | undefined | null | false>;
+  when: Accessor<T | null | false | undefined>;
   element: Accessor<undefined | HTMLElement>;
   timeout?: number;
+  animateInitial?: boolean;
 }): {
-  present: Accessor<T | undefined | null | false>;
+  present: Accessor<T | null>;
   status: Accessor<TransitionPresenceStatus>;
 } => {
   const timeout = params.timeout ?? 2000;
   const show = createMemo(() => !!params.when());
-  const whenAndNoElement = params.when() && !params.element();
   const [status, setStatus] = createSignal<TransitionPresenceStatus>(
-    params.when() ? (params.element() ? "present" : "presenting") : "hidden",
+    params.when()
+      ? params.animateInitial
+        ? "presenting"
+        : "present"
+      : "hidden",
   );
-  if (whenAndNoElement) {
-    onMount(() => {
-      setStatus(
-        params.when()
-          ? params.element()
-            ? "present"
-            : "presenting"
-          : "hidden",
-      );
-    });
-  }
 
-  const whenOrPrev = createMemo<T | undefined | null | false>((prev) =>
-    status() === "hidden"
+  const whenOrPrev = createMemo<T | null>((prev) => {
+    let _when: T | null | false | undefined;
+    return status() === "hidden"
       ? null
-      : status() !== "hiding" && params.when()
-        ? params.when()
-        : prev,
-  );
+      : status() !== "hiding" && (_when = params.when())
+        ? _when
+        : prev ?? null;
+  });
 
   // we need to execute effect before render
-  createRenderEffect(() => {
+  createRenderEffect((shouldPresentWithAnimation: boolean): boolean => {
     if (!show() || untrack(() => status() === "hiding")) {
       status();
-      return;
+      return true;
     }
+    if (shouldPresentWithAnimation) {
+      setStatus("presenting");
 
-    setStatus("presenting");
-
-    requestAnimationFrame(() => {
-      setStatus((cur) => (cur === "presenting" ? "present" : cur));
-    });
+      requestAnimationFrame(() => {
+        setStatus((cur) => (cur === "presenting" ? "present" : cur));
+      });
+    } else {
+      setStatus("present");
+    }
 
     onCleanup(() => {
       const dismiss = () => {
@@ -132,18 +128,11 @@ export const createTransitionPresence = <T,>(params: {
         //   prevAnimations,
         // });
 
-        let newAnimationsPromise: Promise<unknown> | null = null;
+        const filteredAnimations = curAnimations.filter(
+          (it) => !prevAnimations.includes(it),
+        );
 
-        for (const anim of curAnimations) {
-          if (prevAnimations.includes(anim)) {
-            continue;
-          }
-          newAnimationsPromise = newAnimationsPromise
-            ? newAnimationsPromise.finally(() => anim.finished)
-            : anim.finished;
-        }
-
-        if (!newAnimationsPromise) {
+        if (filteredAnimations.length === 0) {
           dismiss();
           return;
         }
@@ -152,11 +141,13 @@ export const createTransitionPresence = <T,>(params: {
           new Promise<void>((resolve) => {
             setTimeout(resolve, timeout);
           }),
-          newAnimationsPromise,
+          Promise.allSettled(filteredAnimations.map((it) => it.finished)),
         ]).finally(dismiss);
       });
     });
-  });
+
+    return true;
+  }, !!params.animateInitial);
 
   return {
     present: whenOrPrev,
@@ -171,9 +162,15 @@ export const SignalHelper = {
 export const createWindowScrollTop = () => {
   const [windowScrollTop, setWindowScrollTop] = createSignal(window.screenTop);
 
-  window.addEventListener("scroll", () => {
-    setWindowScrollTop(window.scrollY);
-  });
+  useCleanup((signal) =>
+    window.addEventListener(
+      "scroll",
+      () => {
+        setWindowScrollTop(window.scrollY);
+      },
+      { signal },
+    ),
+  );
 
   return windowScrollTop;
 };
@@ -223,3 +220,25 @@ export const unwrapSignals = <T extends Record<string, unknown>>(
 export const unwrapUntrackSignals = <T extends Record<string, unknown>>(
   obj: T,
 ): UnwrapSignals<T> => untrack(() => unwrapSignals(obj));
+
+// export const createDelayed = <
+//   T extends number | string | null | undefined | boolean,
+// >(
+//   source: Accessor<T>,
+// ) => {
+//   const [shouldDelay, setShouldDelay] = createSignal(false);
+//   const output = createMemo<T>(
+//     (prev) => (shouldDelay() ? prev : source()),
+//     source(),
+//   );
+//   let waitPr: Promise<void>;
+//   const delay = (time: number) => {
+//     setShouldDelay(true);
+
+//     setTimeout(() => {
+//       setShouldDelay(false);
+//     }, time);
+//   };
+
+//   return [output, delay];
+// };

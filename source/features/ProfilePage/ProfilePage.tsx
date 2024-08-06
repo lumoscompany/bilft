@@ -1,27 +1,66 @@
-import { keysFactory } from "@/api/api";
+import { keysFactory, type CreateNoteRequest } from "@/api/api";
 import type { NoteWithComment } from "@/api/model";
-import { AvatarIcon } from "@/features/BoardNote/AvatarIcon";
+import {
+  AvatarIcon,
+  AvatarIconEntryLoading,
+  AvatarIconEntryMakeGenerated,
+  AvatarIconEntryMakeLoaded,
+} from "@/features/BoardNote/AvatarIcon";
 import { BoardNote } from "@/features/BoardNote/BoardNote";
-import { PostCreator } from "@/features/ContentCreator/PostCreator";
 import { LoadingSvg } from "@/features/LoadingSvg";
 import {
-  addPrefix,
+  ProfileIdAddPrefix,
+  ProfileIdWithoutPrefixCheck,
   getSelfUserId,
   isEqualIds,
-  removePrefix,
+  type ProfileIdWithoutPrefix,
 } from "@/features/idUtils";
-import { ArrowPointUp, ShareProfileIcon } from "@/icons";
+import {
+  AnonymousHintIcon,
+  ArrowPointUp,
+  PrivateHintIcon,
+  PublicHintIcon,
+  ShareProfileIcon,
+} from "@/icons";
+import { assertOk } from "@/lib/assert";
 import { clsxString } from "@/lib/clsxString";
 import { type StyleProps } from "@/lib/types";
 import { queryClient } from "@/queryClient";
 import { A, useParams } from "@solidjs/router";
 import { createInfiniteQuery, createQuery } from "@tanstack/solid-query";
-import { Match, Show, Switch, createMemo, type ParentProps } from "solid-js";
+import {
+  Match,
+  Show,
+  Switch,
+  batch,
+  createMemo,
+  type ParentProps,
+} from "solid-js";
 import { Virtualizer } from "virtua/solid";
-import { createCommentsPageUrl } from "../CommentsPage/utils";
+import { BottomDialog } from "../BottomDialog";
+import { createInputState } from "../ContentCreator/CommentCreator";
+import { PostInput } from "../ContentCreator/PostInput";
+import {
+  SEND_ANONYMOUS_DESCRIPTION,
+  SEND_ANONYMOUS_TITLE,
+  SEND_PRIVATE_DESCRIPTION,
+  SEND_PRIVATE_TITLE,
+  SEND_PUBLIC_DESCRIPTION,
+  SEND_PUBLIC_TITLE,
+  VariantEntryMake,
+  VariantSelector,
+} from "../ContentCreator/VariantSelector";
+import { WalletModalContent } from "../ContentCreator/WalletModal";
+import { createNoteMutation } from "../ContentCreator/post";
+import {
+  createOptimisticModalStatus,
+  createUnlinkMutation,
+} from "../ContentCreator/shared";
+import { Ripples } from "../Ripple";
 import { useInfiniteScroll } from "../infiniteScroll";
+import { createCommentsUrl } from "../navigation";
 import { scrollableElement, setVirtualizerHandle } from "../scroll";
-import { utils } from "../telegramIntegration";
+import { createProfileShareUrl, isApple, utils } from "../telegramIntegration";
 import { CommentNoteFooterLayout } from "./CommantNoteFooterLayour";
 
 const UserStatus = (props: ParentProps<StyleProps>) => (
@@ -47,15 +86,15 @@ const UserStatus = (props: ParentProps<StyleProps>) => (
 
 const UserProfilePage = (props: {
   isSelf: boolean;
-  idWithoutPrefix: string;
+  id: ProfileIdWithoutPrefix;
 }) => {
   const boardQuery = createQuery(() =>
     keysFactory.board({
-      value: addPrefix(props.idWithoutPrefix),
+      value: ProfileIdAddPrefix(props.id),
     }),
   );
 
-  const getBoardId = () => removePrefix(props.idWithoutPrefix);
+  const getBoardId = () => props.id;
 
   const notesQuery = createInfiniteQuery(() => ({
     ...keysFactory.notes({
@@ -91,42 +130,129 @@ const UserProfilePage = (props: {
     });
   };
 
+  const variants = [
+    VariantEntryMake(
+      "public",
+      SEND_PUBLIC_TITLE,
+      SEND_PUBLIC_DESCRIPTION,
+      PublicHintIcon,
+    ),
+    VariantEntryMake(
+      "anonym",
+      SEND_ANONYMOUS_TITLE,
+      SEND_ANONYMOUS_DESCRIPTION,
+      AnonymousHintIcon,
+    ),
+    VariantEntryMake(
+      "private",
+      SEND_PRIVATE_TITLE,
+      SEND_PRIVATE_DESCRIPTION,
+      PrivateHintIcon,
+    ),
+  ] as const;
+  type Variant = (typeof variants)[number]["value"];
+  const [
+    [inputValue, setInputValue],
+    [walletError, setWalletError],
+    [variant, setVariant],
+  ] = createInputState<Variant, true>(variants[2].value);
+
+  const addNoteMutation = createNoteMutation(
+    () => {
+      const id = boardQuery.data?.id;
+      assertOk(id);
+      return id;
+    },
+    async () => {
+      batch(() => {
+        setWalletError(null);
+        setInputValue("");
+      });
+    },
+    () => {
+      setWalletError(null);
+    },
+    (error) => {
+      setWalletError(error);
+    },
+  );
+
+  const unlinkMutation = createUnlinkMutation(
+    walletError,
+    setWalletError,
+    setWalletError,
+  );
+
+  const optimisticModalStatus = createOptimisticModalStatus(walletError);
+
+  const variantMap = {
+    public: "public",
+    anonym: "public-anonymous",
+    private: "private",
+  } satisfies Record<Variant, CreateNoteRequest["type"]>;
+
+  const sendNote = (type: Variant) => {
+    addNoteMutation.mutate({
+      content: inputValue(),
+      board: props.id,
+      type: variantMap[type],
+    });
+  };
+
+  const boardName = () => boardQuery.data?.name;
+  const name = () =>
+    boardQuery.data?.profile?.title ?? boardQuery.data?.name ?? " ";
+
   return (
     <main class="flex min-h-screen flex-col pb-6 pt-4 text-text">
-      <section class="sticky top-0 z-10 mx-2 flex flex-row items-center gap-3 bg-secondary-bg px-2 py-2">
-        <AvatarIcon
-          class="w-12"
-          isLoading={boardQuery.isLoading}
-          url={boardQuery.data?.profile?.photo ?? null}
-        />
-        <div class="flex flex-1 flex-row justify-between">
-          <div class="flex flex-1 flex-col">
-            <p class="relative font-inter text-[20px] font-bold leading-6">
-              {boardQuery.data?.profile?.title ?? boardQuery.data?.name ?? " "}
-              <Show when={boardQuery.isLoading}>
-                <div class="absolute inset-y-1 left-0 right-[50%] animate-pulse rounded-xl bg-gray-600" />
-              </Show>
-            </p>
-            {/* TODO: add date */}
-            {/* <p class="text-[15px] font-inter leading-[22px]">Member since Jan 2021</p> */}
-          </div>
+      <section class="sticky top-0 z-10 mx-2 flex flex-row items-center gap-3 bg-secondary-bg py-1 pl-1 pr-2">
+        <button
+          disabled={!boardName()}
+          onClick={() => {
+            utils.openTelegramLink("https://t.me/" + boardName());
+          }}
+          class="group relative isolate flex flex-1 flex-row items-center gap-3 overflow-hidden px-1 py-1"
+        >
+          <Show fallback={<Ripples />} when={isApple()}>
+            <div class="pointer-events-none absolute inset-0 -z-10 select-none bg-text opacity-0 transition-opacity ease-out group-active:opacity-10" />
+          </Show>
+          <AvatarIcon
+            size={48}
+            entry={(() => {
+              let photo: string | undefined;
+              if ((photo = boardQuery.data?.profile?.photo)) {
+                return AvatarIconEntryMakeLoaded(photo);
+              }
 
-          <button
-            class="transition-opacity active:opacity-50"
-            onClick={() => {
-              const url = new URL(import.meta.env.VITE_SELF_BOT_WEBAPP_URL);
-              url.searchParams.set("startapp", `id${props.idWithoutPrefix}`);
+              let _name: string;
+              if ((_name = name()) && _name !== " ") {
+                return AvatarIconEntryMakeGenerated(_name, props.id);
+              }
+              return AvatarIconEntryLoading;
+            })()}
+          />
+          <p class="pointer-events-none relative font-inter text-[20px] font-bold leading-6">
+            {name()}
+            <Show when={boardQuery.isLoading}>
+              <div class="absolute inset-y-1 left-0 right-[50%] animate-pulse rounded-xl bg-gray-600" />
+            </Show>
+          </p>
+        </button>
 
-              const shareText =
-                boardQuery.data?.profile?.title ?? boardQuery.data?.name ?? "";
-              const shareUrl = url.toString();
-              utils.shareURL(shareUrl, shareText);
-            }}
-          >
-            <span class="sr-only">Share profile</span>
-            <ShareProfileIcon class="text-accent" />
-          </button>
-        </div>
+        <button
+          class="ml-auto transition-opacity active:opacity-50"
+          onClick={() => {
+            const url = createProfileShareUrl(props.id);
+
+            // server adds (me) postfix to your name
+            const shareText = name().replace(" (me)", "");
+            const shareUrl = url.toString();
+            utils.shareURL(shareUrl, shareText);
+          }}
+        >
+          <span class="sr-only">Share profile</span>
+          <ShareProfileIcon class="text-accent" />
+        </button>
       </section>
 
       <UserStatus class="mx-4 mt-2 text-button-text">
@@ -135,7 +261,54 @@ const UserProfilePage = (props: {
           : boardQuery.data?.profile?.description}
       </UserStatus>
 
-      <PostCreator class="mx-4 mt-6" boardId={getBoardId()} />
+      <div class={"px-4 pt-4 contain-layout contain-style"}>
+        <PostInput
+          preventScrollTouches
+          isLoading={addNoteMutation.isPending}
+          onSubmit={() => {
+            if (!inputValue) {
+              return;
+            }
+
+            sendNote(variant());
+          }}
+          value={inputValue()}
+          onChange={setInputValue}
+        >
+          <VariantSelector
+            estimatePopoverSize={110}
+            setValue={setVariant}
+            value={variant()}
+            variants={variants}
+          />
+        </PostInput>
+
+        <BottomDialog
+          onClose={() => {
+            setWalletError(null);
+          }}
+          when={optimisticModalStatus()}
+        >
+          {(status) => (
+            <WalletModalContent
+              onSend={() => {
+                sendNote(variant());
+                setWalletError(null);
+              }}
+              status={status()}
+              onClose={() => {
+                setWalletError(null);
+              }}
+              onUnlinkWallet={() => {
+                unlinkMutation.mutate();
+              }}
+              onSendPublic={() => {
+                sendNote("public");
+              }}
+            />
+          )}
+        </BottomDialog>
+      </div>
 
       <section class="mt-6 flex flex-1 flex-col">
         <Switch>
@@ -168,16 +341,19 @@ const UserProfilePage = (props: {
               startMargin={282}
             >
               {(note) => (
-                <BoardNote class="mx-4 mb-4 contain-content">
+                <BoardNote class="mx-4 pb-4 contain-content">
                   <BoardNote.Card>
                     <Switch
                       fallback={
-                        <BoardNote.PrivateHeader createdAt={note.createdAt} />
+                        <BoardNote.AnonymousHeader
+                          private={note.type === "private"}
+                          createdAt={note.createdAt}
+                        />
                       }
                     >
                       <Match when={note.author}>
                         {(author) => (
-                          <BoardNote.PublicHeader
+                          <BoardNote.AuthorHeader
                             name={author().name}
                             avatarUrl={author().photo}
                             authorId={author().id}
@@ -188,7 +364,7 @@ const UserProfilePage = (props: {
                     </Switch>
                     <BoardNote.Divider class="pointer-events-none" />
                     <BoardNote.ContentLink
-                      href={createCommentsPageUrl(note, false)}
+                      href={createCommentsUrl(note.id, false)}
                       onClick={() => {
                         beforeNavigateToComment(note);
                       }}
@@ -200,7 +376,10 @@ const UserProfilePage = (props: {
                     {(boardId) => (
                       <CommentFooter
                         note={note}
-                        href={createCommentsPageUrl(note, false)}
+                        href={createCommentsUrl(
+                          note.id,
+                          note.type === "private",
+                        )}
                         onNavigateNote={beforeNavigateToComment}
                         boardId={boardId()}
                       />
@@ -225,7 +404,7 @@ const UserProfilePage = (props: {
                       top: 0,
                     });
                   }}
-                  class="mx-auto mt-6 flex items-center gap-x-2 font-inter text-[17px] leading-[22px] text-accent transition-opacity active:opacity-70"
+                  class="mx-auto mt-6 flex items-center gap-x-2 font-inter text-[17px] leading-[22px] text-accent transition-opacity active:opacity-50 active:ease-out"
                 >
                   Back to top
                   <ArrowPointUp />
@@ -242,11 +421,14 @@ const UserProfilePage = (props: {
 export const ProfilePage = () => {
   const selfUserId = getSelfUserId().toString();
   const params = useParams();
-  const idWithoutPrefix = () => params.idWithoutPrefix;
+  const idWithoutPrefix = () => {
+    assertOk(ProfileIdWithoutPrefixCheck(params.idWithoutPrefix));
+    return params.idWithoutPrefix;
+  };
 
   return (
     <UserProfilePage
-      idWithoutPrefix={idWithoutPrefix()}
+      id={idWithoutPrefix()}
       isSelf={isEqualIds(selfUserId, idWithoutPrefix())}
     />
   );

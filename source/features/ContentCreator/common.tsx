@@ -25,11 +25,13 @@ export const CheckboxUI = () => (
 export type ModalStatus =
   | {
       type: "error";
-      data: model.WalletError;
+      data: model.WalletOrLimitError;
+      isPrivate: boolean;
     }
   | {
       type: "success";
       data: null;
+      isPrivate: boolean;
     };
 
 export const ErrorHelper = {

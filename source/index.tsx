@@ -1,4 +1,4 @@
-import { render } from "solid-js/web";
+import { Portal, render } from "solid-js/web";
 import "unfonts.css";
 import "./index.css";
 
@@ -10,11 +10,15 @@ import {
 import { TonConnectProvider } from "@/lib/ton-connect-solid";
 import { Route } from "@solidjs/router";
 import { bindThemeParamsCSSVars, postEvent } from "@telegram-apps/sdk";
-import { createComputed, onCleanup, onMount } from "solid-js";
+import { createComputed, createSignal, onCleanup, onMount } from "solid-js";
 import { Toaster } from "solid-sonner";
 import { CommentsPage } from "./features/CommentsPage/CommentsPage";
 import { KeyboardStatusProvider } from "./features/keyboardStatus";
-import { createNavigatorFromStartParam } from "./features/navigation";
+import {
+  createNavigatorFromStartParam,
+  NavigationReadyProvider,
+} from "./features/navigation";
+import { PageLayout } from "./features/PagesLayout";
 import { createRouterWithPageTransition } from "./features/pageTransitions";
 import { parseStartParam } from "./features/parseStartParam";
 import { useFixSafariScroll } from "./features/safariScrollFix";
@@ -32,20 +36,50 @@ const cleanup = bindThemeParamsCSSVars(themeParams);
 if (import.meta.hot) {
   import.meta.hot.dispose(cleanup);
 }
+const dispose = (() => {
+  let textOpposite: string;
+  const updateTextOpposite = () => {
+    textOpposite = themeParams.isDark ? "#000" : "#FFF";
+    document.documentElement.style.setProperty(
+      "--theme-text-opposite-color",
+      textOpposite,
+    );
+  };
+
+  themeParams.on("change", () => {
+    updateTextOpposite();
+  });
+  updateTextOpposite();
+  return () => {
+    themeParams.off("change", updateTextOpposite);
+  };
+})();
+
+if (import.meta.hot) {
+  import.meta.hot.dispose(dispose);
+}
 
 miniApp.setHeaderColor("secondary_bg_color");
+
+const createIsResolved = (pr: Promise<unknown>) => {
+  const [isResolved, setIsResolved] = createSignal(false);
+  pr.then(() => setIsResolved(true));
+
+  return isResolved;
+};
 
 const App = () => {
   const navigator = createNavigatorFromStartParam(
     launchParams.startParam ? parseStartParam(launchParams.startParam) : null,
   );
-  navigator.attach();
+  const isNavigationReady = createIsResolved(navigator.attach());
   onCleanup(() => {
     void navigator.detach();
   });
 
   const Router = createRouterWithPageTransition(navigator);
 
+  postEvent("web_app_setup_swipe_behavior", { allow_vertical_swipe: false });
   onMount(() => {
     miniApp.ready();
     postEvent("web_app_expand");
@@ -69,23 +103,30 @@ const App = () => {
         <KeyboardStatusProvider>
           <TonConnectProvider manifestUrl={getTonconnectManifestUrl()}>
             <SetupTonWallet />
-            <Router>
-              <Route component={ProfilePage} path={"/board/:idWithoutPrefix"} />
-              <Route component={CommentsPage} path={"/comments/:noteId"} />
-            </Router>
+            <NavigationReadyProvider value={isNavigationReady}>
+              <Router root={PageLayout}>
+                <Route
+                  component={ProfilePage}
+                  path={"/board/:idWithoutPrefix"}
+                />
+                <Route component={CommentsPage} path={"/comments/:noteId"} />
+              </Router>
+            </NavigationReadyProvider>
           </TonConnectProvider>
 
-          <Toaster
-            position="top-center"
-            richColors
-            toastOptions={{
-              classes: {
-                title: "font-inter",
-                toast: "rounded-xl",
-              },
-            }}
-            theme={miniApp.isDark ? "dark" : "light"}
-          />
+          <Portal>
+            <Toaster
+              position="top-center"
+              richColors
+              toastOptions={{
+                classes: {
+                  title: "font-inter",
+                  toast: "rounded-xl",
+                },
+              }}
+              theme={miniApp.isDark ? "dark" : "light"}
+            />
+          </Portal>
         </KeyboardStatusProvider>
       </ScreenSizeProvider>
     </AppQueryClientProvider>

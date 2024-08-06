@@ -1,13 +1,15 @@
 import type { DateString } from "@/features/format";
+import type { ProfileIdWithoutPrefix } from "@/features/idUtils";
 
 export type ContentAuthor = {
-  id: string;
+  id: ProfileIdWithoutPrefix;
   name: string;
   photo: string;
 };
 
 export type Note = {
   id: string;
+  type: "private" | "public" | "public-anonymous";
   author?: ContentAuthor;
   createdAt: DateString;
   content: string;
@@ -29,7 +31,7 @@ export type BoardProfile = {
 };
 
 export type Board = {
-  id: string;
+  id: ProfileIdWithoutPrefix;
   isme: boolean;
   name?: string;
   profile?: BoardProfile;
@@ -73,6 +75,22 @@ export type WalletError = {
   };
 };
 
+/**
+ * @description limit errors are only possible now with private comments
+ */
+export type LimitReachedError = {
+  error: {
+    reason: "reached_limit";
+    payload: {
+      source: WalletError["error"];
+      limit: number;
+      limitResetAt: DateString;
+    };
+  };
+};
+
+export type WalletOrLimitError = WalletError | LimitReachedError;
+
 export type Comment = {
   id: string;
   content: string;
@@ -84,5 +102,8 @@ export type Comment = {
 export type CreateCommentRequest = {
   noteID: string;
   content: string;
-  type: Comment["type"];
+  /**
+   * @description undefined should be used for comments on private notes
+   */
+  type: Comment["type"] | undefined;
 };
