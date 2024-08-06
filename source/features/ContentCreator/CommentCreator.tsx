@@ -9,47 +9,46 @@ import type {
   CreateCommentRequest,
   NoteArray,
   NoteWithComment,
+  WalletError,
 } from "@/api/model";
-import { BottomDialog } from "@/features/BottomDialog";
-import { assertOk } from "@/lib/assert";
-import { SignalHelper, type Ref } from "@/lib/solid";
-import { type StyleProps } from "@/lib/types";
+import { SignalHelper } from "@/lib/solid";
 import {
   createMutation,
   createQuery,
   useQueryClient,
 } from "@tanstack/solid-query";
 import { AxiosError } from "axios";
-import { batch, createEffect, createMemo, createSignal } from "solid-js";
-import { PostInput, type PostInputProps } from "./PostInput";
-import { WalletModalContent } from "./WalletModal";
+import { createMemo, createSignal } from "solid-js";
 import { ErrorHelper, type ModalStatus } from "./common";
 
-// hard to generalize
-export const CommentCreator = (
-  props: {
-    noteId: string;
-    onCreated(comment: model.Comment): Promise<void>;
-    boardId: string | null;
-    disabled: boolean;
-  } & StyleProps & {
-      ref?: Ref<HTMLFormElement>;
-    } & Pick<PostInputProps, "onBlur" | "onFocus">,
+export const createInputState = <TVariant extends string>(
+  initial: TVariant,
 ) => {
-  const queryClient = useQueryClient();
-  if (import.meta.env.DEV) {
-    createEffect(() => {
-      assertOk(props.boardId || props.disabled);
-    });
-  }
-
   const [inputValue, setInputValue] = createSignal("");
-  const [isAnonymous, setIsAnonymous] = createSignal(false);
+  const [variant, setVariant] = createSignal(initial);
   const [walletError, setWalletError] = createSignal<model.WalletError | null>(
     null,
   );
-  const addCommentMutation = createMutation(() => ({
-    mutationFn: (request: CreateCommentRequest) => {
+
+  return [
+    [inputValue, setInputValue],
+    [walletError, setWalletError],
+    [variant, setVariant],
+  ] as const;
+};
+
+export function createCommentMutation(
+  onCreated: (
+    comment: model.Comment,
+    boardId: string,
+    noteId: string,
+  ) => Promise<void>,
+  onResetError: () => void,
+  onSendError: (newError: WalletError) => unknown,
+) {
+  const queryClient = useQueryClient();
+  return createMutation(() => ({
+    mutationFn: (request: CreateCommentRequest & { boardId: string }) => {
       return ErrorHelper.tryCatchAsyncMap(
         () => fetchMethod("/note/createComment", request),
         (error) => {
@@ -69,28 +68,27 @@ export const CommentCreator = (
         },
       );
     },
-    onSettled: () => {
-      assertOk(props.boardId);
+    onSettled: (_, __, { boardId }) => {
       queryClient.invalidateQueries({
         queryKey: keysFactory.notes({
-          board: props.boardId,
+          board: boardId,
         }).queryKey,
       });
     },
     onMutate: ({ type }) => {
       if (type === "public") {
-        setWalletError(null);
+        onResetError();
       }
     },
-    onSuccess: async ([comment, walletError]) => {
+    onSuccess: async ([comment, walletError], { boardId, noteID }) => {
       if (!comment) {
-        setWalletError(walletError);
+        onSendError(walletError);
         return;
       }
-      assertOk(props.boardId);
+
       queryClient.setQueryData(
         keysFactory.notes({
-          board: props.boardId,
+          board: boardId,
         }).queryKey,
         (board) => {
           if (!board || !board.pages || board.pages.length < 1) return board;
@@ -99,7 +97,7 @@ export const CommentCreator = (
             const notesPage = board.pages[i];
             for (let j = 0; j < notesPage.data.length; ++j) {
               const note = notesPage.data[j];
-              if (note.id === props.noteId) {
+              if (note.id === noteID) {
                 const newNote: NoteWithComment = {
                   commentsCount: note.commentsCount + 1,
                   content: note.content,
@@ -130,22 +128,23 @@ export const CommentCreator = (
         },
       );
 
-      await props.onCreated(comment);
-
-      batch(() => {
-        setInputValue("");
-        setIsAnonymous(false);
-        setWalletError(null);
-      });
+      await onCreated(comment, boardId, noteID);
     },
   }));
+}
+export const createUnlinkMutation = (
+  walletError: () => null | WalletError,
+  onUnlinkCauseError: (value: WalletError) => unknown,
+  onFallbackError: (value: WalletError | null) => unknown,
+) => {
+  const queryClient = useQueryClient();
 
-  const unlinkMutation = createMutation(() => ({
+  return createMutation(() => ({
     mutationFn: fetchMethodCurry("/me/unlinkWallet"),
     onMutate: () => {
       const curWalletError = walletError();
       if (curWalletError) {
-        setWalletError({
+        onUnlinkCauseError({
           error: {
             reason: "no_connected_wallet",
             payload: curWalletError.error.payload,
@@ -168,17 +167,21 @@ export const CommentCreator = (
       if (!walletError()) {
         return;
       }
-      setWalletError(ctx?.curWalletError ?? null);
+      onFallbackError(ctx?.curWalletError ?? null);
     },
   }));
+};
 
+export const createOptimisticModalStatus = (
+  walletError: () => null | WalletError,
+) => {
   const meQuery = createQuery(() => keysFactory.me);
 
   const hasEnoughMoney = createMemo(() => {
     const curWalletError = walletError();
     const tokensBalance = meQuery.data?.wallet?.tokens.yo;
     if (!curWalletError || !tokensBalance) {
-      return;
+      return false;
     }
     return (
       BigInt(curWalletError.error.payload.requiredBalance) <=
@@ -187,73 +190,36 @@ export const CommentCreator = (
   });
 
   const modalStatus = (): ModalStatus | null =>
-    SignalHelper.map(walletError, (error) =>
-      !error
-        ? null
-        : hasEnoughMoney()
-          ? {
-              type: "success",
-              data: null,
-            }
-          : {
-              type: "error",
-              data: error,
+    SignalHelper.map(walletError, (error): ModalStatus | null => {
+      if (!error) {
+        return null;
+      }
+      if (hasEnoughMoney()) {
+        return {
+          type: "success",
+          data: null,
+        };
+      }
+
+      if (
+        error.error.reason === "no_connected_wallet" &&
+        meQuery.data?.wallet
+      ) {
+        return {
+          type: "error",
+          data: {
+            error: {
+              reason: "insufficient_balance",
+              payload: { ...error.error.payload },
             },
-    );
-  const sendContent = (anonymous: boolean) =>
-    addCommentMutation.mutate({
-      noteID: props.noteId,
-      content: inputValue(),
-      type: anonymous ? "anonymous" : "public",
+          },
+        };
+      }
+      return {
+        type: "error",
+        data: error,
+      };
     });
 
-  return (
-    <>
-      <PostInput
-        preventScrollTouches
-        onBlur={props.onBlur}
-        onFocus={props.onFocus}
-        position="bottom"
-        ref={props.ref}
-        isAnonymous={isAnonymous()}
-        setIsAnonymous={setIsAnonymous}
-        class={props.class}
-        isLoading={addCommentMutation.isPending}
-        onSubmit={() => {
-          if (!inputValue) {
-            return;
-          }
-
-          sendContent(isAnonymous());
-        }}
-        value={inputValue()}
-        onChange={setInputValue}
-      />
-      <BottomDialog
-        onClose={() => {
-          setWalletError(null);
-        }}
-        when={modalStatus()}
-      >
-        {(status) => (
-          <WalletModalContent
-            onSend={() => {
-              sendContent(isAnonymous());
-              setWalletError(null);
-            }}
-            status={status()}
-            onClose={() => {
-              setWalletError(null);
-            }}
-            onUnlinkWallet={() => {
-              unlinkMutation.mutate();
-            }}
-            onSendPublic={() => {
-              sendContent(false);
-            }}
-          />
-        )}
-      </BottomDialog>
-    </>
-  );
+  return modalStatus;
 };

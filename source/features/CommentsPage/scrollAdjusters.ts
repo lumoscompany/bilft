@@ -2,7 +2,13 @@ import { getVirtualizerHandle, scrollableElement } from "@/features/scroll";
 import { platform } from "@/features/telegramIntegration";
 import { assertOk } from "@/lib/assert";
 import { createWindowScrollTop, useCleanup } from "@/lib/solid";
-import { createEffect, on, type Accessor } from "solid-js";
+import {
+  createEffect,
+  createSignal,
+  on,
+  onMount,
+  type Accessor,
+} from "solid-js";
 import type { KeyboardStatus } from "../keyboardStatus";
 
 export function createOnResizeScrollAdjuster(
@@ -74,17 +80,25 @@ export function createCommentInputBottomOffset(
   innerHeight: Accessor<number>,
   tgHeight: Accessor<number>,
   keyboard: KeyboardStatus,
-  initialHeightDiff: number,
 ) {
+  const [initialHeightDiff, setInitialHeightDiff] = createSignal(
+    window.innerHeight - tgHeight(),
+  );
+  onMount(() => {
+    // if it's first render - tgHeight - is not initialized and we need to wait some time to get it
+    requestAnimationFrame(() => {
+      setInitialHeightDiff(window.innerHeight - tgHeight());
+    });
+  });
   const windowScrollTop = createWindowScrollTop();
   const commentInputBottomOffset = () =>
     innerHeight() -
     tgHeight() -
     windowScrollTop() -
     (!keyboard.isKeyboardOpen()
-      ? initialHeightDiff
+      ? initialHeightDiff()
       : keyboard.isPortrait()
         ? 0
-        : initialHeightDiff / 2);
+        : initialHeightDiff() / 2);
   return commentInputBottomOffset;
 }

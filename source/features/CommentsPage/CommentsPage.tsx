@@ -10,7 +10,7 @@ import { platform } from "@/features/telegramIntegration";
 import { AnonymousAvatarIcon, ArrowDownIcon } from "@/icons";
 import { assertOk } from "@/lib/assert";
 import { clsxString } from "@/lib/clsxString";
-import { PxStringFromNumber, type PxString } from "@/lib/pxString";
+import { PxStringFromNumber } from "@/lib/pxString";
 import { createInnerHeight, createTransitionPresence } from "@/lib/solid";
 import { A, useParams } from "@solidjs/router";
 import { createQuery } from "@tanstack/solid-query";
@@ -18,17 +18,28 @@ import {
   Match,
   Show,
   Switch,
+  batch,
   createEffect,
   createMemo,
   createSignal,
   on,
-  type Accessor,
 } from "solid-js";
 import { Virtualizer } from "virtua/solid";
 import { AvatarIcon } from "../BoardNote/AvatarIcon";
 import { BoardNote } from "../BoardNote/BoardNote";
-import { CommentCreator } from "../ContentCreator/CommentCreator";
-import { createInputFocusPreventer } from "../ContentCreator/PostInput";
+import { BottomDialog } from "../BottomDialog";
+import {
+  createCommentMutation,
+  createInputState,
+  createOptimisticModalStatus,
+  createUnlinkMutation,
+} from "../ContentCreator/CommentCreator";
+import {
+  PostInput,
+  createInputFocusPreventer,
+} from "../ContentCreator/PostInput";
+import { VariantSelector } from "../ContentCreator/VariantSelector";
+import { WalletModalContent } from "../ContentCreator/WalletModal";
 import { LoadingSvg } from "../LoadingSvg";
 import { useKeyboardStatus } from "../keyboardStatus";
 import { useScreenSize } from "../screenSize";
@@ -93,32 +104,30 @@ export const CommentsPage = () => {
       ),
   );
 
+  //#region scroll
   const { height: tgHeight } = useScreenSize();
   const keyboard = useKeyboardStatus();
-
-  const initialHeightDiff = window.innerHeight - tgHeight();
-
   const [scrollMarginTop, setBeforeListElement] = createListMarginTop(128);
 
   // long story short: Webview Safari + IOS Telegram = dog shit
-  let commentInputTranslateTopPx: null | Accessor<PxString> = null;
-
   const innerHeight = createInnerHeight();
+  const commentInputBottomOffset =
+    platform === "ios"
+      ? createCommentInputBottomOffset(innerHeight, tgHeight, keyboard)
+      : null;
+
+  const commentInputBottomOffsetPx = commentInputBottomOffset
+    ? () => PxStringFromNumber(commentInputBottomOffset())
+    : null;
   if (platform === "ios") {
-    const commentInputSize = createCommentInputBottomOffset(
-      innerHeight,
-      tgHeight,
-      keyboard,
-      initialHeightDiff,
-    );
-    commentInputTranslateTopPx = () => PxStringFromNumber(commentInputSize());
-    createSafariScrollAdjuster(keyboard, commentInputSize);
+    assertOk(commentInputBottomOffset);
+    createSafariScrollAdjuster(keyboard, commentInputBottomOffset);
   } else {
     createScrollAdjuster(innerHeight);
   }
-
   let commentCreatorContainerRef!: HTMLDivElement;
   createOnResizeScrollAdjuster(() => commentCreatorContainerRef);
+  //#endregion scroll
 
   const [range, setRange] = createSignal<[number, number]>([0, 0], {
     equals: (a, b) => a === b || (!!a && !!b && a[0] === b[0] && a[1] === b[1]),
@@ -175,7 +184,7 @@ export const CommentsPage = () => {
       return;
     }
     if (!comment && isReversed()) {
-      console.log("scrolling to last");
+      // console.log("scrolling to last");
       getVirtualizerHandle()?.scrollToIndex(commentItems().length - 1, {
         smooth: true,
       });
@@ -282,6 +291,61 @@ export const CommentsPage = () => {
   //     },
   //   ),
   // );
+  //
+
+  const variants = ["public", "anonymous"] as const;
+  type Variant = (typeof variants)[number];
+  const [
+    [inputValue, setInputValue],
+    [walletError, setWalletError],
+    [variant, setVariant],
+  ] = createInputState<Variant>(variants[0]);
+
+  const addCommentMutation = createCommentMutation(
+    async (comment) => {
+      await onScrollDown(comment);
+
+      batch(() => {
+        setWalletError(null);
+        setInputValue("");
+      });
+    },
+    () => {
+      setWalletError(null);
+    },
+    (error) => {
+      setWalletError(error);
+    },
+  );
+
+  const unlinkMutation = createUnlinkMutation(
+    walletError,
+    setWalletError,
+    setWalletError,
+  );
+
+  const optimisticModalStatus = createOptimisticModalStatus(walletError);
+
+  const sendComment = (type: Variant) => {
+    const _boardId = boardId();
+    assertOk(_boardId);
+
+    addCommentMutation.mutate({
+      noteID: noteId(),
+      content: inputValue(),
+      type,
+      boardId: _boardId,
+    });
+  };
+  let variantSelectorRef!: HTMLDivElement;
+  const shouldShowVariantSelector = createTransitionPresence({
+    when: () =>
+      (platform !== "android" && platform !== "ios") ||
+      inputValue().length > 0 ||
+      keyboard.isKeyboardOpen(),
+    element: () => variantSelectorRef,
+    animateInitial: false,
+  });
 
   return (
     <main class="flex min-h-screen flex-col bg-secondary-bg px-4">
@@ -479,8 +543,8 @@ export const CommentsPage = () => {
       <Show
         when={
           platform === "ios" &&
-          commentInputTranslateTopPx &&
-          commentInputTranslateTopPx()
+          commentInputBottomOffsetPx &&
+          commentInputBottomOffsetPx()
         }
       >
         {(height) => (
@@ -496,36 +560,104 @@ export const CommentsPage = () => {
       <section
         ref={commentCreatorContainerRef}
         style={
-          platform === "ios" && commentInputTranslateTopPx
+          platform === "ios" && commentInputBottomOffsetPx
             ? {
-                transform: `translateY(-${commentInputTranslateTopPx()})`,
+                transform: `translateY(-${commentInputBottomOffsetPx()})`,
               }
             : undefined
         }
-        class="sticky bottom-0 isolate -mx-2 mt-auto px-2 pb-6 pt-2 [&_*]:overscroll-y-contain"
+        class={clsxString(
+          "sticky bottom-0 isolate -mx-4 mt-auto [&_*]:overscroll-y-contain",
+        )}
       >
         <button
           {...createInputFocusPreventer.FRIENDLY}
           onClick={() => onScrollDown(null)}
           inert={!showBottomScroller()}
           ref={bottomScroller}
+          style={{
+            "--variant-offset":
+              // offsetting when variant selector is shown
+              shouldShowVariantSelector.status() === "present" ? "0px" : "60px",
+          }}
           class={clsxString(
-            "absolute bottom-[calc(100%+12px)] right-0 -z-10 flex aspect-square w-10 items-center justify-center rounded-full bg-section-bg transition-transform contain-strict after:absolute after:-inset-3 after:content-[''] active:scale-90",
-            showBottomScroller() ? "ease-out" : "translate-y-[calc(100%+12px)]",
+            "absolute bottom-[calc(100%+12px)] right-3 -z-10 flex aspect-square w-10 items-center justify-center rounded-full bg-section-bg transition-[transform,opacity] duration-200 will-change-[transform,opacity] contain-strict after:absolute after:-inset-3 after:content-[''] active:scale-90",
             shouldShowBottomScroller.present() ? "visible" : "invisible",
+            shouldShowBottomScroller.status() === "present"
+              ? "translate-y-[--variant-offset]"
+              : "translate-y-[calc(var(--variant-offset)+100%+12px)] opacity-0",
           )}
           aria-label="Scroll to the bottom"
         >
           <ArrowDownIcon class="scale-[85%] text-hint" />
         </button>
-        <div class="absolute inset-0 -z-10 bg-secondary-bg" />
 
-        <CommentCreator
-          disabled={!note.isSuccess}
-          boardId={boardId() ?? null}
-          noteId={noteId()}
-          onCreated={onScrollDown}
-        />
+        <div
+          ref={variantSelectorRef}
+          class={clsxString(
+            "mx-[10px] mb-2 rounded-full backdrop-blur-xl transition-[transform,opacity] duration-200 will-change-[transform,opacity] contain-layout contain-style",
+            shouldShowVariantSelector.present() ? "visible" : "invisible",
+            shouldShowVariantSelector.status() === "present"
+              ? ""
+              : "translate-y-full opacity-0",
+          )}
+        >
+          <VariantSelector
+            setValue={setVariant}
+            value={variant()}
+            variants={variants}
+          />
+        </div>
+
+        <div
+          class={clsxString(
+            "transform-gpu px-4 pt-2 backdrop-blur-xl contain-layout contain-style",
+            keyboard.isKeyboardOpen()
+              ? "pb-2"
+              : "pb-[max(var(--safe-area-inset-bottom,0px),0.5rem)]",
+          )}
+        >
+          <div class="absolute inset-0 -z-10 bg-secondary-bg opacity-50" />
+          <PostInput
+            preventScrollTouches
+            isLoading={addCommentMutation.isPending}
+            onSubmit={() => {
+              if (!inputValue) {
+                return;
+              }
+
+              sendComment(variant());
+            }}
+            value={inputValue()}
+            onChange={setInputValue}
+          />
+        </div>
+
+        <BottomDialog
+          onClose={() => {
+            setWalletError(null);
+          }}
+          when={optimisticModalStatus()}
+        >
+          {(status) => (
+            <WalletModalContent
+              onSend={() => {
+                sendComment(variant());
+                setWalletError(null);
+              }}
+              status={status()}
+              onClose={() => {
+                setWalletError(null);
+              }}
+              onUnlinkWallet={() => {
+                unlinkMutation.mutate();
+              }}
+              onSendPublic={() => {
+                sendComment("public");
+              }}
+            />
+          )}
+        </BottomDialog>
       </section>
     </main>
   );

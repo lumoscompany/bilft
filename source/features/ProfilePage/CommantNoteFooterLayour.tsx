@@ -228,7 +228,11 @@ export const CommentNoteFooterLayout = (props: {
   const isTwoLineLayout = () => layout().length === 2;
 
   return (
-    <div ref={divRef} class="relative flex min-w-full flex-col overflow-hidden">
+    <div
+      ref={divRef}
+      // padding - margin = 0. Just including some space to the element
+      class="relative -my-2 flex min-w-full flex-col overflow-hidden py-2"
+    >
       {/* someone can break layout if name is too long */}
       <div class="flex items-center gap-1">
         <Show
@@ -264,7 +268,7 @@ export const CommentNoteFooterLayout = (props: {
           <A
             href={props.href}
             onClick={() => props.onClick()}
-            class="absolute bottom-0 right-0 bg-secondary-bg pl-2 font-inter text-[15px] leading-[18px] text-accent transition-opacity active:opacity-70"
+            class="absolute bottom-2 right-0 bg-secondary-bg pl-2 font-inter text-[15px] leading-[18px] text-accent transition-opacity before:absolute before:-inset-y-3 before:inset-x-[-4px] before:content-[''] active:opacity-50"
           >
             {showMoreText()}
           </A>
@@ -279,7 +283,7 @@ export const CommentNoteFooterLayout = (props: {
           <A
             href={props.href}
             onClick={() => props.onClick()}
-            class="ml-auto shrink-0 pl-2 font-inter text-[15px] leading-[18px] text-accent transition-opacity active:opacity-70"
+            class="relative ml-auto shrink-0 pl-2 font-inter text-[15px] leading-[18px] text-accent transition-opacity before:absolute before:-inset-y-3 before:inset-x-[-4px] before:content-[''] active:opacity-50"
           >
             {showMoreText()}
           </A>
