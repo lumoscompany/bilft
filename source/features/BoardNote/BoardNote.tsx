@@ -47,8 +47,7 @@ const BoardNoteAuthorHeader = (props: {
         {props.name}
       </div>
       <div class="font-inter text-[13px] leading-4 text-subtitle">
-        posted {formatPostDate(props.createdAt)} at{" "}
-        {formatPostTime(props.createdAt)}
+        {formatPostDate(props.createdAt)} at {formatPostTime(props.createdAt)}
       </div>
     </div>
   </A>
@@ -72,8 +71,7 @@ const BoardNoteAnonymousHeader = (props: {
         Anonymously
       </div>
       <div class="font-inter text-[13px] leading-4 text-subtitle">
-        posted {formatPostDate(props.createdAt)} at{" "}
-        {formatPostTime(props.createdAt)}
+        {formatPostDate(props.createdAt)} at {formatPostTime(props.createdAt)}
       </div>
     </div>
 
