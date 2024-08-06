@@ -56,10 +56,11 @@ import {
   createOptimisticModalStatus,
   createUnlinkMutation,
 } from "../ContentCreator/shared";
+import { Ripples } from "../Ripple";
 import { useInfiniteScroll } from "../infiniteScroll";
 import { createCommentsUrl } from "../navigation";
 import { scrollableElement, setVirtualizerHandle } from "../scroll";
-import { createProfileShareUrl, utils } from "../telegramIntegration";
+import { createProfileShareUrl, isApple, utils } from "../telegramIntegration";
 import { CommentNoteFooterLayout } from "./CommantNoteFooterLayour";
 
 const UserStatus = (props: ParentProps<StyleProps>) => (
@@ -198,54 +199,60 @@ const UserProfilePage = (props: {
     });
   };
 
+  const boardName = () => boardQuery.data?.name;
   const name = () =>
     boardQuery.data?.profile?.title ?? boardQuery.data?.name ?? " ";
 
   return (
     <main class="flex min-h-screen flex-col pb-6 pt-4 text-text">
-      <section class="sticky top-0 z-10 mx-2 flex flex-row items-center gap-3 bg-secondary-bg px-2 py-2">
-        <AvatarIcon
-          size={48}
-          entry={(() => {
-            let photo: string | undefined;
-            if ((photo = boardQuery.data?.profile?.photo)) {
-              return AvatarIconEntryMakeLoaded(photo);
-            }
+      <section class="sticky top-0 z-10 mx-2 flex flex-row items-center gap-3 bg-secondary-bg pl-1 pr-2 py-1">
+        <button
+          disabled={!boardName()}
+          onClick={() => {
+            utils.openTelegramLink("https://t.me/" + boardName());
+          }}
+          class="group relative isolate flex flex-1 flex-row items-center gap-3 overflow-hidden py-1 px-1"
+        >
+          <Show fallback={<Ripples />} when={isApple()}>
+            <div class="pointer-events-none absolute inset-0 -z-10 select-none bg-text opacity-0 transition-opacity ease-out group-active:opacity-10" />
+          </Show>
+          <AvatarIcon
+            size={48}
+            entry={(() => {
+              let photo: string | undefined;
+              if ((photo = boardQuery.data?.profile?.photo)) {
+                return AvatarIconEntryMakeLoaded(photo);
+              }
 
-            let _name: string;
-            if ((_name = name()) && _name !== " ") {
-              return AvatarIconEntryMakeGenerated(_name, props.id);
-            }
-            return AvatarIconEntryLoading;
-          })()}
-        />
-        <div class="flex flex-1 flex-row justify-between">
-          <div class="flex flex-1 flex-col">
-            <p class="relative font-inter text-[20px] font-bold leading-6">
-              {name()}
-              <Show when={boardQuery.isLoading}>
-                <div class="absolute inset-y-1 left-0 right-[50%] animate-pulse rounded-xl bg-gray-600" />
-              </Show>
-            </p>
-            {/* TODO: add date */}
-            {/* <p class="text-[15px] font-inter leading-[22px]">Member since Jan 2021</p> */}
-          </div>
+              let _name: string;
+              if ((_name = name()) && _name !== " ") {
+                return AvatarIconEntryMakeGenerated(_name, props.id);
+              }
+              return AvatarIconEntryLoading;
+            })()}
+          />
+          <p class="pointer-events-none relative font-inter text-[20px] font-bold leading-6">
+            {name()}
+            <Show when={boardQuery.isLoading}>
+              <div class="absolute inset-y-1 left-0 right-[50%] animate-pulse rounded-xl bg-gray-600" />
+            </Show>
+          </p>
+        </button>
 
-          <button
-            class="transition-opacity active:opacity-50"
-            onClick={() => {
-              const url = createProfileShareUrl(props.id);
+        <button
+          class="ml-auto transition-opacity active:opacity-50"
+          onClick={() => {
+            const url = createProfileShareUrl(props.id);
 
-              // server adds (me) postfix to your name
-              const shareText = name().replace(" (me)", "");
-              const shareUrl = url.toString();
-              utils.shareURL(shareUrl, shareText);
-            }}
-          >
-            <span class="sr-only">Share profile</span>
-            <ShareProfileIcon class="text-accent" />
-          </button>
-        </div>
+            // server adds (me) postfix to your name
+            const shareText = name().replace(" (me)", "");
+            const shareUrl = url.toString();
+            utils.shareURL(shareUrl, shareText);
+          }}
+        >
+          <span class="sr-only">Share profile</span>
+          <ShareProfileIcon class="text-accent" />
+        </button>
       </section>
 
       <UserStatus class="mx-4 mt-2 text-button-text">
