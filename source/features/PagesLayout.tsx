@@ -63,7 +63,7 @@ const useStories = (shouldShowMainButton: () => boolean) => {
     mainButton.on("click", () => {
       const mediaUrl =
         import.meta.env.VITE_SELF_WEBAPP_URL +
-        `/assets/stories/${randomInt(1, 8)}${userHasPremium ? "-premium" : ""}.webp`;
+        `/assets/stories/${randomInt(1, 6)}${userHasPremium ? "-premium" : ""}.webp`;
 
       const postLink =
         import.meta.env.VITE_SELF_BOT_WEBAPP_URL +
