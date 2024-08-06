@@ -447,7 +447,7 @@ export const VariantSelector = <T extends string>(props: {
               onClick={() => {
                 setBottomSheet(null);
               }}
-              class="group relative mt-[76px] flex w-full items-center justify-center overflow-hidden rounded-xl bg-accent p-[14px] font-inter text-button-text"
+              class="group relative isolate mt-[76px] flex w-full items-center justify-center overflow-hidden rounded-xl bg-accent p-[14px] font-inter text-button-text"
             >
               <Show when={isApple()} fallback={<Ripples />}>
                 <div class="pointer-events-none absolute inset-0 -z-10 select-none bg-text opacity-0 transition-opacity ease-out group-active:opacity-10" />

@@ -1,13 +1,25 @@
+import { assertOk } from "@/lib/assert";
 import {
   initNavigator,
   type BrowserNavigatorAnyHistoryItem,
 } from "@telegram-apps/sdk";
+import { createContext, useContext } from "solid-js";
 import {
   createCommentPagePathname,
   createCommentPageSearchEntries,
 } from "./CommentsPage/utils";
 import { ProfileIdRemovePrefix, getSelfUserId } from "./idUtils";
 import type { StartParam } from "./parseStartParam";
+
+const NavigationReadyContext = createContext<null | (() => boolean)>(null);
+export const NavigationReadyProvider = NavigationReadyContext.Provider;
+
+export const useNavigationReady = () => {
+  const ctx = useContext(NavigationReadyContext);
+  assertOk(ctx);
+
+  return ctx;
+};
 
 export const createNavigatorFromStartParam = (
   startParam: StartParam | null,
