@@ -127,10 +127,13 @@ const useStories = (shouldShowMainButton: () => boolean) => {
 };
 export const PageLayout: Component<RouteSectionProps> = (props) => {
   const canPostStories = platform === "ios" || platform === "android";
+
+  const [shouldShowOnboarding, onOnboardingClose] = createOnboarding();
   // sharing stories supported from 7.8 version
   if (canPostStories && compareVersions(launchParams.version, "7.8") >= 0) {
     useStories(
       () =>
+        !shouldShowOnboarding() &&
         props.location.pathname.includes("/board") &&
         props.params.idWithoutPrefix === getSelfUserId(),
     );
@@ -140,14 +143,12 @@ export const PageLayout: Component<RouteSectionProps> = (props) => {
   // skipping page load transition
   const [finishedTransition, setFinishedTransition] = createSignal<number>(0);
 
-  const [showShowOnboarding, onOnboardingClose] = createOnboarding();
-
   return (
     <>
       {props.children}
 
       <BottomDialog
-        when={useNavigationReady()() && showShowOnboarding()}
+        when={useNavigationReady()() && shouldShowOnboarding()}
         onClose={onOnboardingClose}
       >
         {() => <OnboardingContent onClose={onOnboardingClose} />}
