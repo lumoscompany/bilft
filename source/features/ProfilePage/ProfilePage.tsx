@@ -370,7 +370,10 @@ const UserProfilePage = (props: {
                     {(boardId) => (
                       <CommentFooter
                         note={note}
-                        href={createCommentsUrl(note.id, false)}
+                        href={createCommentsUrl(
+                          note.id,
+                          note.type === "private",
+                        )}
                         onNavigateNote={beforeNavigateToComment}
                         boardId={boardId()}
                       />
