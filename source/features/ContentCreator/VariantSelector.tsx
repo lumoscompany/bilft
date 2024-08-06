@@ -28,11 +28,11 @@ export const SEND_PRIVATE_TITLE = "Send private";
 export const SEND_ANONYMOUS_TITLE = "Send anonymously";
 
 export const SEND_PUBLIC_DESCRIPTION =
-  "Your name and the content of the post will be visible to everyone.";
+  "Everyone can see the post, and your name will be visible";
 export const SEND_PRIVATE_DESCRIPTION =
-  "A private post is visible only to the two individuals involved. The owner of the board cannot see your name";
+  "Only you and the board owner can see the post, but the board owner won’t see your name, so you stay anonymous";
 export const SEND_ANONYMOUS_DESCRIPTION =
-  "You can post anonymously, and no one will see your name. Maybe you want to ask a question?";
+  "Everyone can see the post, but your name stays hidden";
 
 export type VariantEntry<T extends string> = {
   value: T;
