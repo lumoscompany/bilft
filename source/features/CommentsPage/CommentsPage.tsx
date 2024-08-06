@@ -445,7 +445,7 @@ export const CommentsPage = () => {
                         <Match when={comment().type === "anonymous"}>
                           <div class="col-span-full flex flex-row items-center gap-x-[6px] pl-2 font-inter text-[17px] font-medium leading-[22px] text-text transition-opacity">
                             <AnonymousAvatarIcon class="h-[22px] w-[22px]" />
-                            Anonymous
+                            Anonym
                           </div>
                         </Match>
                       </Switch>

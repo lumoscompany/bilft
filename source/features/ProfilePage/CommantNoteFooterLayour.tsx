@@ -176,7 +176,7 @@ export const CommentNoteFooterLayout = (props: {
   });
   const author = () =>
     props.lastComment.type === "public" ? props.lastComment.author : undefined;
-  const authorName = () => author()?.name ?? "Anonymous";
+  const authorName = () => author()?.name ?? "Anonym";
   const userNameSize = createMemo(() => {
     // tracking font
     isFontLoaded();
