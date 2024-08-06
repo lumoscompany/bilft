@@ -67,6 +67,7 @@ import {
 import { LoadingSvg } from "../LoadingSvg";
 import type { ProfileIdWithoutPrefix } from "../idUtils";
 import { useKeyboardStatus } from "../keyboardStatus";
+import { createBoardUrl } from "../navigation";
 import { createReversingCommentsQuery } from "./createReversingCommentsQuery";
 import {
   createCommentInputBottomOffset,
@@ -421,7 +422,7 @@ export const CommentsPage = () => {
                             <div class="col-span-full flex">
                               <A
                                 class="flex flex-row items-center gap-x-[6px] pl-2 font-inter text-[17px] font-medium leading-[22px] text-text transition-opacity active:opacity-70"
-                                href={`/board/${author().id}`}
+                                href={createBoardUrl(author().id)}
                               >
                                 <AvatarIcon
                                   entry={

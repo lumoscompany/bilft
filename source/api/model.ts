@@ -2,7 +2,7 @@ import type { DateString } from "@/features/format";
 import type { ProfileIdWithoutPrefix } from "@/features/idUtils";
 
 export type ContentAuthor = {
-  id: string;
+  id: ProfileIdWithoutPrefix;
   name: string;
   photo: string;
 };

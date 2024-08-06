@@ -8,6 +8,7 @@ import {
   retrieveLaunchParams,
 } from "@telegram-apps/sdk";
 import { batch, createSignal, onCleanup } from "solid-js";
+import { type ProfileIdWithoutPrefix } from "./idUtils";
 
 export const launchParams = retrieveLaunchParams();
 export const authData = launchParams.initDataRaw;
@@ -68,3 +69,6 @@ export const createTgScreenSize = () => {
 };
 
 export type TelegramScreenSize = ReturnType<typeof createTgScreenSize>;
+
+export const createProfileShareUrl = (userId: ProfileIdWithoutPrefix) =>
+  import.meta.env.VITE_SELF_BOT_WEBAPP_URL + "?startapp=id" + userId;

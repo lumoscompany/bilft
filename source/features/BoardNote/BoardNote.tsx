@@ -10,6 +10,8 @@ import { type StyleProps } from "@/lib/types";
 import { A } from "@solidjs/router";
 import { Show, type ComponentProps, type ParentProps } from "solid-js";
 import { Ripples } from "../Ripple";
+import type { ProfileIdWithoutPrefix } from "../idUtils";
+import { createBoardUrl } from "../navigation";
 import {
   AvatarIcon,
   AvatarIconEntryLoading,
@@ -20,11 +22,11 @@ import {
 const BoardNoteAuthorHeader = (props: {
   name: string;
   avatarUrl: string | null;
-  authorId: string | null;
+  authorId: ProfileIdWithoutPrefix;
   createdAt: DateString;
 }) => (
   <A
-    href={`/board/${props.authorId}`}
+    href={createBoardUrl(props.authorId)}
     class="group relative isolate flex items-center gap-[10px] px-[14px] pb-[10px] pt-[14px]"
   >
     <Show when={isApple()} fallback={<Ripples />}>
@@ -45,8 +47,7 @@ const BoardNoteAuthorHeader = (props: {
         {props.name}
       </div>
       <div class="font-inter text-[13px] leading-4 text-subtitle">
-        posted {formatPostDate(props.createdAt)} at{" "}
-        {formatPostTime(props.createdAt)}
+        {formatPostDate(props.createdAt)} at {formatPostTime(props.createdAt)}
       </div>
     </div>
   </A>
@@ -70,8 +71,7 @@ const BoardNoteAnonymousHeader = (props: {
         Anonymously
       </div>
       <div class="font-inter text-[13px] leading-4 text-subtitle">
-        posted {formatPostDate(props.createdAt)} at{" "}
-        {formatPostTime(props.createdAt)}
+        {formatPostDate(props.createdAt)} at {formatPostTime(props.createdAt)}
       </div>
     </div>
 

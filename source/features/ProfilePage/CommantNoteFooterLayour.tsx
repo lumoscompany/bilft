@@ -9,6 +9,7 @@ import {
   AvatarIconEntryMakeGenerated,
   AvatarIconEntryMakeLoaded,
 } from "../BoardNote/AvatarIcon";
+import { createBoardUrl } from "../navigation";
 import { useScreenSize } from "../screenSize";
 
 const cnv = document.createElement("canvas");
@@ -251,7 +252,7 @@ export const CommentNoteFooterLayout = (props: {
           {(author) => (
             <A
               class="inline-flex shrink-0 gap-1 font-inter text-[14px] font-semibold leading-[18px] transition-opacity active:opacity-70"
-              href={`/board/${author().id}`}
+              href={createBoardUrl(author().id)}
             >
               <AvatarIcon
                 size={18}
