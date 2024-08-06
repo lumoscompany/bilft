@@ -38,7 +38,6 @@ import {
 } from "solid-js";
 import { Virtualizer } from "virtua/solid";
 import { BottomDialog } from "../BottomDialog";
-import { createCommentsPageUrl } from "../CommentsPage/utils";
 import { createInputState } from "../ContentCreator/CommentCreator";
 import { PostInput } from "../ContentCreator/PostInput";
 import {
@@ -58,6 +57,7 @@ import {
   createUnlinkMutation,
 } from "../ContentCreator/shared";
 import { useInfiniteScroll } from "../infiniteScroll";
+import { createCommentsUrl } from "../navigation";
 import { scrollableElement, setVirtualizerHandle } from "../scroll";
 import { utils } from "../telegramIntegration";
 import { CommentNoteFooterLayout } from "./CommantNoteFooterLayour";
@@ -358,7 +358,7 @@ const UserProfilePage = (props: {
                     </Switch>
                     <BoardNote.Divider class="pointer-events-none" />
                     <BoardNote.ContentLink
-                      href={createCommentsPageUrl(note, false)}
+                      href={createCommentsUrl(note.id, false)}
                       onClick={() => {
                         beforeNavigateToComment(note);
                       }}
@@ -370,7 +370,7 @@ const UserProfilePage = (props: {
                     {(boardId) => (
                       <CommentFooter
                         note={note}
-                        href={createCommentsPageUrl(note, false)}
+                        href={createCommentsUrl(note.id, false)}
                         onNavigateNote={beforeNavigateToComment}
                         boardId={boardId()}
                       />

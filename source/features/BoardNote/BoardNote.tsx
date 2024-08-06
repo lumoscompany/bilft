@@ -10,6 +10,8 @@ import { type StyleProps } from "@/lib/types";
 import { A } from "@solidjs/router";
 import { Show, type ComponentProps, type ParentProps } from "solid-js";
 import { Ripples } from "../Ripple";
+import type { ProfileIdWithoutPrefix } from "../idUtils";
+import { createBoardUrl } from "../navigation";
 import {
   AvatarIcon,
   AvatarIconEntryLoading,
@@ -20,11 +22,11 @@ import {
 const BoardNoteAuthorHeader = (props: {
   name: string;
   avatarUrl: string | null;
-  authorId: string | null;
+  authorId: ProfileIdWithoutPrefix;
   createdAt: DateString;
 }) => (
   <A
-    href={`/board/${props.authorId}`}
+    href={createBoardUrl(props.authorId)}
     class="group relative isolate flex items-center gap-[10px] px-[14px] pb-[10px] pt-[14px]"
   >
     <Show when={isApple()} fallback={<Ripples />}>

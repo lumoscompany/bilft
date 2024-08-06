@@ -4,16 +4,16 @@ import { clamp } from "@/lib/clamp";
 import { useSearchParams } from "@solidjs/router";
 import { batch, createEffect, createSignal, on, onCleanup } from "solid-js";
 import { createMutable } from "solid-js/store";
+import { COMMENTS_REVERSED_KEY } from "../navigation";
 
 export const wait = (delayMs: number) =>
   new Promise<void>((resolve) => {
     setTimeout(resolve, delayMs);
   });
 
-const REVERSED_KEY = "reversed";
 export function useReversed() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const isReversed = () => searchParams[REVERSED_KEY] === "true";
+  const isReversed = () => searchParams[COMMENTS_REVERSED_KEY] === "true";
 
   return [
     isReversed,
@@ -21,7 +21,7 @@ export function useReversed() {
       setSearchParams(
         {
           ...searchParams,
-          [REVERSED_KEY]: newIsReversed ? "true" : "false",
+          [COMMENTS_REVERSED_KEY]: newIsReversed ? "true" : "false",
         },
         {
           replace: true,
@@ -31,26 +31,6 @@ export function useReversed() {
     },
   ] as const;
 }
-
-export const createCommentPagePathname = (noteId: string) =>
-  `/comments/${noteId}`;
-
-export const createCommentPageSearchEntries = (reversed: boolean) =>
-  [[REVERSED_KEY, String(reversed)]] satisfies [string, string][];
-
-export const createCommentsPageUrl = (
-  note: { id: string },
-  reversed: boolean,
-) => {
-  const pathname = createCommentPagePathname(note.id);
-  if (!reversed) {
-    return pathname;
-  }
-
-  return `${pathname}?${new URLSearchParams(
-    createCommentPageSearchEntries(reversed),
-  ).toString()}`;
-};
 
 export const createOneSideArraySync = <T>(
   input: () => T[],
