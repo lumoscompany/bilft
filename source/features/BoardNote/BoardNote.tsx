@@ -68,7 +68,7 @@ const BoardNoteAnonymousHeader = (props: {
     />
     <div class="flex flex-col">
       <div class="font-inter text-[17px] font-medium leading-[22px]">
-        Anonymously
+        Anonymous
       </div>
       <div class="font-inter text-[13px] leading-4 text-subtitle">
         {formatPostDate(props.createdAt)} at {formatPostTime(props.createdAt)}
