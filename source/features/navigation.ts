@@ -62,4 +62,3 @@ export const COMMENTS_REVERSED_KEY = "reversed";
 export const createCommentsUrl = (noteId: string, reversed: boolean) => {
   return `/comments/${noteId}?${COMMENTS_REVERSED_KEY}=${reversed}`;
 };
-

@@ -205,13 +205,13 @@ const UserProfilePage = (props: {
 
   return (
     <main class="flex min-h-screen flex-col pb-6 pt-4 text-text">
-      <section class="sticky top-0 z-10 mx-2 flex flex-row items-center gap-3 bg-secondary-bg pl-1 pr-2 py-1">
+      <section class="sticky top-0 z-10 mx-2 flex flex-row items-center gap-3 bg-secondary-bg py-1 pl-1 pr-2">
         <button
           disabled={!boardName()}
           onClick={() => {
             utils.openTelegramLink("https://t.me/" + boardName());
           }}
-          class="group relative isolate flex flex-1 flex-row items-center gap-3 overflow-hidden py-1 px-1"
+          class="group relative isolate flex flex-1 flex-row items-center gap-3 overflow-hidden px-1 py-1"
         >
           <Show fallback={<Ripples />} when={isApple()}>
             <div class="pointer-events-none absolute inset-0 -z-10 select-none bg-text opacity-0 transition-opacity ease-out group-active:opacity-10" />
