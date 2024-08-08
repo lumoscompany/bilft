@@ -302,9 +302,6 @@ const UserProfilePage = (props: {
               onUnlinkWallet={() => {
                 unlinkMutation.mutate();
               }}
-              onSendPublic={() => {
-                sendNote("public");
-              }}
             />
           )}
         </BottomDialog>

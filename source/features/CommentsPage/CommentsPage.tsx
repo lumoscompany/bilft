@@ -726,9 +726,6 @@ export const CommentsFooter = (props: {
               onUnlinkWallet={() => {
                 unlinkMutation.mutate();
               }}
-              onSendPublic={() => {
-                sendComment("public");
-              }}
             />
           )}
         </BottomDialog>
