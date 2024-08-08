@@ -2,6 +2,7 @@ import type { model } from "@/api";
 import {
   fetchMethod,
   getWalletOrLimitError,
+  isWalletError,
   keysFactory,
   type CreateNoteRequest,
 } from "@/api/api";
@@ -14,12 +15,12 @@ export const createNoteMutation = (
   boardId: () => ProfileIdWithoutPrefix,
   onSuccess: () => void,
   onResetError: (value: null) => void,
-  onCreationError: (error: model.WalletOrLimitError) => void,
+  onCreationError: (error: model.LimitReachedError) => void,
 ) => {
   const queryClient = useQueryClient();
   return createMutation(() => ({
-    mutationFn: (request: CreateNoteRequest) => {
-      return ErrorHelper.tryCatchAsyncMap(
+    mutationFn: (request: CreateNoteRequest) =>
+      ErrorHelper.tryCatchAsyncMap(
         () => fetchMethod("/board/createNote", request),
         (error) => {
           if (typeof error !== "object" && error === null) {
@@ -30,14 +31,15 @@ export const createNoteMutation = (
             return null;
           }
           const walletError = getWalletOrLimitError(error.response);
-          if (!walletError) {
+
+          // it's unexpected to throw with wallet error
+          if (!walletError || isWalletError(walletError)) {
             return null;
           }
 
           return walletError;
         },
-      );
-    },
+      ),
     onSettled: () => {
       queryClient.invalidateQueries({
         queryKey: keysFactory.notes({

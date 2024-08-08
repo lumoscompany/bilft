@@ -15,9 +15,9 @@ import { createMemo } from "solid-js";
 import type { ModalStatus } from "./common";
 
 export const createUnlinkMutation = (
-  walletError: () => null | model.WalletOrLimitError,
-  onUnlinkCauseError: (value: model.WalletOrLimitError) => unknown,
-  onFallbackError: (value: model.WalletOrLimitError | null) => unknown,
+  walletError: () => null | model.LimitReachedError,
+  onUnlinkCauseError: (value: model.LimitReachedError) => unknown,
+  onFallbackError: (value: model.LimitReachedError | null) => unknown,
 ) => {
   const queryClient = useQueryClient();
 
@@ -55,11 +55,11 @@ export const createUnlinkMutation = (
 };
 
 export const createOptimisticModalStatus = (
-  error: () => null | model.WalletOrLimitError,
+  error: () => null | model.LimitReachedError,
 ) => {
   const meQuery = createQuery(() => keysFactory.me);
   const walletErrorBody = () => {
-    let _error: model.WalletOrLimitError | null;
+    let _error: model.LimitReachedError | null;
     if ((_error = error())) {
       return walletErrorBodyOf(_error);
     }

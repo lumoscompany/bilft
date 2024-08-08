@@ -16,20 +16,13 @@ import { createSignal } from "solid-js";
 import type { ProfileIdWithoutPrefix } from "../idUtils";
 import { ErrorHelper } from "./common";
 
-export const createInputState = <
-  TVariant extends string,
-  TIsActionLimitPossible extends boolean,
->(
+export const createInputState = <TVariant extends string>(
   initial: TVariant,
 ) => {
   const [inputValue, setInputValue] = createSignal("");
   const [variant, setVariant] = createSignal(initial);
-  const [modalStatus, setModalStatus] = createSignal<
-    | (TIsActionLimitPossible extends true
-        ? model.WalletOrLimitError
-        : model.WalletError)
-    | null
-  >(null);
+  const [modalStatus, setModalStatus] =
+    createSignal<model.LimitReachedError | null>(null);
 
   return [
     [inputValue, setInputValue],
@@ -45,7 +38,7 @@ export function createCommentMutation(
     noteId: string,
   ) => Promise<void>,
   onResetError: () => void,
-  onSendError: (newError: model.WalletError) => unknown,
+  onSendError: (newError: model.LimitReachedError) => unknown,
 ) {
   const queryClient = useQueryClient();
   return createMutation(() => ({
@@ -63,8 +56,8 @@ export function createCommentMutation(
             return null;
           }
           const walletError = getWalletOrLimitError(error.response);
-          // it's unexpected to throw with limit error from adding comment
-          if (!walletError || !isWalletError(walletError)) {
+          // it's unexpected to throw with wallet error
+          if (!walletError || isWalletError(walletError)) {
             return null;
           }
 
