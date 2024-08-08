@@ -573,7 +573,7 @@ export const CommentsFooter = (props: {
     [inputValue, setInputValue],
     [walletError, setWalletError],
     [variant, setVariant],
-  ] = createInputState<Variant, false>(variants[0].value);
+  ] = createInputState<Variant>(variants[0].value);
 
   const addCommentMutation = createCommentMutation(
     async (comment) => {
