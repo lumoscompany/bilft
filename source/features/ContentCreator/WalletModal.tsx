@@ -162,7 +162,6 @@ export const WalletModalContent = (props: {
   status: ModalStatus;
   onClose(): void;
   onUnlinkWallet(): void;
-  onSendPublic(): void;
   onSend(): void;
 }) => {
   const status = () => props.status;
@@ -320,10 +319,10 @@ export const WalletModalContent = (props: {
                         type="button"
                         class="mb-2 pt-[14px] text-center font-inter text-[17px] leading-[22px] text-accent transition-opacity active:opacity-70"
                         onClick={() => {
-                          props.onSendPublic();
+                          props.onClose();
                         }}
                       >
-                        Never mind, I'll post publicly
+                        Cancel
                       </button>
                     </div>
                   </Match>
