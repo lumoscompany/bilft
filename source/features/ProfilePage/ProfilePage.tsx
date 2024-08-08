@@ -155,7 +155,7 @@ const UserProfilePage = (props: {
     [inputValue, setInputValue],
     [walletError, setWalletError],
     [variant, setVariant],
-  ] = createInputState<Variant, true>(variants[2].value);
+  ] = createInputState<Variant>(variants[2].value);
 
   const addNoteMutation = createNoteMutation(
     () => {
@@ -301,9 +301,6 @@ const UserProfilePage = (props: {
               }}
               onUnlinkWallet={() => {
                 unlinkMutation.mutate();
-              }}
-              onSendPublic={() => {
-                sendNote("public");
               }}
             />
           )}

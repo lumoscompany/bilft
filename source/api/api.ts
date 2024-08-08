@@ -91,7 +91,7 @@ export const fetchMethod = async <T extends AvailableRequests>(
 export const getWalletOrLimitError = (response: {
   status: number;
   data: unknown;
-}): model.WalletOrLimitError | null => {
+}): model.WalletError | model.LimitReachedError | null => {
   if (response.status !== 403) {
     return null;
   }
@@ -112,37 +112,31 @@ export const getWalletOrLimitError = (response: {
     return null;
   }
 
-  return data as model.WalletOrLimitError;
+  return data as model.WalletError | model.LimitReachedError;
 };
 export const isWalletError = (
-  error: model.WalletOrLimitError,
+  error: model.WalletError | model.LimitReachedError,
 ): error is model.WalletError =>
   error.error.reason === "insufficient_balance" ||
   error.error.reason === "no_connected_wallet";
 
 export const walletErrorBodyOf = (
-  error: model.WalletOrLimitError,
-): model.WalletError["error"] =>
-  isWalletError(error) ? error.error : error.error.payload.source;
+  error: model.LimitReachedError,
+): model.WalletError["error"] => error.error.payload.source;
 
 export const changeWalletErrorBody = (
-  error: model.WalletOrLimitError,
+  error: model.LimitReachedError,
   newValue: model.WalletError["error"],
-): model.WalletOrLimitError => {
-  if (error.error.reason === "reached_limit") {
-    return {
-      error: {
-        reason: "reached_limit",
-        payload: {
-          limit: error.error.payload.limit,
-          limitResetAt: error.error.payload.limitResetAt,
-          source: newValue,
-        },
-      },
-    };
-  }
+): model.LimitReachedError => {
   return {
-    error: newValue,
+    error: {
+      reason: "reached_limit",
+      payload: {
+        limit: error.error.payload.limit,
+        limitResetAt: error.error.payload.limitResetAt,
+        source: newValue,
+      },
+    },
   };
 };
 

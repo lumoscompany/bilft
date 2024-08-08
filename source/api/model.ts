@@ -66,6 +66,7 @@ export type Error = {
   };
 };
 
+// right now wallet error cannot be thrown - only errors that backend return - is limit errors
 export type WalletError = {
   error: {
     reason: "insufficient_balance" | "no_connected_wallet";
@@ -88,8 +89,6 @@ export type LimitReachedError = {
     };
   };
 };
-
-export type WalletOrLimitError = WalletError | LimitReachedError;
 
 export type Comment = {
   id: string;

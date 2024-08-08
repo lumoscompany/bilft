@@ -8,7 +8,6 @@ import {
   UnlinkIcon,
   YoCoinIcon,
 } from "@/icons";
-import { assertOk } from "@/lib/assert";
 import { clsxString } from "@/lib/clsxString";
 import {
   SignalHelper,
@@ -163,7 +162,6 @@ export const WalletModalContent = (props: {
   status: ModalStatus;
   onClose(): void;
   onUnlinkWallet(): void;
-  onSendPublic(): void;
   onSend(): void;
 }) => {
   const status = () => props.status;
@@ -185,7 +183,7 @@ export const WalletModalContent = (props: {
         props.class ?? "",
       )}
     >
-      Send {postTypeLabel()}
+      Unlimited Anonym & Private
     </p>
   );
   const delayedIsRefetching = createDelayed(
@@ -225,35 +223,20 @@ export const WalletModalContent = (props: {
             const walletError = () =>
               SignalHelper.map(error, walletErrorBodyOf);
 
-            const limit = () =>
-              SignalHelper.map(error, (error) => {
-                assertOk(error.error.reason === "reached_limit");
-                return error.error.payload.limit;
-              });
+            const limit = () => error().error.payload.limit;
 
             return (
               <section class="mt-5 flex flex-1 flex-col items-center">
                 <YoCoinIcon class="mb-6" />
                 <ModalTitle />
                 <p class="mt-2 text-center font-inter text-[17px] leading-[22px] text-hint">
-                  {status().isPrivate
-                    ? `To send more than ${limit()} private posts per day`
-                    : "To send a post anonymously"}
-                  ,you need to have at least{" "}
-                  {renderRequiredBalance(walletError().payload.requiredBalance)}
-                  <Switch>
-                    <Match
-                      when={walletError().reason === "insufficient_balance"}
-                    >
-                      . Please top up your balance
-                    </Match>
-                    <Match
-                      when={walletError().reason === "no_connected_wallet"}
-                    >
-                      {" "}
-                      in your wallet balance
-                    </Match>
-                  </Switch>
+                  Sorry, but daily limit reached ({limit()}).{" "}
+                  {walletError().reason === "insufficient_balance"
+                    ? "Top up"
+                    : "Connect"}{" "}
+                  your wallet with at least{" "}
+                  {renderRequiredBalance(walletError().payload.requiredBalance)}{" "}
+                  tokens to continue. Don’t pay, just HODL
                 </p>
                 <Switch>
                   <Match when={walletError().reason === "insufficient_balance"}>
@@ -336,10 +319,10 @@ export const WalletModalContent = (props: {
                         type="button"
                         class="mb-2 pt-[14px] text-center font-inter text-[17px] leading-[22px] text-accent transition-opacity active:opacity-70"
                         onClick={() => {
-                          props.onSendPublic();
+                          props.onClose();
                         }}
                       >
-                        Never mind, I'll post publicly
+                        Cancel
                       </button>
                     </div>
                   </Match>
@@ -355,8 +338,7 @@ export const WalletModalContent = (props: {
 
             <ModalTitle />
             <p class="mt-2 text-center font-inter text-[17px] leading-[22px] text-hint">
-              Awesome! Now you have enough YO to post {postTypeLabel()}. Click
-              "Send" to post
+              Awesome! Now you have enough YO to continue post {postTypeLabel()}
             </p>
 
             <div class="mb-auto mt-5 flex flex-col self-center rounded-[10px] bg-section-bg px-[10px] py-[6px]">
